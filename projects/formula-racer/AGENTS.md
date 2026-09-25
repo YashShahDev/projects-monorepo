@@ -32,7 +32,7 @@ This guidance does not itself authorize spawning agents.
 
 ## Engineering rules
 
-- Bun and strict TypeScript; no imports into sibling projects. Python is allowed
+- Bun, `bun test`, Oxlint, Oxfmt and strict TypeScript; no imports into sibling projects. Python is allowed
   for Blender tooling. Any new reusable shell script follows the global ~/scripts rules.
 - Simulation has no DOM or Three.js dependencies. The renderer consumes snapshots;
   Rapier types stay behind the physics adapter. Use SI units internally.

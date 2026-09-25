@@ -25,14 +25,14 @@ weather, damage and full regulatory fidelity are later work.
 
 ## Phases
 
-| Phase | Checkpoints | Gate |
-|---|---|---|
-| [P0](phases/P0-foundation.md) | C1 docs; C2 toolchain; C3 verification | Reproducible setup, shared checkpoint system, one draft PR |
-| [P1](phases/P1-technical.md) | C1 browser bundle; C2 rendering/WASM; C3 browser tests | Static build runs and loads assets correctly |
-| [P2](phases/P2-driving.md) | C1 simulation; C2 controls/camera; C3 tuning | Drivable greybox with reproducible scenarios |
-| [P3](phases/P3-time-trial.md) | C1 laps; C2 energy; C3 HUD/persistence | Complete time trial and bounded energy accounting |
-| [P4](phases/P4-content.md) | C1 car pipeline; C2 circuit/liveries; C3 presentation | Detailed original assets, audio and quality presets |
-| [P5](phases/P5-release.md) | C1 baseline; C2 optimization; C3 regression | Measured hardware performance and reviewed first release |
+| Phase                         | Checkpoints                                            | Gate                                                       |
+| ----------------------------- | ------------------------------------------------------ | ---------------------------------------------------------- |
+| [P0](phases/P0-foundation.md) | C1 docs; C2 toolchain; C3 verification                 | Reproducible setup, shared checkpoint system, one draft PR |
+| [P1](phases/P1-technical.md)  | C1 browser bundle; C2 rendering/WASM; C3 browser tests | Static build runs and loads assets correctly               |
+| [P2](phases/P2-driving.md)    | C1 simulation; C2 controls/camera; C3 tuning           | Drivable greybox with reproducible scenarios               |
+| [P3](phases/P3-time-trial.md) | C1 laps; C2 energy; C3 HUD/persistence                 | Complete time trial and bounded energy accounting          |
+| [P4](phases/P4-content.md)    | C1 car pipeline; C2 circuit/liveries; C3 presentation  | Detailed original assets, audio and quality presets        |
+| [P5](phases/P5-release.md)    | C1 baseline; C2 optimization; C3 regression            | Measured hardware performance and reviewed first release   |
 
 Each phase begins with a brief and material clarifications. Each checkpoint has a
 commit, acceptance evidence and a resume action. All phases remain in one draft PR

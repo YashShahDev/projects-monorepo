@@ -14,7 +14,8 @@ summary: Bun owns package management, bundling and unit tests; TypeScript and Pl
 
 Use pinned Bun with a committed lockfile. `Bun.build` takes an HTML browser entrypoint,
 minifies and splits production assets. A TypeScript dev server uses Bun HTML support.
-`tsc --noEmit` checks types independently. Bun tests exercise non-DOM logic; Playwright
+`tsc --noEmit` checks types independently. Per user direction, Oxlint and Oxfmt
+replace ESLint; `bun test` remains the unit/integration test runner. Bun tests exercise non-DOM logic; Playwright
 uses Node LTS for supported CLI execution. Keep tool and browser TypeScript environments
 separate when browser code arrives. Hosting is static.
 

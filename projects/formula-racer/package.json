@@ -1,0 +1,34 @@
+{
+  "name": "formula-racer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun run tools/phase-zero.ts",
+    "test": "bun test tests",
+    "typecheck": "tsc --noEmit",
+    "lint": "bun run typecheck && oxlint --deny-warnings . && oxfmt --check . && bun run tools/check-docs.ts",
+    "doctor": "bun run tools/doctor.ts",
+    "verify:prerequisites": "bun run tools/verify-prerequisites.ts",
+    "browsers:install": "node node_modules/@playwright/test/cli.js install chromium firefox",
+    "format": "oxfmt --write ."
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "4.5.0",
+    "@playwright/test": "1.63.0",
+    "@types/bun": "1.4.2",
+    "@types/three": "0.186.0",
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "bun": "1.4.2",
+    "node": ">=24.21.0 <25"
+  },
+  "packageManager": "bun@1.4.2"
+}

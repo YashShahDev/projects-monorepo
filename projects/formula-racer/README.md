@@ -12,7 +12,7 @@ Start with [STATUS](docs/STATUS.md), [setup](docs/SETUP.md) and the
 ## Planned stack
 
 Bun manages packages, development serving, browser bundling and unit tests.
-TypeScript is checked independently with `tsc`. Three.js renders WebGL2; Rapier
+TypeScript is checked independently with `tsc`; Oxlint and Oxfmt handle lint and format checks. Three.js renders WebGL2; Rapier
 WASM owns rigid bodies and collisions. Blender exports optimized GLB assets.
 Plain HTML/CSS supports the menus and HUD. Production is statically hosted.
 
