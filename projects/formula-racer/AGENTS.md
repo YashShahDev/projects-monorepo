@@ -49,11 +49,15 @@ This guidance does not itself authorize spawning agents.
 ## Phase review
 
 After each phase, get an independent review of that phase's commits before starting
-the next one. Prefer Codex with the `gpt-6-astra` model. If Codex is unavailable or
-has hit a usage limit, use another independent reviewer instead — for example a
-freshly started review agent with no stake in the implementation — and note which
-reviewer and model ran. Reproduce each finding before fixing it; record accepted and
-rejected findings with reasons in the phase's checkpoint record.
+the next one, trying reviewers in this order and noting which reviewer and model ran:
+
+1. Codex with the `gpt-6-astra` model.
+2. If Codex is unavailable or out of usage: the Antigravity CLI, read-only, e.g.
+   `agv -p --mode plan "Review git diff <base>..HEAD in projects/formula-racer ..."`.
+3. If neither is available: a freshly started review agent with no stake in the work.
+
+Reproduce each finding before fixing it; record accepted and rejected findings with
+reasons in the phase's checkpoint record.
 
 ## Usage limits and restarts
 
