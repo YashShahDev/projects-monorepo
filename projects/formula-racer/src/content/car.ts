@@ -43,7 +43,7 @@ export interface CarDefinition {
   };
   steering: { maxAngleRad: number };
   brakes: { maxForceN: number; frontBias: number };
-  powertrain: { maxPowerW: number; maxDriveForceN: number; gearbox: GearboxDefinition };
+  powertrain: PowertrainDefinition;
   aero: {
     /** Drag coefficient × frontal area. */
     dragAreaM2: number;
@@ -54,6 +54,17 @@ export interface CarDefinition {
   };
 }
 
+export interface PowertrainDefinition {
+  maxPowerW: number;
+  /** Traction-limited cap on total drive force at low speed. */
+  maxDriveForceN: number;
+  /** [rpm, share of maxPowerW] points, rpm increasing; linear between, flat outside. */
+  powerCurve: [number, number][];
+  /** Drive is cut for this long on each upshift. */
+  shiftTimeS: number;
+  gearbox: GearboxDefinition;
+}
+
 export interface GearboxDefinition {
   idleRpm: number;
   /** Automatic shift points; the gap between them stops the box hunting. */
@@ -62,6 +73,20 @@ export interface GearboxDefinition {
   redlineRpm: number;
   /** Road speed at the redline in each gear, lowest first. */
   gearTopSpeedsKmh: number[];
+}
+
+function parsePowerCurve(value: unknown, source: string): [number, number][] {
+  return array(value, source, 2).map((point, i, all) => {
+    const field = `${source}[${String(i)}]`;
+    const pair = array(point, field, 2);
+    const rpm = positive(pair[0], `${field}[0]`);
+    const share = inRange(pair[1], `${field}[1]`, 0, 1);
+    const before = i > 0 ? Number((all[i - 1] as unknown[] | undefined)?.[0]) : 0;
+    if (i > 0 && !(rpm > before)) {
+      throw new ContentError(`${field} rpm must be greater than the point before`);
+    }
+    return [rpm, share];
+  });
 }
 
 function parseGearbox(value: unknown, source: string): GearboxDefinition {
@@ -130,6 +155,8 @@ export function parseCar(value: unknown, source = "car"): CarDefinition {
     powertrain: {
       maxPowerW: positive(powertrain.maxPowerW, `${source}.powertrain.maxPowerW`),
       maxDriveForceN: positive(powertrain.maxDriveForceN, `${source}.powertrain.maxDriveForceN`),
+      powerCurve: parsePowerCurve(powertrain.powerCurve, `${source}.powertrain.powerCurve`),
+      shiftTimeS: inRange(powertrain.shiftTimeS, `${source}.powertrain.shiftTimeS`, 0, 0.5),
       gearbox: parseGearbox(powertrain.gearbox, `${source}.powertrain.gearbox`),
     },
     aero: {

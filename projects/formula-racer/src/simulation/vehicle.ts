@@ -2,6 +2,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import type { CarDefinition } from "../content/car.ts";
 import type { Vec3 } from "../content/validate.ts";
 import { initPhysics } from "./physics.ts";
+import { createPowertrain } from "./powertrain.ts";
 import type { Pose, Quat } from "./physics.ts";
 import { PHYSICS_VERSION } from "./version.ts";
 
@@ -52,6 +53,8 @@ export interface VehicleSnapshot {
   /** Order: front-left, front-right, rear-left, rear-right. */
   wheels: WheelState[];
   applied: DriverControls;
+  gear: number;
+  rpm: number;
   assists: DriverAssists;
 }
 
@@ -156,6 +159,8 @@ export async function createVehicleSimulation(
 
   let simSeconds = 0;
   let applied: DriverControls = { ...NO_CONTROLS };
+  const powertrain = createPowertrain(car.powertrain);
+  let drivetrain = powertrain.update(0, 0, stepSeconds);
   let assists: DriverAssists = { ...(options.assists ?? ALL_ASSISTS) };
   let disposed = false;
   // Longitudinal force a wheel can add before it slides, from the last step's load and
@@ -223,8 +228,8 @@ export async function createVehicleSimulation(
         steer: clamp(controls.steer, -1, 1),
       };
       const speed = Math.abs(vehicle.currentVehicleSpeed());
-      const p = car.powertrain;
-      const drive = applied.throttle * Math.min(p.maxDriveForceN, p.maxPowerW / Math.max(speed, 1));
+      drivetrain = powertrain.update(applied.throttle, speed, stepSeconds);
+      const drive = drivetrain.driveForceN;
       if (options.gripAt) {
         for (let i = 0; i < 4; i += 1) {
           const p = wheelPoints[i] ?? { x: 0, y: 0, z: 0 };
@@ -278,6 +283,8 @@ export async function createVehicleSimulation(
       body.resetForces(true);
       body.resetTorques(true);
       applied = { ...NO_CONTROLS };
+      powertrain.reset();
+      drivetrain = powertrain.update(0, 0, stepSeconds);
     },
     snapshot() {
       assertLive();
@@ -301,6 +308,8 @@ export async function createVehicleSimulation(
         speedMps: vehicle.currentVehicleSpeed(),
         wheels,
         applied: { ...applied },
+        gear: drivetrain.gear,
+        rpm: drivetrain.rpm,
         assists: { ...assists },
       };
     },

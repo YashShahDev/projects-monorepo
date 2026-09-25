@@ -3,7 +3,6 @@ import type { TrackDefinition } from "../content/track.ts";
 import { createCameraRig } from "../rendering/camera-rig.ts";
 import type { CameraMode, CameraView } from "../rendering/camera-rig.ts";
 import { FixedStepper } from "../simulation/fixed-step.ts";
-import { createGearbox } from "../simulation/gearbox.ts";
 import { createInputSmoother } from "../simulation/input-smoothing.ts";
 import type { DigitalInput } from "../simulation/input-smoothing.ts";
 import { buildTrackGeometry } from "../simulation/track-geometry.ts";
@@ -60,13 +59,11 @@ export async function createDrivingSession(
   });
   const stepper = new FixedStepper(sim.stepSeconds, MAX_STEPS_PER_FRAME);
   const smoother = createInputSmoother();
-  const gearbox = createGearbox(car.powertrain.gearbox);
   const camera = createCameraRig();
   let paused = false;
   // The first frame after a pause reports the whole paused gap; it must not be simulated.
   let skipNextFrame = false;
   let cameraMode: CameraMode = "chase";
-  let gear = gearbox.update(0);
   let hint: number | undefined;
 
   const locate = () => {
@@ -89,7 +86,6 @@ export async function createDrivingSession(
         for (let i = 0; i < steps; i += 1) {
           const speed = sim.snapshot().speedMps;
           sim.step(smoother.update(held, speed, sim.stepSeconds));
-          gear = gearbox.update(sim.snapshot().speedMps);
         }
       }
       return camera.update(sim.snapshot(), frameSeconds);
@@ -102,10 +98,8 @@ export async function createDrivingSession(
       } else if (action === "reset") {
         sim.reset();
         smoother.reset();
-        gearbox.reset();
         camera.reset();
         stepper.reset();
-        gear = gearbox.update(0);
         hint = undefined;
       } else {
         cameraMode = camera.cycle();
@@ -125,8 +119,8 @@ export async function createDrivingSession(
         paused,
         simSeconds: snapshot.simSeconds,
         speedKmh: snapshot.speedMps * 3.6,
-        gear: gear.gear,
-        rpm: gear.rpm,
+        gear: snapshot.gear,
+        rpm: snapshot.rpm,
         lapDistanceM: location.distanceM,
         surface: location.surface,
         camera: cameraMode,

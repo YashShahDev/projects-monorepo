@@ -21,8 +21,8 @@ summary: P2 in progress; P2-C1 and P2-C2 done, next P2-C3 surfaces, aero and pow
 
 ## Next action
 
-P2-C3 in progress; aero (drag, downforce) and per-wheel surface grip are done (physics
-`p2.3`). Next, test-first: a powertrain module that uses the gearbox; a development tuning panel;
+P2-C3 in progress; aero, per-wheel surface grip and the powertrain are done (physics
+`p2.4`). Next, test-first: a development tuning panel;
 structural changes applied on reset; bump `PHYSICS_VERSION` again. Then close P2 with
 `make test-full`, the phase review (Codex `gpt-6-astra`, falling back to
 `/antigravity:review`; see AGENTS.md) and the P2 gate evidence.

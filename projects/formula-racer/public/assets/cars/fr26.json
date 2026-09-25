@@ -26,6 +26,13 @@
   "powertrain": {
     "maxPowerW": 700000,
     "maxDriveForceN": 11000,
+    "powerCurve": [
+      [4000, 0.45],
+      [7000, 0.75],
+      [10500, 1],
+      [12500, 0.94]
+    ],
+    "shiftTimeS": 0.05,
     "gearbox": {
       "idleRpm": 4000,
       "upshiftRpm": 11800,
