@@ -5,7 +5,7 @@ type: status
 status: active
 date: 2026-09-26
 updated: 2026-09-26
-summary: P1 is complete; resume at the P2 driving-prototype brief.
+summary: P2 in progress; P2-C1 vehicle simulation done, next P2-C2 controls and camera.
 ---
 
 # Current delivery status
@@ -14,42 +14,44 @@ summary: P1 is complete; resume at the P2 driving-prototype brief.
 - Base: `origin/main`, `ef7ad88` at creation.
 - Completed phases: P0 — documentation and prerequisites; P1 — browser technical
   foundation ([record](checkpoints/P1.md)).
-- Next checkpoint: P2-C1, planned; no P2 implementation has started.
+- Active phase: P2 — driving prototype ([record](checkpoints/P2.md)).
+- Next checkpoint: P2-C2 controls, assists, gears, chase camera, greybox track.
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
-- Session boundary: P1 complete; stop before P2.
+- Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
 ## Next action
 
-Read [P2](phases/P2-driving.md), [ARCHITECTURE](ARCHITECTURE.md) and
-[ADR-002](decisions/ADR-002-physics-boundary.md). Check branch/status, give a short
-phase brief and ask about any handling preference beyond the accessible-sim default.
-P2-C1 starts with the 60 Hz fixed-rate stepper that replaces the P1 probe's
-one-physics-step-per-frame loop in `src/app/probe-app.ts`.
+P2-C2: keyboard input adapter (clears on blur), speed-sensitive steering smoothing,
+toggleable steering/brake/traction assists, automatic gears, chase camera, pause on
+focus loss and Escape, R reset, on a greybox of the ~4 km circuit layout. Replace the
+P1 probe app and update browser tests. Handling preferences are in [P2](phases/P2-driving.md).
 
 ## Checkpoints
 
-| ID    | State   | Evidence                                               |
-| ----- | ------- | ------------------------------------------------------ |
-| P0-C1 | done    | `35d4059`; [P0 record](checkpoints/P0.md)              |
-| P0-C2 | done    | `1df7e26`; [tooling evidence](checkpoints/P0.md)       |
-| P0-C3 | done    | `d8f8b38`; [verification](checkpoints/P0.md)           |
-| P1-C1 | done    | `2c619ed`; [P1 record](checkpoints/P1.md)              |
-| P1-C2 | done    | `c4768e0`; [P1 record](checkpoints/P1.md)              |
-| P1-C3 | done    | This checkpoint commit; [P1 record](checkpoints/P1.md) |
-| P2–P5 | planned | [Roadmap](ROADMAP.md)                                  |
+| ID    | State   | Evidence                                                        |
+| ----- | ------- | --------------------------------------------------------------- |
+| P0-C1 | done    | `35d4059`; [P0 record](checkpoints/P0.md)                       |
+| P0-C2 | done    | `1df7e26`; [tooling evidence](checkpoints/P0.md)                |
+| P0-C3 | done    | `d8f8b38`; [verification](checkpoints/P0.md)                    |
+| P1-C1 | done    | `2c619ed`; [P1 record](checkpoints/P1.md)                       |
+| P1-C2 | done    | `c4768e0`; [P1 record](checkpoints/P1.md)                       |
+| P1-C3 | done    | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md) |
+| P2-C1 | done    | This checkpoint commit; [P2 record](checkpoints/P2.md)          |
+| P2-C2 | planned | [P2](phases/P2-driving.md)                                      |
+| P2-C3 | planned | [P2](phases/P2-driving.md)                                      |
+| P3–P5 | planned | [Roadmap](ROADMAP.md)                                           |
 
-Find checkpoint commits with `git log --oneline --grep='P1-C'`.
+Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
 ## Verified
 
-P1: Bun dev server and production build; static delivery at the root and under a URL
-subpath; Three.js WebGL2 probe scene with a Rapier WASM world; recoverable startup
-errors; 44 Bun unit tests and 24 Playwright tests (Chromium dev/prod/subpath, Firefox
-smoke) through the full suite, now named `make test-full`. Headless software GL only.
+P2-C1: fixed 60 Hz stepper with bounded catch-up; Rapier raycast-wheel vehicle behind
+`VehicleSimulation`; 67 unit tests including bit-identical state at 30/60/144 Hz.
 
-Local testing follow-up: `make test` runs unit tests plus Chromium dev checks;
-`make test-full` retains the complete matrix for explicit verification and future CI.
-CI wiring is deferred. See [P1 follow-up evidence](checkpoints/P1.md).
+P1: Bun dev server and production build; static delivery at the root and under a URL
+subpath; recoverable startup errors; Playwright suite. `make test` runs unit tests plus
+Chromium dev checks; `make test-full` runs the complete browser matrix (Chromium
+dev/prod/subpath, Firefox smoke). Headless software GL only. CI wiring is deferred.
 
 P0: pinned Bun/Node/GitHub CLI and native asset tools; frozen dependency install;
 strict TypeScript, Oxlint, Oxfmt and local documentation links; doctor; Blender
@@ -58,14 +60,12 @@ authenticated GitHub endpoint responds.
 
 ## Known limits
 
-No gameplay, hardware graphics benchmark or regulation-accurate model exists yet.
-Physics currently steps once per displayed frame (P2-C1 fixes this). The production
-script is 4.88 MB raw / 1.79 MB gzip, mostly Rapier's base64-inlined WASM; separate
-WASM delivery awaits a hardware startup measurement. Static hosts must redirect a bare
-subpath to its trailing-slash form. Blender interactive GUI was not exercised. Full LFS
-object upload/download is gated before the first large assets in P4. Arch uses
-Playwright's fallback builds; rerun prerequisite verification after browser updates.
+No gameplay UI yet; the browser still runs the P1 probe scene until P2-C2. No drag, so
+top speed is unbounded until P2-C3. The production script is 4.88 MB raw / 1.79 MB
+gzip, mostly Rapier's base64-inlined WASM. Static hosts must redirect a bare subpath
+to its trailing-slash form. No hardware graphics benchmark or regulation-accurate
+model. Full LFS object transfer is gated before the first large assets in P4. Arch
+uses Playwright's fallback builds.
 
 The unrelated untracked `projects/text_tools.py` is preserved and must not be staged.
-Repository docs remain the shared source of truth; the private knowledge base mirrors
-durable findings only.
+Repository docs remain the shared source of truth.

@@ -2,7 +2,7 @@
 id: P2
 title: P2 — Driving prototype
 type: phase
-status: planned
+status: in_progress
 date: 2026-09-26
 updated: 2026-09-26
 summary: Build accessible vehicle motion with replaceable physics modules.

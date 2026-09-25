@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "fr26",
+  "name": "FR-26",
+  "massKg": 800,
+  "centerOfMass": { "x": 0, "y": -0.12, "z": -0.15 },
+  "inertiaKgM2": { "x": 1200, "y": 1400, "z": 250 },
+  "chassisHalfExtents": { "x": 0.85, "y": 0.22, "z": 2.5 },
+  "wheels": {
+    "frontAxleZ": 1.8,
+    "rearAxleZ": -1.6,
+    "halfTrack": 0.8,
+    "connectionY": 0,
+    "radius": 0.36,
+    "suspensionRestLength": 0.16,
+    "maxSuspensionTravel": 0.08,
+    "suspensionStiffness": 70,
+    "suspensionCompression": 6,
+    "suspensionRelaxation": 5,
+    "maxSuspensionForceN": 40000,
+    "frictionCoefficient": 1.8,
+    "sideFrictionStiffness": 1
+  },
+  "steering": { "maxAngleRad": 0.38 },
+  "brakes": { "maxForceN": 32000, "frontBias": 0.58 },
+  "powertrain": { "maxPowerW": 700000, "maxDriveForceN": 11000 }
+}
