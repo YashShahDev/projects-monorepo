@@ -3,9 +3,10 @@ SHELL := /bin/sh
 # mise selects project-local versions without changing global defaults.
 RUN := MISE_AUTO_INSTALL=0 mise exec --
 
-.PHONY: help setup install doctor verify-prerequisites browsers-install dev build preview test test-unit test-browser lint clean
+.PHONY: help setup install doctor verify-prerequisites browsers-install dev build preview test test-full test-unit test-browser test-browser-full lint clean
 help:
-	@echo "Formula Racer: setup doctor verify-prerequisites dev build preview test test-unit test-browser lint clean"
+	@echo "Formula Racer: setup doctor verify-prerequisites dev build preview test test-full test-unit test-browser test-browser-full lint clean"
+	@echo "test runs unit + Chromium dev checks; test-full adds the complete browser matrix."
 	@echo "preview serves dist/; pass BASE=/some/path/ to check subpath hosting."
 setup: install browsers-install
 install:
@@ -23,11 +24,14 @@ build:
 preview:
 	$(RUN) bun run preview --base "$(or $(BASE),/)"
 test: test-unit test-browser
+test-full: test-unit test-browser-full
 test-unit:
 	$(RUN) bun run test
-# Browser tests serve dist/, so they always run against a fresh production build.
-test-browser: build
+test-browser:
 	$(RUN) bun run test:browser
+# The full matrix serves dist/, so it always runs against a fresh production build.
+test-browser-full: build
+	$(RUN) bun run test:browser:full
 lint:
 	$(RUN) bun run lint
 clean:

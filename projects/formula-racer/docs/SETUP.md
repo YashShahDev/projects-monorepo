@@ -131,14 +131,21 @@ mise exec -- bun run format
 - `verify-prerequisites`: launches isolated headless Chromium and Firefox, executes a
   DOM page, exports a disposable GLB/PNG with Blender, encodes KTX2 and inspects the GLB.
   Temporary fixtures are removed in a `finally` block, including on failures.
-- `test`: `test-unit` then `test-browser`. Needs `make setup`'s Playwright browsers.
+- `test`: local default, `test-unit` then `test-browser`. Needs Playwright Chromium.
 - `test-unit`: `bun test tests` — tooling, content validation, static serving, build
   output and Rapier physics behavior. Bun only discovers `*.test.ts`.
-- `test-browser`: fresh production build, then Playwright (`tests/browser/*.pw.ts`, run
+- `test-browser`: Chromium development checks only (currently four tests), using
+  `playwright.local.config.ts` and the dev server on port 4310. No production build
+  or Firefox launch. `bun run test:browser` selects the same local configuration.
+- `test-full`: unit tests plus `test-browser-full`, available for future CI or an
+  explicit full verification. CI wiring is deferred.
+- `test-browser-full`: fresh production build, then Playwright (`tests/browser/*.pw.ts`, run
   with Node) against the dev server (port 4310), production at the root (4311) and
   under `/games/formula-racer/` (4312). Chromium runs everything; Firefox runs `@smoke`.
   Production tests observe physics through screenshots under Playwright's fake clock,
   which also drives `requestAnimationFrame`, so they need no test hooks.
+  `bun run test:browser:full` runs this matrix but requires a current `dist/`;
+  prefer `make test-browser-full` to build it automatically.
 - `lint`: strict TypeScript, Oxlint, Oxfmt check and local documentation-file links.
   The link checker does not validate external sites or heading anchors.
 - `dev`: Bun dev server with HTML bundling and hot reload at `http://localhost:3000/`

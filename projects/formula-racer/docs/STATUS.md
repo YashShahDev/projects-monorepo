@@ -45,7 +45,11 @@ Find checkpoint commits with `git log --oneline --grep='P1-C'`.
 P1: Bun dev server and production build; static delivery at the root and under a URL
 subpath; Three.js WebGL2 probe scene with a Rapier WASM world; recoverable startup
 errors; 44 Bun unit tests and 24 Playwright tests (Chromium dev/prod/subpath, Firefox
-smoke) through `make test`. Headless software GL only.
+smoke) through the full suite, now named `make test-full`. Headless software GL only.
+
+Local testing follow-up: `make test` runs unit tests plus Chromium dev checks;
+`make test-full` retains the complete matrix for explicit verification and future CI.
+CI wiring is deferred. See [P1 follow-up evidence](checkpoints/P1.md).
 
 P0: pinned Bun/Node/GitHub CLI and native asset tools; frozen dependency install;
 strict TypeScript, Oxlint, Oxfmt and local documentation links; doctor; Blender
