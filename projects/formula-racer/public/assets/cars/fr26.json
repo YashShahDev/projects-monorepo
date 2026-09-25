@@ -14,9 +14,9 @@
     "radius": 0.36,
     "suspensionRestLength": 0.16,
     "maxSuspensionTravel": 0.08,
-    "suspensionStiffness": 70,
-    "suspensionCompression": 6,
-    "suspensionRelaxation": 5,
+    "suspensionStiffness": 200,
+    "suspensionCompression": 10,
+    "suspensionRelaxation": 8.5,
     "maxSuspensionForceN": 40000,
     "frictionCoefficient": 1.8,
     "sideFrictionStiffness": 1
@@ -33,5 +33,6 @@
       "redlineRpm": 12500,
       "gearTopSpeedsKmh": [95, 130, 165, 200, 235, 270, 305, 345]
     }
-  }
+  },
+  "aero": { "dragAreaM2": 1.36, "downforceAreaM2": 4.0, "frontShare": 0.38 }
 }

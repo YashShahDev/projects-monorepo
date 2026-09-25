@@ -21,10 +21,10 @@ summary: P2 in progress; P2-C1 and P2-C2 done, next P2-C3 surfaces, aero and pow
 
 ## Next action
 
-P2-C3, test-first: surface grip from `TrackGeometry.locate` (road/kerb/grass μ, so
-traction control matters off the road); speed-squared drag and downforce (bounded top
-speed ≈ 340 km/h); a powertrain module that uses the gearbox; a development tuning panel;
-structural changes applied on reset; bump `PHYSICS_VERSION`. Then close P2 with
+P2-C3 in progress; aero (drag, downforce, physics `p2.2`) is done. Next, test-first:
+surface grip from `TrackGeometry.locate` (road/kerb/grass μ, so traction control matters
+off the road); a powertrain module that uses the gearbox; a development tuning panel;
+structural changes applied on reset; bump `PHYSICS_VERSION` again. Then close P2 with
 `make test-full`, the phase review (Codex `gpt-6-astra`, falling back to
 `/antigravity:review`; see AGENTS.md) and the P2 gate evidence.
 
@@ -67,8 +67,7 @@ authenticated GitHub endpoint responds.
 
 ## Known limits
 
-No drag or rolling resistance, so top speed is unbounded and a coasting car keeps its
-speed until P2-C3. Everything off the road has road grip until P2-C3. Kerb stripes are
+No rolling resistance yet. Everything off the road has road grip until P2-C3. Kerb stripes are
 interpolated vertex colours (greybox). The production script is 4.88 MB raw / 1.79 MB
 gzip, mostly Rapier's base64-inlined WASM. Static hosts must redirect a bare subpath
 to its trailing-slash form. No hardware graphics benchmark or regulation-accurate

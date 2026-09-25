@@ -64,9 +64,10 @@ async function drive(assists: DriverAssists, m: Manoeuvre) {
   };
 }
 
+// Below the speeds where downforce steadies the rear, braking hard with half lock slides it.
 const trailBraking: Manoeuvre = {
-  fromKmh: 150,
-  controls: { throttle: 0, brake: 1, steer: 1 },
+  fromKmh: 120,
+  controls: { throttle: 0, brake: 1, steer: 0.5 },
   seconds: 1.5,
 };
 

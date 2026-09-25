@@ -44,6 +44,14 @@ export interface CarDefinition {
   steering: { maxAngleRad: number };
   brakes: { maxForceN: number; frontBias: number };
   powertrain: { maxPowerW: number; maxDriveForceN: number; gearbox: GearboxDefinition };
+  aero: {
+    /** Drag coefficient × frontal area. */
+    dragAreaM2: number;
+    /** Lift coefficient × area, as downforce; zero is allowed. */
+    downforceAreaM2: number;
+    /** Share of downforce acting at the front axle. */
+    frontShare: number;
+  };
 }
 
 export interface GearboxDefinition {
@@ -88,6 +96,7 @@ export function parseCar(value: unknown, source = "car"): CarDefinition {
   const steering = object(root.steering, `${source}.steering`);
   const brakes = object(root.brakes, `${source}.brakes`);
   const powertrain = object(root.powertrain, `${source}.powertrain`);
+  const aero = object(root.aero, `${source}.aero`);
   const car: CarDefinition = {
     version: 1,
     id: text(root.id, `${source}.id`),
@@ -122,6 +131,11 @@ export function parseCar(value: unknown, source = "car"): CarDefinition {
       maxPowerW: positive(powertrain.maxPowerW, `${source}.powertrain.maxPowerW`),
       maxDriveForceN: positive(powertrain.maxDriveForceN, `${source}.powertrain.maxDriveForceN`),
       gearbox: parseGearbox(powertrain.gearbox, `${source}.powertrain.gearbox`),
+    },
+    aero: {
+      dragAreaM2: positive(aero.dragAreaM2, `${source}.aero.dragAreaM2`),
+      downforceAreaM2: inRange(aero.downforceAreaM2, `${source}.aero.downforceAreaM2`, 0, 20),
+      frontShare: inRange(aero.frontShare, `${source}.aero.frontShare`, 0, 1),
     },
   };
   return car;

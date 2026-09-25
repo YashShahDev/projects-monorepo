@@ -85,6 +85,7 @@ const ASSIST_GRIP_MARGIN = 0.9;
 // 100–250 km/h with the shipped tyre settings.
 const PEAK_SLIP_RAD = 0.015;
 const GRAVITY = 9.81;
+const AIR_DENSITY_KG_M3 = 1.225;
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
@@ -168,6 +169,46 @@ export async function createVehicleSimulation(
     if (disposed) throw new Error("vehicle simulation used after dispose()");
   };
 
+  const localPoint = (x: number, y: number, z: number) => {
+    const r = body.rotation();
+    const t = body.translation();
+    // Rotate by the chassis quaternion: v' = v + 2w(q×v) + 2q×(q×v).
+    const cx = r.y * z - r.z * y;
+    const cy = r.z * x - r.x * z;
+    const cz = r.x * y - r.y * x;
+    return {
+      x: t.x + x + 2 * (r.w * cx + r.y * cz - r.z * cy),
+      y: t.y + y + 2 * (r.w * cy + r.z * cx - r.x * cz),
+      z: t.z + z + 2 * (r.w * cz + r.x * cy - r.y * cx),
+    };
+  };
+  // Drag opposes the velocity; downforce presses along the chassis's down axis at each
+  // axle, so it moves with pitch and roll and loads the tyres the vehicle controller reads.
+  const applyAero = (dynamicPressure: number, downforceN: number): void => {
+    const v = body.linvel();
+    const speed = Math.hypot(v.x, v.y, v.z);
+    if (speed > 1e-3) {
+      const drag = (dynamicPressure * car.aero.dragAreaM2 * stepSeconds) / speed;
+      body.applyImpulse({ x: -v.x * drag, y: -v.y * drag, z: -v.z * drag }, true);
+    }
+    if (downforceN <= 0) return;
+    const origin = localPoint(0, 0, 0);
+    const below = localPoint(0, -1, 0);
+    const down = { x: below.x - origin.x, y: below.y - origin.y, z: below.z - origin.z };
+    const shares: [number, number][] = [
+      [w.frontAxleZ, car.aero.frontShare],
+      [w.rearAxleZ, 1 - car.aero.frontShare],
+    ];
+    for (const [axleZ, share] of shares) {
+      const impulse = downforceN * share * stepSeconds;
+      body.applyImpulseAtPoint(
+        { x: down.x * impulse, y: down.y * impulse, z: down.z * impulse },
+        localPoint(0, w.connectionY, axleZ),
+        true,
+      );
+    }
+  };
+
   return {
     stepSeconds,
     car,
@@ -181,14 +222,16 @@ export async function createVehicleSimulation(
       const speed = Math.abs(vehicle.currentVehicleSpeed());
       const p = car.powertrain;
       const drive = applied.throttle * Math.min(p.maxDriveForceN, p.maxPowerW / Math.max(speed, 1));
+      const a = car.aero;
+      const dynamicPressure = 0.5 * AIR_DENSITY_KG_M3 * speed * speed;
+      const downforceN = dynamicPressure * a.downforceAreaM2;
       let steerRad = -applied.steer * car.steering.maxAngleRad;
       if (assists.steering) {
         // Past the angle that already uses all the front grip, extra lock only scrubs
         // speed, so cap it at the kinematic angle for a limit corner plus peak slip.
         const wheelbase = w.frontAxleZ - w.rearAxleZ;
-        const limitRad =
-          (wheelbase * w.frictionCoefficient * GRAVITY) / Math.max(speed * speed, 1) +
-          PEAK_SLIP_RAD;
+        const gripAccel = w.frictionCoefficient * (GRAVITY + downforceN / car.massKg);
+        const limitRad = (wheelbase * gripAccel) / Math.max(speed * speed, 1) + PEAK_SLIP_RAD;
         steerRad = clamp(steerRad, -limitRad, limitRad);
       }
       const b = car.brakes;
@@ -207,6 +250,7 @@ export async function createVehicleSimulation(
         vehicle.setWheelBrake(i, wheelBrakeN * stepSeconds);
       }
       vehicle.updateVehicle(stepSeconds);
+      applyAero(dynamicPressure, downforceN);
       world.step();
       simSeconds += stepSeconds;
     },
