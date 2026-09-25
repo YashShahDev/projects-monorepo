@@ -110,7 +110,8 @@ git lfs env
 ```
 
 Project `.gitattributes` marks Blender/source images and runtime GLB/KTX assets for LFS.
-The GitHub endpoint is configured; **server upload/download is deferred until P4's
+The authenticated GitHub LFS batch endpoint was verified (HTTP 200 with the expected
+missing-object response). **Actual object upload/download is deferred until P4's
 first small asset probe**, before adding large sources. No binary was uploaded in P0.
 
 ## Verification and everyday commands

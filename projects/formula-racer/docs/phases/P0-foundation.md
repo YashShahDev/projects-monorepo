@@ -2,7 +2,7 @@
 id: P0
 title: P0 — Documentation and prerequisites
 type: phase
-status: planned
+status: done
 date: 2026-09-26
 updated: 2026-09-26
 summary: Create a resumable project and verify the toolchain without implementing gameplay.
@@ -26,3 +26,5 @@ separate. No Three.js scene or browser game smoke test until P1.
 Clarifications: user chose main checkout, one draft PR and questions only for material
 unresolved decisions. Use portable user-local tools where possible. No remaining
 product decision blocks P0.
+
+Completed: see [P0 verification](../checkpoints/P0.md) and [STATUS](../STATUS.md).
