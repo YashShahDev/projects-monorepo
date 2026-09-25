@@ -23,6 +23,8 @@ Gate: report 1280×720/60 FPS target result honestly, including p95 timing and b
 A missed target is an unresolved acceptance item, not permission to hide reduced quality.
 Do not run hardware FPS assertions as unstable shared CI tests.
 
-Before starting: confirm any required quality reduction if measurements make a material
+Decided (user, 2026-09-26): the agent may launch headed Chromium benchmark runs on the
+live session (window may take focus); no window-manager commands. Before starting:
+confirm any required quality reduction if measurements make a material
 visual tradeoff necessary. Keep the PR draft until checks and review are complete;
 merging still requires the user's instruction.

@@ -26,6 +26,8 @@ missing-texture failures, fixed-camera screenshots and browser loading tests pas
 No copyrighted team branding is required. Track transfer/triangle/material budgets
 and tune against actual rendering measurements.
 
-Before starting: present the visual direction, circuit layout and car proportions;
-ask for unresolved aesthetic choices before detailed modeling. Agree interface node
+Decided (user, 2026-09-26): clean semi-realistic look (PBR, believable 2026-style
+proportions, restrained detail for 60 FPS on the Arc iGPU, procedural Blender Python);
+balanced ~4 km circuit with a long active-aero straight, hairpin, fast sweeper, chicane
+and medium corners (lap ≈ 1:25–1:35). Car proportions follow 2026 dimensions. Agree interface node
 names before splitting Blender and UI/rendering work.

@@ -22,6 +22,7 @@ Prerequisite: P2 done. Read RES-002; refresh official rules before numeric tunin
 Gate: valid/invalid laps, full/empty battery, per-lap limits, energy conservation,
 brake blending and local-save compatibility have behavior tests and browser coverage.
 
-Before starting: confirm held Shift deployment and energy-mode interaction if unresolved;
+Decided (user, 2026-09-26): hold Shift to request deployment above the baseline; E
+cycles Balanced → Harvest → Balanced; HUD shows mode and charge. Before starting:
 show selected regulatory revision and document gameplay deviations. Do not silently
 implement opponent-dependent overtake rules in solo time trial.
