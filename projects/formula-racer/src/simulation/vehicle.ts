@@ -18,6 +18,19 @@ export const NO_CONTROLS: Readonly<DriverControls> = Object.freeze({
   steer: 0,
 });
 
+/** Driver aids; each can be toggled independently and is recorded with lap times. */
+export interface DriverAssists {
+  steering: boolean;
+  abs: boolean;
+  traction: boolean;
+}
+
+export const ALL_ASSISTS: Readonly<DriverAssists> = Object.freeze({
+  steering: true,
+  abs: true,
+  traction: true,
+});
+
 export interface WheelState {
   /** Metres from the chassis connection point along the suspension direction. */
   suspensionLength: number;
@@ -32,11 +45,14 @@ export interface VehicleSnapshot {
   position: Vec3;
   rotation: Quat;
   linearVelocity: Vec3;
+  /** Radians per second in world axes; +y turns toward +x (the driver's left). */
+  angularVelocity: Vec3;
   /** Signed speed along the chassis forward axis, m/s. */
   speedMps: number;
   /** Order: front-left, front-right, rear-left, rear-right. */
   wheels: WheelState[];
   applied: DriverControls;
+  assists: DriverAssists;
 }
 
 export interface StartPose {
@@ -49,6 +65,7 @@ export interface VehicleSimulation {
   readonly stepSeconds: number;
   readonly car: CarDefinition;
   step(controls: DriverControls): void;
+  setAssists(assists: DriverAssists): void;
   reset(): void;
   snapshot(): VehicleSnapshot;
   dispose(): void;
@@ -58,7 +75,16 @@ export interface VehicleOptions {
   start: StartPose;
   /** Half-size of the flat ground collider; the ground's top is y = 0. */
   groundHalfExtentM?: number;
+  /** Defaults to every assist on. */
+  assists?: DriverAssists;
 }
+
+// Share of the tyre's grip budget the assists allow before intervening.
+const ASSIST_GRIP_MARGIN = 0.9;
+// Front slip angle at peak cornering force, measured from fixed-lock sweeps at
+// 100–250 km/h with the shipped tyre settings.
+const PEAK_SLIP_RAD = 0.015;
+const GRAVITY = 9.81;
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
@@ -127,7 +153,17 @@ export async function createVehicleSimulation(
 
   let simSeconds = 0;
   let applied: DriverControls = { ...NO_CONTROLS };
+  let assists: DriverAssists = { ...(options.assists ?? ALL_ASSISTS) };
   let disposed = false;
+  // Longitudinal force a wheel can add before it slides, from the last step's load and
+  // cornering force. Rapier halves the forward impulse in its friction-circle test
+  // (Bullet's fwdFactor), so its longitudinal budget is twice the lateral one.
+  const longitudinalBudgetN = (i: number): number => {
+    const grip =
+      ASSIST_GRIP_MARGIN * w.frictionCoefficient * (vehicle.wheelSuspensionForce(i) ?? 0);
+    const side = (vehicle.wheelSideImpulse(i) ?? 0) / stepSeconds;
+    return 2 * Math.sqrt(Math.max(0, grip * grip - side * side));
+  };
   const assertLive = (): void => {
     if (disposed) throw new Error("vehicle simulation used after dispose()");
   };
@@ -145,22 +181,37 @@ export async function createVehicleSimulation(
       const speed = Math.abs(vehicle.currentVehicleSpeed());
       const p = car.powertrain;
       const drive = applied.throttle * Math.min(p.maxDriveForceN, p.maxPowerW / Math.max(speed, 1));
-      const steerRad = -applied.steer * car.steering.maxAngleRad;
+      let steerRad = -applied.steer * car.steering.maxAngleRad;
+      if (assists.steering) {
+        // Past the angle that already uses all the front grip, extra lock only scrubs
+        // speed, so cap it at the kinematic angle for a limit corner plus peak slip.
+        const wheelbase = w.frontAxleZ - w.rearAxleZ;
+        const limitRad =
+          (wheelbase * w.frictionCoefficient * GRAVITY) / Math.max(speed * speed, 1) +
+          PEAK_SLIP_RAD;
+        steerRad = clamp(steerRad, -limitRad, limitRad);
+      }
       const b = car.brakes;
       const brakeN = applied.brake * b.maxForceN;
       for (let i = 0; i < 4; i += 1) {
         const front = i < 2;
         vehicle.setWheelSteering(i, front ? steerRad : 0);
         // Rapier ignores a wheel's brake while it has engine force, so braking cuts drive.
-        const engine = !front && brakeN === 0 ? drive / 2 : 0;
+        let engine = !front && brakeN === 0 ? drive / 2 : 0;
+        if (assists.traction) engine = Math.min(engine, longitudinalBudgetN(i));
         vehicle.setWheelEngineForce(i, engine);
         const share = front ? b.frontBias : 1 - b.frontBias;
+        let wheelBrakeN = (brakeN * share) / 2;
+        if (assists.abs) wheelBrakeN = Math.min(wheelBrakeN, longitudinalBudgetN(i));
         // Rapier treats `brake` as the maximum rolling-friction impulse for this step.
-        vehicle.setWheelBrake(i, (brakeN * share * stepSeconds) / 2);
+        vehicle.setWheelBrake(i, wheelBrakeN * stepSeconds);
       }
       vehicle.updateVehicle(stepSeconds);
       world.step();
       simSeconds += stepSeconds;
+    },
+    setAssists(next) {
+      assists = { ...next };
     },
     reset() {
       assertLive();
@@ -177,6 +228,7 @@ export async function createVehicleSimulation(
       const { x, y, z } = body.translation();
       const r = body.rotation();
       const v = body.linvel();
+      const omega = body.angvel();
       const wheels: WheelState[] = [0, 1, 2, 3].map((i) => ({
         suspensionLength: vehicle.wheelSuspensionLength(i) ?? w.suspensionRestLength,
         steerRad: vehicle.wheelSteering(i) ?? 0,
@@ -189,9 +241,11 @@ export async function createVehicleSimulation(
         position: { x, y, z },
         rotation: { x: r.x, y: r.y, z: r.z, w: r.w },
         linearVelocity: { x: v.x, y: v.y, z: v.z },
+        angularVelocity: { x: omega.x, y: omega.y, z: omega.z },
         speedMps: vehicle.currentVehicleSpeed(),
         wheels,
         applied: { ...applied },
+        assists: { ...assists },
       };
     },
     dispose() {

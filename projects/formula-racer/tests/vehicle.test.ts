@@ -53,6 +53,14 @@ describe("vehicle simulation", () => {
     sim.dispose();
   });
 
+  test("reports yaw rate with the chassis's sign convention", async () => {
+    const sim = await settledVehicle();
+    run(sim, { throttle: 0.4, brake: 0, steer: -1 }, 2);
+    // Steering left turns toward +x, a positive rotation about +y.
+    expect(sim.snapshot().angularVelocity.y).toBeGreaterThan(0.1);
+    sim.dispose();
+  });
+
   test("controls are clamped to their normalized ranges", async () => {
     const sim = await settledVehicle();
     sim.step({ throttle: 4, brake: -1, steer: -9 });
