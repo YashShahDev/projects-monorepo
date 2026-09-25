@@ -1,4 +1,5 @@
 import {
+  array,
   ContentError,
   extents,
   fetchJson,
@@ -42,7 +43,41 @@ export interface CarDefinition {
   };
   steering: { maxAngleRad: number };
   brakes: { maxForceN: number; frontBias: number };
-  powertrain: { maxPowerW: number; maxDriveForceN: number };
+  powertrain: { maxPowerW: number; maxDriveForceN: number; gearbox: GearboxDefinition };
+}
+
+export interface GearboxDefinition {
+  idleRpm: number;
+  /** Automatic shift points; the gap between them stops the box hunting. */
+  upshiftRpm: number;
+  downshiftRpm: number;
+  redlineRpm: number;
+  /** Road speed at the redline in each gear, lowest first. */
+  gearTopSpeedsKmh: number[];
+}
+
+function parseGearbox(value: unknown, source: string): GearboxDefinition {
+  const g = object(value, source);
+  const redlineRpm = positive(g.redlineRpm, `${source}.redlineRpm`);
+  const upshiftRpm = inRange(g.upshiftRpm, `${source}.upshiftRpm`, 1, redlineRpm);
+  const downshiftRpm = inRange(g.downshiftRpm, `${source}.downshiftRpm`, 1, upshiftRpm - 1);
+  const idleRpm = inRange(g.idleRpm, `${source}.idleRpm`, 1, downshiftRpm);
+  const gearTopSpeedsKmh = array(g.gearTopSpeedsKmh, `${source}.gearTopSpeedsKmh`, 1).map(
+    (speed, i, all) => {
+      const field = `${source}.gearTopSpeedsKmh[${String(i)}]`;
+      const value = positive(speed, field);
+      const below = i > 0 ? Number(all[i - 1]) : 0;
+      if (i > 0 && !(value > below)) {
+        throw new ContentError(`${field} must be greater than the gear below`);
+      }
+      // After an upshift the engine must still be above the downshift point.
+      if (i > 0 && (upshiftRpm * below) / value <= downshiftRpm) {
+        throw new ContentError(`${field} is too tall: an upshift would land below downshiftRpm`);
+      }
+      return value;
+    },
+  );
+  return { idleRpm, upshiftRpm, downshiftRpm, redlineRpm, gearTopSpeedsKmh };
 }
 
 export function parseCar(value: unknown, source = "car"): CarDefinition {
@@ -86,6 +121,7 @@ export function parseCar(value: unknown, source = "car"): CarDefinition {
     powertrain: {
       maxPowerW: positive(powertrain.maxPowerW, `${source}.powertrain.maxPowerW`),
       maxDriveForceN: positive(powertrain.maxDriveForceN, `${source}.powertrain.maxDriveForceN`),
+      gearbox: parseGearbox(powertrain.gearbox, `${source}.powertrain.gearbox`),
     },
   };
   return car;

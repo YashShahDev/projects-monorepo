@@ -23,5 +23,15 @@
   },
   "steering": { "maxAngleRad": 0.38 },
   "brakes": { "maxForceN": 32000, "frontBias": 0.58 },
-  "powertrain": { "maxPowerW": 700000, "maxDriveForceN": 11000 }
+  "powertrain": {
+    "maxPowerW": 700000,
+    "maxDriveForceN": 11000,
+    "gearbox": {
+      "idleRpm": 4000,
+      "upshiftRpm": 11800,
+      "downshiftRpm": 8000,
+      "redlineRpm": 12500,
+      "gearTopSpeedsKmh": [95, 130, 165, 200, 235, 270, 305, 345]
+    }
+  }
 }
