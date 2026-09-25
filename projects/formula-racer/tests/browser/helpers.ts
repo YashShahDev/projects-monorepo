@@ -27,15 +27,14 @@ export async function openGame(page: Page): Promise<void> {
 
 export interface ScenePixels {
   sky: number;
-  ground: number;
-  box: number;
-  /** Mean row of box-coloured pixels, 0 at the top of the image. */
-  boxRow: number;
+  grass: number;
+  road: number;
+  car: number;
 }
 
 /**
- * Classifies screenshot pixels by the probe scene's colours. The WebGL drawing buffer is
- * not preserved, so the compositor screenshot is decoded in the page instead.
+ * Classifies screenshot pixels by the greybox palette. The WebGL drawing buffer is not
+ * preserved, so the compositor screenshot is decoded in the page instead.
  */
 export async function scenePixels(page: Page): Promise<ScenePixels> {
   const png = (await page.locator("#view").screenshot()).toString("base64");
@@ -47,18 +46,20 @@ export async function scenePixels(page: Page): Promise<ScenePixels> {
     const context = canvas.getContext("2d");
     if (!context) throw new Error("2D canvas unavailable");
     context.drawImage(image, 0, 0);
-    const { data: rgba, width } = context.getImageData(0, 0, image.width, image.height);
-    const counts = { sky: 0, ground: 0, box: 0, boxRow: 0 };
-    let boxRows = 0;
+    const { data: rgba } = context.getImageData(0, 0, image.width, image.height);
+    const counts = { sky: 0, grass: 0, road: 0, car: 0 };
     for (let i = 0; i < rgba.length; i += 4) {
       const [r, g, b] = [rgba[i] ?? 0, rgba[i + 1] ?? 0, rgba[i + 2] ?? 0];
-      if (r > 120 && g < 80 && b < 80) {
-        counts.box += 1;
-        boxRows += Math.floor(i / 4 / width);
-      } else if (b > 170 && b > r + 30) counts.sky += 1;
-      else if (Math.abs(r - g) < 25 && b > r && r < 110) counts.ground += 1;
+      if (r > 150 && g < 80 && b < 80) counts.car += 1;
+      else if (b > 170 && b > r + 30) counts.sky += 1;
+      else if (g > r + 25 && g > b + 10) counts.grass += 1;
+      else if (Math.abs(r - g) < 18 && Math.abs(g - b) < 18 && r > 50 && r < 150) counts.road += 1;
     }
-    counts.boxRow = counts.box ? boxRows / counts.box : Number.NaN;
     return counts;
   }, png);
+}
+
+/** Reads the on-screen speed readout, km/h. */
+export async function readSpeed(page: Page): Promise<number> {
+  return Number(await page.locator("#speed").textContent());
 }

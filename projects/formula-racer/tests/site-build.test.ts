@@ -18,7 +18,7 @@ test("the production page references its bundle with subpath-safe relative URLs"
 });
 
 test("runtime assets are copied beside the bundle", () => {
-  expect(files.map((file) => file.path)).toContain("assets/probe/scene.json");
+  expect(files.map((file) => file.path)).toContain("assets/tracks/harbour.json");
 });
 
 test("the production bundle excludes development test hooks", () => {

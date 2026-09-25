@@ -1,5 +1,5 @@
 import type { Vec3 } from "../content/validate.ts";
-import type { Quat } from "../simulation/probe-world.ts";
+import type { Quat } from "../simulation/physics.ts";
 
 export interface CarPose {
   position: Vec3;

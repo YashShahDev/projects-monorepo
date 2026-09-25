@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fetchTrack, parseTrack } from "../src/content/track.ts";
+import { ContentError } from "../src/content/validate.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 import type { TrackGeometry } from "../src/simulation/track-geometry.ts";
 
@@ -136,5 +137,28 @@ describe("track content", () => {
     );
     const bad = async () => new Response(JSON.stringify({ ...raw, name: "" }));
     await expect(fetchTrack(new URL("http://x/t.json"), bad)).rejects.toThrow("/t.json.name");
+  });
+
+  test("rejects non-objects, arrays and non-finite numbers", () => {
+    expect(() => parseTrack(null)).toThrow(ContentError);
+    expect(() => parseTrack([])).toThrow("must be an object");
+    expect(() => parseTrack({ ...raw, startDistanceM: Number.POSITIVE_INFINITY })).toThrow(
+      "track.startDistanceM",
+    );
+  });
+
+  test("reports a missing asset's path and HTTP status", async () => {
+    const url = new URL("http://localhost/game/assets/tracks/harbour.json");
+    const missing = () => Promise.resolve(new Response("", { status: 404 }));
+    await expect(fetchTrack(url, missing)).rejects.toThrow(
+      "/game/assets/tracks/harbour.json: HTTP 404",
+    );
+  });
+
+  test("reports malformed JSON as a content error", async () => {
+    const url = new URL("http://localhost/t.json");
+    await expect(fetchTrack(url, () => Promise.resolve(new Response("{")))).rejects.toThrow(
+      "not valid JSON",
+    );
   });
 });

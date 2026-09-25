@@ -9,6 +9,11 @@
   </head>
   <body>
     <canvas id="view" aria-label="Race view"></canvas>
+    <div id="hud" aria-label="Car">
+      <span id="speed">0</span> <span class="unit">km/h</span> <span class="gear-label">Gear</span>
+      <span id="gear">1</span>
+    </div>
+    <div id="paused" hidden>Paused — press Esc to resume</div>
     <div id="status" role="status">Loading…</div>
   </body>
 </html>

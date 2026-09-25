@@ -1,14 +1,16 @@
 import { expect, test } from "@playwright/test";
-import { collectErrors, freezeFrames, openGame, scenePixels } from "./helpers.ts";
+import { collectErrors, freezeFrames, openGame, readSpeed, scenePixels } from "./helpers.ts";
 
-test("@smoke starts without errors and renders sky, ground and box", async ({ page }, info) => {
+test("@smoke starts on the grid and renders sky, grass, road and car", async ({ page }, info) => {
   const errors = collectErrors(page);
   await openGame(page);
   await expect(page.locator("#view")).toBeVisible();
   const pixels = await scenePixels(page);
   expect(pixels.sky).toBeGreaterThan(10_000);
-  expect(pixels.ground).toBeGreaterThan(10_000);
-  expect(pixels.box).toBeGreaterThan(500);
+  expect(pixels.grass).toBeGreaterThan(5_000);
+  expect(pixels.road).toBeGreaterThan(10_000);
+  expect(pixels.car).toBeGreaterThan(500);
+  await expect(page.locator("#gear")).toHaveText("1");
   const startup = await page.evaluate(
     () => performance.getEntriesByName("formula-racer:startup")[0]?.duration,
   );
@@ -18,18 +20,27 @@ test("@smoke starts without errors and renders sky, ground and box", async ({ pa
   expect(errors).toEqual([]);
 });
 
-test("@smoke physics advances the box onto the ground", async ({ page }) => {
+test("@smoke holding the throttle drives off and shifts up", async ({ page }) => {
   const errors = collectErrors(page);
   await freezeFrames(page);
   await openGame(page);
-  await page.clock.runFor(50);
-  const falling = await scenePixels(page);
+  await page.keyboard.down("ArrowUp");
   await page.clock.runFor(3_000);
-  const resting = await scenePixels(page);
-  // The box starts 4 m up and falls toward the camera's lower half.
-  expect(resting.boxRow - falling.boxRow).toBeGreaterThan(50);
-  await page.clock.runFor(1_000);
-  const later = await scenePixels(page);
-  expect(Math.abs(later.boxRow - resting.boxRow)).toBeLessThan(2);
+  expect(await readSpeed(page)).toBeGreaterThan(80);
+  expect(Number(await page.locator("#gear").textContent())).toBeGreaterThan(1);
   expect(errors).toEqual([]);
+});
+
+test("@smoke Escape pauses the car and shows it", async ({ page }) => {
+  await freezeFrames(page);
+  await openGame(page);
+  await page.keyboard.down("ArrowUp");
+  await page.clock.runFor(1_000);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#paused")).toBeVisible();
+  const held = await readSpeed(page);
+  await page.clock.runFor(1_000);
+  expect(await readSpeed(page)).toBe(held);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#paused")).toBeHidden();
 });

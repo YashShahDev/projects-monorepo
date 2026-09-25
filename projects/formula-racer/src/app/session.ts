@@ -26,6 +26,7 @@ export interface SessionState {
 
 export interface DrivingSession {
   readonly geometry: TrackGeometry;
+  readonly stepSeconds: number;
   /** Advances by one displayed frame and returns the camera for it. */
   frame(frameSeconds: number, held: DigitalInput): CameraView;
   action(action: KeyAction): void;
@@ -70,6 +71,7 @@ export async function createDrivingSession(
 
   return {
     geometry,
+    stepSeconds: sim.stepSeconds,
     frame(frameSeconds, held) {
       if (skipNextFrame) {
         skipNextFrame = false;

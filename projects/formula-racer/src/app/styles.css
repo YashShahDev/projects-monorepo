@@ -38,3 +38,43 @@ body {
   border-radius: 0;
   background: #101418;
 }
+
+#hud {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 55%);
+  font-variant-numeric: tabular-nums;
+}
+
+#speed {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+#gear {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.unit,
+.gear-label {
+  opacity: 0.7;
+}
+
+#paused {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 12px 20px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 65%);
+  font-size: 20px;
+}
+
+#paused[hidden] {
+  display: none;
+}

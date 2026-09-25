@@ -1,8 +1,8 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import type { CarDefinition } from "../content/car.ts";
 import type { Vec3 } from "../content/validate.ts";
-import { initPhysics } from "./probe-world.ts";
-import type { Pose, Quat } from "./probe-world.ts";
+import { initPhysics } from "./physics.ts";
+import type { Pose, Quat } from "./physics.ts";
 import { PHYSICS_VERSION } from "./version.ts";
 
 /** Normalized driver requests. `steer` is -1 (full left) to +1 (full right). */

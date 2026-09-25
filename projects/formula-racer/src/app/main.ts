@@ -1,4 +1,4 @@
-import { startProbeApp } from "./probe-app.ts";
+import { startGameApp } from "./game-app.ts";
 import { installTestHooks } from "./test-hooks.ts";
 
 function element<T extends HTMLElement>(selector: string): T {
@@ -9,6 +9,7 @@ function element<T extends HTMLElement>(selector: string): T {
 
 const canvas = element<HTMLCanvasElement>("#view");
 const status = element("#status");
+const hud = { speed: element("#speed"), gear: element("#gear"), paused: element("#paused") };
 
 function showFatal(message: string): void {
   status.setAttribute("role", "alert");
@@ -24,7 +25,7 @@ function showFatal(message: string): void {
 }
 
 try {
-  const app = await startProbeApp(canvas, showFatal);
+  const app = await startGameApp(canvas, hud, showFatal);
   status.hidden = true;
   // A persisted page may be restored from the back/forward cache and keep running.
   addEventListener("pagehide", (event) => {
