@@ -131,7 +131,14 @@ mise exec -- bun run format
 - `verify-prerequisites`: launches isolated headless Chromium and Firefox, executes a
   DOM page, exports a disposable GLB/PNG with Blender, encodes KTX2 and inspects the GLB.
   Temporary fixtures are removed in a `finally` block, including on failures.
-- `test`: `bun test tests`; currently setup diagnostic/link-validation behavior tests.
+- `test`: `test-unit` then `test-browser`. Needs `make setup`'s Playwright browsers.
+- `test-unit`: `bun test tests` — tooling, content validation, static serving, build
+  output and Rapier physics behavior. Bun only discovers `*.test.ts`.
+- `test-browser`: fresh production build, then Playwright (`tests/browser/*.pw.ts`, run
+  with Node) against the dev server (port 4310), production at the root (4311) and
+  under `/games/formula-racer/` (4312). Chromium runs everything; Firefox runs `@smoke`.
+  Production tests observe physics through screenshots under Playwright's fake clock,
+  which also drives `requestAnimationFrame`, so they need no test hooks.
 - `lint`: strict TypeScript, Oxlint, Oxfmt check and local documentation-file links.
   The link checker does not validate external sites or heading anchors.
 - `dev`: Bun dev server with HTML bundling and hot reload at `http://localhost:3000/`
@@ -151,12 +158,13 @@ make lint PROJECT=formula-racer
 make build PROJECT=formula-racer
 ```
 
-Browser tests arrive in P1-C3; asset export and benchmark targets in P4/P5. They
-are not success-returning placeholder tests. Headless browser success does not verify
+Asset export and benchmark targets arrive in P4/P5. They are not success-returning
+placeholder tests. Headless browser success does not verify
 hardware rendering, Blender interactive GUI behavior or game FPS.
 
 GitHub operations should use the installed executable resolved by `mise which gh`.
 This machine's `~/.local/bin/gh` wrapper invokes `mise use -g` on every call; the
 project doctor bypasses it so a read-only check does not modify global configuration.
 
-See [P0 evidence](checkpoints/P0.md) and [next phase](phases/P1-technical.md).
+See [P0 evidence](checkpoints/P0.md), [P1 evidence](checkpoints/P1.md) and
+[next phase](phases/P2-driving.md).

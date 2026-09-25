@@ -2,7 +2,7 @@
 id: P1
 title: P1 — Browser technical foundation
 type: phase
-status: in_progress
+status: done
 date: 2026-09-26
 updated: 2026-09-26
 summary: Prove Bun rendering and WASM delivery before gameplay.

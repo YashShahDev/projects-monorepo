@@ -16,5 +16,6 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["tools/**/*.ts", "tests/**/*.ts"]
+  "include": ["tools/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["tests/browser/**"]
 }
