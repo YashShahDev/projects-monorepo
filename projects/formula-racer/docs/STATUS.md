@@ -22,12 +22,12 @@ summary: P2 in progress; P2-C1 vehicle simulation done, next P2-C2 controls and 
 ## Next action
 
 P2-C2 is in progress. Done: track content, geometry and the 3.93 km Harbour Park
-layout; keyboard adapter (`src/app/keyboard.ts`); steering, ABS and traction assists
-inside the vehicle adapter (all on by default, toggled with `setAssists`); angular
-velocity in snapshots. Keyboard steering smoothing and the automatic gearbox are done. Next, test-first at the
-seams in the [P2 record](checkpoints/P2.md): chase camera, pause on
-focus loss/Escape, R reset, greybox track view; replace the P1 probe app and update the
-browser tests. Then P2-C3 and the phase review (see AGENTS.md).
+layout; keyboard adapter; steering, ABS and traction assists (all on by default,
+toggled with `setAssists`); keyboard steering smoothing; automatic gearbox; camera rig.
+Next, test-first at the seams in the [P2 record](checkpoints/P2.md): the game session
+(pause on focus loss/Escape, R reset, C camera) and a greybox track and car view with a
+speed/gear readout, replacing the P1 probe app, then browser tests. Then P2-C3 and the
+phase review (see AGENTS.md).
 
 ## Checkpoints
 
