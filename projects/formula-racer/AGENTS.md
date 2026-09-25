@@ -46,6 +46,24 @@ This guidance does not itself authorize spawning agents.
 - Never treat headless software rendering as a hardware FPS benchmark.
 - Do not add large asset binaries before verifying the LFS upload/download path.
 
+## Phase review
+
+After each phase, get an independent review of that phase's commits before starting
+the next one. Prefer Codex with the `gpt-6-astra` model. If Codex is unavailable or
+has hit a usage limit, use another independent reviewer instead — for example a
+freshly started review agent with no stake in the implementation — and note which
+reviewer and model ran. Reproduce each finding before fixing it; record accepted and
+rejected findings with reasons in the phase's checkpoint record.
+
+## Usage limits and restarts
+
+Any agent may hit a usage or rate limit mid-task. Before stopping, or when a limit is
+near, bring the work to a coherent state: finish or revert the in-flight edit, run the
+checks, commit completed checkpoint work, and update STATUS with the exact next action
+and anything left uncommitted. After a limit or restart, resume from STATUS and the
+checkpoint record rather than conversation memory, and continue the authorized phases
+without asking again. Do not busy-wait on a limit; resume when it resets.
+
 ## Checkpoint and handoff
 
 Follow [the workflow](docs/WORKFLOW.md). Update STATUS and the relevant checkpoint

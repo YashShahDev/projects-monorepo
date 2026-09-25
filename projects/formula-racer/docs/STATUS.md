@@ -21,25 +21,29 @@ summary: P2 in progress; P2-C1 vehicle simulation done, next P2-C2 controls and 
 
 ## Next action
 
-P2-C2: keyboard input adapter (clears on blur), speed-sensitive steering smoothing,
-toggleable steering/brake/traction assists, automatic gears, chase camera, pause on
-focus loss and Escape, R reset, on a greybox of the ~4 km circuit layout. Replace the
-P1 probe app and update browser tests. Handling preferences are in [P2](phases/P2-driving.md).
+P2-C2 is in progress. Uncommitted and untested on disk: `src/content/track.ts` (track
+definition parser) and `src/simulation/track-geometry.ts` (centripetal Catmull-Rom sampling,
+lap distance, signed lateral offset, road/kerb/grass). Next: author
+`public/assets/tracks/<id>.json` (~4 km balanced layout per [P4](phases/P4-content.md)),
+preview it, add tests for both modules, then the keyboard input adapter (clears on blur),
+speed-sensitive steering smoothing, toggleable steering/brake/traction assists, automatic
+gears, chase camera, pause on focus loss/Escape, R reset and a greybox track view. Replace
+the P1 probe app and update browser tests. Then P2-C3 and the phase review (see AGENTS.md).
 
 ## Checkpoints
 
-| ID    | State   | Evidence                                                        |
-| ----- | ------- | --------------------------------------------------------------- |
-| P0-C1 | done    | `35d4059`; [P0 record](checkpoints/P0.md)                       |
-| P0-C2 | done    | `1df7e26`; [tooling evidence](checkpoints/P0.md)                |
-| P0-C3 | done    | `d8f8b38`; [verification](checkpoints/P0.md)                    |
-| P1-C1 | done    | `2c619ed`; [P1 record](checkpoints/P1.md)                       |
-| P1-C2 | done    | `c4768e0`; [P1 record](checkpoints/P1.md)                       |
-| P1-C3 | done    | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md) |
-| P2-C1 | done    | This checkpoint commit; [P2 record](checkpoints/P2.md)          |
-| P2-C2 | planned | [P2](phases/P2-driving.md)                                      |
-| P2-C3 | planned | [P2](phases/P2-driving.md)                                      |
-| P3–P5 | planned | [Roadmap](ROADMAP.md)                                           |
+| ID    | State       | Evidence                                                        |
+| ----- | ----------- | --------------------------------------------------------------- |
+| P0-C1 | done        | `35d4059`; [P0 record](checkpoints/P0.md)                       |
+| P0-C2 | done        | `1df7e26`; [tooling evidence](checkpoints/P0.md)                |
+| P0-C3 | done        | `d8f8b38`; [verification](checkpoints/P0.md)                    |
+| P1-C1 | done        | `2c619ed`; [P1 record](checkpoints/P1.md)                       |
+| P1-C2 | done        | `c4768e0`; [P1 record](checkpoints/P1.md)                       |
+| P1-C3 | done        | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md) |
+| P2-C1 | done        | `aab4afa`; [P2 record](checkpoints/P2.md)                       |
+| P2-C2 | in_progress | [P2](phases/P2-driving.md)                                      |
+| P2-C3 | planned     | [P2](phases/P2-driving.md)                                      |
+| P3–P5 | planned     | [Roadmap](ROADMAP.md)                                           |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
