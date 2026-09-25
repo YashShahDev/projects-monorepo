@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { ProbeApp, ProbeAppState } from "../../src/app/probe-app.ts";
-import { openGame } from "./helpers.ts";
+import { freezeFrames, openGame } from "./helpers.ts";
 
 type Call = { name: "pause" | "state" | "dispose" } | { name: "step"; count: number };
 
@@ -22,10 +22,12 @@ async function state(page: Page, call: Call = { name: "state" }): Promise<ProbeA
 }
 
 test("@dev test hooks pause and step the simulation deterministically", async ({ page }) => {
+  await freezeFrames(page);
   await openGame(page);
   await hook(page, { name: "pause" });
   const paused = await state(page);
-  await page.waitForTimeout(200);
+  expect(paused.steps).toBe(0);
+  await page.clock.runFor(200);
   const still = await state(page);
   expect(still.steps).toBe(paused.steps);
   expect(still.frames).toBeGreaterThan(paused.frames);
@@ -39,10 +41,11 @@ test("@dev test hooks pause and step the simulation deterministically", async ({
 });
 
 test("@dev dispose frees the world and stops the frame loop", async ({ page }) => {
+  await freezeFrames(page);
   await openGame(page);
   await hook(page, { name: "dispose" });
   await expect(hook(page, { name: "state" })).rejects.toThrow("probe world used after dispose()");
   // A loop still running against the freed world would raise a "Frame failed" alert.
-  await page.waitForTimeout(300);
+  await page.clock.runFor(300);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });

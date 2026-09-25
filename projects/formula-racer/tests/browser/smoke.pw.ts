@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { collectErrors, openGame, scenePixels } from "./helpers.ts";
+import { collectErrors, freezeFrames, openGame, scenePixels } from "./helpers.ts";
 
 test("@smoke starts without errors and renders sky, ground and box", async ({ page }, info) => {
   const errors = collectErrors(page);
@@ -20,8 +20,7 @@ test("@smoke starts without errors and renders sky, ground and box", async ({ pa
 
 test("@smoke physics advances the box onto the ground", async ({ page }) => {
   const errors = collectErrors(page);
-  await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
-  await page.clock.pauseAt(new Date("2026-01-01T00:00:01Z"));
+  await freezeFrames(page);
   await openGame(page);
   await page.clock.runFor(50);
   const falling = await scenePixels(page);
