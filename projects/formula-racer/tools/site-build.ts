@@ -1,5 +1,6 @@
-import { cpSync, existsSync, readdirSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { TEST_HOOK_GLOBAL } from "../src/app/test-hook-name.ts";
 
 export interface BuiltFile {
   path: string;
@@ -28,10 +29,19 @@ export async function buildSite(projectRoot: string, outdir: string): Promise<Bu
     throw new Error(`public/ would overwrite bundle outputs: ${collisions.join(", ")}`);
   }
   cpSync(publicRoot, outdir, { recursive: true });
+  const scripts = listFiles(outdir).filter((path) => path.endsWith(".js"));
+  assertNoTestHooks(scripts.map((path) => [relative(outdir, path), readFileSync(path, "utf8")]));
   return listFiles(outdir).map((path) => ({
     path: relative(outdir, path),
     bytes: statSync(path).size,
   }));
+}
+
+export function assertNoTestHooks(scripts: [path: string, source: string][]): void {
+  const leaks = scripts.filter(([, source]) => source.includes(TEST_HOOK_GLOBAL));
+  if (leaks.length) {
+    throw new Error(`test hooks leaked into production: ${leaks.map(([path]) => path).join(", ")}`);
+  }
 }
 
 function listFiles(dir: string): string[] {
