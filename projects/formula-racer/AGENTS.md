@@ -51,9 +51,11 @@ This guidance does not itself authorize spawning agents.
 After each phase, get an independent review of that phase's commits before starting
 the next one, trying reviewers in this order and noting which reviewer and model ran:
 
-1. Codex with the `gpt-6-astra` model.
-2. If Codex is unavailable or out of usage: the Antigravity CLI, read-only, e.g.
-   `agv -p --mode plan "Review git diff <base>..HEAD in projects/formula-racer ..."`.
+1. Codex with the `gpt-6-astra` model, via the Codex plugin's reviewer:
+   `/codex:review --base <phase-start> --scope branch` (an agent that cannot invoke
+   it runs the same script: `codex-companion.mjs review --wait --base <ref> --scope branch`).
+2. If Codex is unavailable or out of usage: the Antigravity plugin's cross-model review,
+   `/antigravity:review <phase-start>..HEAD` (it pipes the diff to `agy-delegate --tier pro`).
 3. If neither is available: a freshly started review agent with no stake in the work.
 
 Reproduce each finding before fixing it; record accepted and rejected findings with
