@@ -1,0 +1,54 @@
+# Working on Formula Racer
+
+Read the repository's `CLAUDE.md` first, then [docs/STATUS.md](docs/STATUS.md),
+[docs/INDEX.md](docs/INDEX.md), the active phase and its linked decisions.
+The repository is the shared source of truth; conversation memory is not required.
+
+## Before each phase
+
+- Compare the branch, working tree and checkpoint commits with the status document.
+- Give a short phase brief: scope, acceptance checks, assumptions and next checkpoint.
+- Ask the user about unresolved decisions that materially change gameplay, assets,
+  architecture or scope **before dependent work**. Continue independent work while waiting.
+- Do not ask again for decisions already recorded. Routine implementation choices
+  are within scope; record non-obvious choices as ADRs.
+- Respect session boundaries: Phase 0 stops at documentation and verified tooling.
+  Start another phase only when the session's instruction includes it.
+
+## Branches and parallel work
+
+The primary implementation runs in the **main working folder** on
+`feat/formula-racer`, not on the `main` branch. Do not create a worktree for ordinary
+serial work. Preserve unrelated local files and stage explicit project paths.
+Use one draft PR for P0–P5, with small checkpoint commits; do not merge automatically.
+
+For authorized, independent parallel tasks, use separate branches/worktrees with
+clear ownership: Blender assets and UI are examples. Never edit the same `.blend`
+file concurrently. Give each task a bounded deliverable and integration tests.
+The integrating agent owns STATUS, the index and checkpoint closure; task agents
+return their commit IDs, changed paths, tests and decisions. Integrate sequentially,
+resolve interfaces, rerun relevant checks, then update the shared checkpoint.
+This guidance does not itself authorize spawning agents.
+
+## Engineering rules
+
+- Bun and strict TypeScript; no imports into sibling projects. Python is allowed
+  for Blender tooling. Any new reusable shell script follows the global ~/scripts rules.
+- Simulation has no DOM or Three.js dependencies. The renderer consumes snapshots;
+  Rapier types stay behind the physics adapter. Use SI units internally.
+- Validate external content at load boundaries. Keep track/team/rule data separate
+  from engine code. Do not hide missing assets or tests behind success messages.
+- Every behavior change has tests; bug fixes start with a failing reproducer.
+- `make test PROJECT=formula-racer` and `make lint PROJECT=formula-racer` must pass
+  before committing; also run build and relevant browser/asset checks when applicable.
+- Benchmark before claiming performance improvements. Record before/after data,
+  hardware, renderer backend, route, quality preset and exact commands.
+- Never treat headless software rendering as a hardware FPS benchmark.
+- Do not add large asset binaries before verifying the LFS upload/download path.
+
+## Checkpoint and handoff
+
+Follow [the workflow](docs/WORKFLOW.md). Update STATUS and the relevant checkpoint
+in the same commit as completed work. Use IDs in commit subjects, for example
+`P2-C1: add fixed-step vehicle simulation`. Record failures and unverified work
+explicitly; do not mark a checkpoint done just because files exist.
