@@ -64,12 +64,13 @@ and anything left uncommitted. After a limit or restart, resume from STATUS and 
 checkpoint record rather than conversation memory, and continue the authorized phases
 without asking again. Do not busy-wait on a limit; resume when it resets.
 
-Pace long autonomous runs (user, 2026-09-26): after each committed slice, pause
-(for example a background `sleep`) so usage lasts the rolling window. Size the pause
-from the usage rate: if a fraction `u` is used after `e` hours of a `W`-hour window,
-work only a share `(1 − u) / (u × (W − e) / e)` of the remaining time and pause the
-rest, with at least one minute and well under the prompt-cache lifetime. Pausing
-spreads usage but does not reduce it, so still keep turns concise.
+Pace long autonomous runs (user, 2026-09-26): after each committed slice, pause (for
+example a background sleep) so usage lasts the rolling limit windows. Size the pause
+from the _recent_ burn rate during active work, not a linear extrapolation from the
+start of the window, and lengthen it sharply as the remaining budget shrinks; keep each
+pause under the prompt-cache lifetime. Where `claude-pacer` is installed, run
+`claude-pacer wait` in the background; `claude-pacer status` explains its figure.
+Pausing spreads usage but does not reduce it, so still keep turns concise.
 
 ## Checkpoint and handoff
 
