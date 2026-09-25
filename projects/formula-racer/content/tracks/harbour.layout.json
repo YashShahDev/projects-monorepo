@@ -1,0 +1,88 @@
+{
+  "id": "harbour",
+  "name": "Harbour Park",
+  "widthM": 12,
+  "kerbWidthM": 1.5,
+  "startDistanceM": 150,
+  "segments": [
+    {
+      "straight": 0,
+      "solve": true
+    },
+    {
+      "arc": -90,
+      "radius": 45
+    },
+    {
+      "straight": 200
+    },
+    {
+      "arc": 45,
+      "radius": 80
+    },
+    {
+      "straight": 80
+    },
+    {
+      "arc": -45,
+      "radius": 80
+    },
+    {
+      "straight": 120
+    },
+    {
+      "arc": 60,
+      "radius": 120
+    },
+    {
+      "straight": 100
+    },
+    {
+      "arc": -60,
+      "radius": 120
+    },
+    {
+      "straight": 80
+    },
+    {
+      "arc": -90,
+      "radius": 250
+    },
+    {
+      "straight": 150
+    },
+    {
+      "arc": 35,
+      "radius": 40
+    },
+    {
+      "straight": 25
+    },
+    {
+      "arc": -35,
+      "radius": 40
+    },
+    {
+      "straight": 250
+    },
+    {
+      "arc": -90,
+      "radius": 70
+    },
+    {
+      "straight": 0,
+      "solve": true
+    },
+    {
+      "arc": -180,
+      "radius": 18
+    },
+    {
+      "straight": 150
+    },
+    {
+      "arc": 90,
+      "radius": 60
+    }
+  ]
+}
