@@ -77,6 +77,8 @@ export interface VehicleOptions {
   groundHalfExtentM?: number;
   /** Defaults to every assist on. */
   assists?: DriverAssists;
+  /** Multiplier on tyre friction for the surface at a ground position; default 1. */
+  gripAt?: (x: number, z: number, wheel: number) => number;
 }
 
 // Share of the tyre's grip budget the assists allow before intervening.
@@ -159,9 +161,10 @@ export async function createVehicleSimulation(
   // Longitudinal force a wheel can add before it slides, from the last step's load and
   // cornering force. Rapier halves the forward impulse in its friction-circle test
   // (Bullet's fwdFactor), so its longitudinal budget is twice the lateral one.
+  const surfaceGrip = [1, 1, 1, 1];
   const longitudinalBudgetN = (i: number): number => {
-    const grip =
-      ASSIST_GRIP_MARGIN * w.frictionCoefficient * (vehicle.wheelSuspensionForce(i) ?? 0);
+    const mu = w.frictionCoefficient * (surfaceGrip[i] ?? 1);
+    const grip = ASSIST_GRIP_MARGIN * mu * (vehicle.wheelSuspensionForce(i) ?? 0);
     const side = (vehicle.wheelSideImpulse(i) ?? 0) / stepSeconds;
     return 2 * Math.sqrt(Math.max(0, grip * grip - side * side));
   };
@@ -222,6 +225,14 @@ export async function createVehicleSimulation(
       const speed = Math.abs(vehicle.currentVehicleSpeed());
       const p = car.powertrain;
       const drive = applied.throttle * Math.min(p.maxDriveForceN, p.maxPowerW / Math.max(speed, 1));
+      if (options.gripAt) {
+        for (let i = 0; i < 4; i += 1) {
+          const p = wheelPoints[i] ?? { x: 0, y: 0, z: 0 };
+          const at = localPoint(p.x, p.y, p.z);
+          surfaceGrip[i] = options.gripAt(at.x, at.z, i);
+          vehicle.setWheelFrictionSlip(i, w.frictionCoefficient * (surfaceGrip[i] ?? 1));
+        }
+      }
       const a = car.aero;
       const dynamicPressure = 0.5 * AIR_DENSITY_KG_M3 * speed * speed;
       const downforceN = dynamicPressure * a.downforceAreaM2;
@@ -230,7 +241,8 @@ export async function createVehicleSimulation(
         // Past the angle that already uses all the front grip, extra lock only scrubs
         // speed, so cap it at the kinematic angle for a limit corner plus peak slip.
         const wheelbase = w.frontAxleZ - w.rearAxleZ;
-        const gripAccel = w.frictionCoefficient * (GRAVITY + downforceN / car.massKg);
+        const frontGrip = ((surfaceGrip[0] ?? 1) + (surfaceGrip[1] ?? 1)) / 2;
+        const gripAccel = w.frictionCoefficient * frontGrip * (GRAVITY + downforceN / car.massKg);
         const limitRad = (wheelbase * gripAccel) / Math.max(speed * speed, 1) + PEAK_SLIP_RAD;
         steerRad = clamp(steerRad, -limitRad, limitRad);
       }

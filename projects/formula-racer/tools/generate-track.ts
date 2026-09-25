@@ -13,6 +13,7 @@ interface Layout {
   widthM: number;
   kerbWidthM: number;
   startDistanceM: number;
+  surfaceGrip: { road: number; kerb: number; grass: number };
   segments: Segment[];
 }
 
@@ -82,6 +83,7 @@ const track = {
   kerbWidthM: layout.kerbWidthM,
   controlPoints: result.points.map((p) => [round(p.x), round(p.z)]),
   startDistanceM: layout.startDistanceM,
+  surfaceGrip: layout.surfaceGrip,
 };
 writeFileSync(outPath, `${JSON.stringify(track)}\n`);
 console.log(

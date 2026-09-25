@@ -4,6 +4,11 @@
   "widthM": 12,
   "kerbWidthM": 1.5,
   "startDistanceM": 150,
+  "surfaceGrip": {
+    "road": 1,
+    "kerb": 0.85,
+    "grass": 0.45
+  },
   "segments": [
     {
       "straight": 0,

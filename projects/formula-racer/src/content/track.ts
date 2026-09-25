@@ -20,6 +20,8 @@ export interface TrackDefinition {
   controlPoints: { x: number; z: number }[];
   /** Start position as a distance along the sampled centreline. */
   startDistanceM: number;
+  /** Multipliers on the car's tyre friction coefficient. */
+  surfaceGrip: { road: number; kerb: number; grass: number };
 }
 
 export function parseTrack(value: unknown, source = "track"): TrackDefinition {
@@ -38,6 +40,8 @@ export function parseTrack(value: unknown, source = "track"): TrackDefinition {
       throw new ContentError(`${source}.controlPoints[${String(i)}] duplicates its neighbour`);
     }
   });
+  const grip = object(root.surfaceGrip, `${source}.surfaceGrip`);
+  const multiplier = (key: string) => inRange(grip[key], `${source}.surfaceGrip.${key}`, 0.05, 1.5);
   return {
     version: 1,
     id: text(root.id, `${source}.id`),
@@ -46,6 +50,7 @@ export function parseTrack(value: unknown, source = "track"): TrackDefinition {
     kerbWidthM: positive(root.kerbWidthM, `${source}.kerbWidthM`),
     controlPoints: points,
     startDistanceM: inRange(root.startDistanceM, `${source}.startDistanceM`, 0, 1e6),
+    surfaceGrip: { road: multiplier("road"), kerb: multiplier("kerb"), grass: multiplier("grass") },
   };
 }
 

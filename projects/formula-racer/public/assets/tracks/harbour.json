@@ -160,5 +160,6 @@
     [4.6, -23],
     [1.2, -11.7]
   ],
-  "startDistanceM": 150
+  "startDistanceM": 150,
+  "surfaceGrip": { "road": 1, "kerb": 0.85, "grass": 0.45 }
 }

@@ -19,6 +19,7 @@ function circle(): TrackDefinition {
     kerbWidthM: 1.5,
     controlPoints,
     startDistanceM: 0,
+    surfaceGrip: { road: 1, kerb: 1, grass: 1 },
   };
 }
 

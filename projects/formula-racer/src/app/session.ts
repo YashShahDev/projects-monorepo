@@ -45,10 +45,17 @@ export async function createDrivingSession(
 ): Promise<DrivingSession> {
   const geometry = buildTrackGeometry(track);
   const start = geometry.pointAt(track.startDistanceM);
+  // One lookup hint per wheel keeps each locate to a short windowed search.
+  const wheelHints: (number | undefined)[] = [undefined, undefined, undefined, undefined];
   const sim = await createVehicleSimulation(car, {
     start: {
       position: { x: start.x, y: 0, z: start.z },
       headingRad: Math.atan2(start.tx, start.tz),
+    },
+    gripAt: (x, z, wheel) => {
+      const location = geometry.locate(x, z, wheelHints[wheel]);
+      wheelHints[wheel] = location.index;
+      return track.surfaceGrip[location.surface];
     },
   });
   const stepper = new FixedStepper(sim.stepSeconds, MAX_STEPS_PER_FRAME);
