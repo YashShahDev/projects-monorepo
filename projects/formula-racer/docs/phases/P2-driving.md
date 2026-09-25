@@ -23,6 +23,9 @@ Gate: acceleration/braking/turning/contact/reset tests, comparable behavior acro
 render rates, bounded catch-up and no stuck input after focus loss. Demonstrate
 stable straight-line driving and corners; record tuning values and known limits.
 
-Before starting: ask about any handling preference beyond the approved accessible-sim
-default. Do not block routine implementation on unspecified full-simulator parameters.
+Handling preferences (user, 2026-09-26): accessible sim as the default feel; steering
+assist, ABS-style brake assist and traction control all on by default, each toggleable,
+with best laps tagged by the assists used; automatic gears only; speed-sensitive
+keyboard steering smoothing (ramped input, reduced lock at speed). Do not block
+routine implementation on unspecified full-simulator parameters.
 Later tire slip/temperature/wear models remain replaceable follow-ups.
