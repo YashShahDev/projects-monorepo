@@ -1,0 +1,40 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #101418;
+  color: #e8edf2;
+  font:
+    14px/1.4 system-ui,
+    sans-serif;
+}
+
+#view {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#status {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 55%);
+}
+
+#status[hidden] {
+  display: none;
+}
+
+#status[role="alert"] {
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  text-align: center;
+  border-radius: 0;
+  background: #101418;
+}

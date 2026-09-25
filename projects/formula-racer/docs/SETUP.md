@@ -134,7 +134,13 @@ mise exec -- bun run format
 - `test`: `bun test tests`; currently setup diagnostic/link-validation behavior tests.
 - `lint`: strict TypeScript, Oxlint, Oxfmt check and local documentation-file links.
   The link checker does not validate external sites or heading anchors.
-- `build`: honest P0 message; no browser bundle exists until P1.
+- `dev`: Bun dev server with HTML bundling and hot reload at `http://localhost:3000/`
+  (`PORT` overrides). Serves `public/` for runtime assets.
+- `build`: minified browser bundle plus copied `public/` assets in `dist/`. Bundle URLs
+  are relative, so `dist/` can be hosted at any URL subpath.
+- `preview`: serves `dist/` at port 4173; `make preview BASE=/games/formula-racer/`
+  checks subpath hosting. A bare subpath redirects to its trailing-slash form because
+  relative URLs need it; real static hosts need the same redirect.
 - `format`: writes Oxfmt formatting. Lint never silently rewrites files.
 
 From repository root:
@@ -145,7 +151,7 @@ make lint PROJECT=formula-racer
 make build PROJECT=formula-racer
 ```
 
-Game `dev`/`test-e2e`, asset export and benchmark targets arrive in P1/P4/P5; they
+Browser tests arrive in P1-C3; asset export and benchmark targets in P4/P5. They
 are not success-returning placeholder tests. Headless browser success does not verify
 hardware rendering, Blender interactive GUI behavior or game FPS.
 

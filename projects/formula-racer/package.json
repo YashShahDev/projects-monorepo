@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun run tools/phase-zero.ts",
+    "dev": "bun run tools/dev.ts",
+    "build": "bun run tools/build.ts",
+    "preview": "bun run tools/serve-dist.ts",
     "test": "bun test tests",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p src",
     "lint": "bun run typecheck && oxlint --deny-warnings . && oxfmt --check . && bun run tools/check-docs.ts",
     "doctor": "bun run tools/doctor.ts",
     "verify:prerequisites": "bun run tools/verify-prerequisites.ts",
