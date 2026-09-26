@@ -49,15 +49,26 @@ describe("racing line", () => {
     expect(squaredCurvature(line.x, line.z, line.count)).toBeLessThan(centre * 0.7);
   });
 
-  test("is continuous across the lap seam", () => {
+  test("is continuous across the lap seam, with no jumps or kinks", () => {
     let largest = 0;
-    for (let i = 1; i < line.count; i += 1) {
+    let kink = 0;
+    const n = line.count;
+    for (let i = 1; i < n; i += 1) {
       largest = Math.max(largest, Math.abs((line.offsetM[i] ?? 0) - (line.offsetM[i - 1] ?? 0)));
     }
 
-    const seam = Math.abs((line.offsetM[0] ?? 0) - (line.offsetM[line.count - 1] ?? 0));
+    for (let i = 0; i < n; i += 1) {
+      const [a, b, c] = [line.offsetM[(i + n - 1) % n] ?? 0, line.offsetM[i] ?? 0, line.offsetM[(i + 1) % n] ?? 0];
+      kink = Math.max(kink, Math.abs(a - 2 * b + c));
+    }
+
+    const seam = Math.abs((line.offsetM[0] ?? 0) - (line.offsetM[n - 1] ?? 0));
     expect(seam).toBeLessThanOrEqual(largest + 1e-9);
-    expect(largest).toBeLessThan(0.5);
+
+    // It may cross the road steeply out of a hairpin, but under 27° to the centreline
+    // (1 m sideways per 2 m sample), and its sideways slope changes smoothly.
+    expect(largest).toBeLessThan(1);
+    expect(kink).toBeLessThan(0.2);
   });
 
   test("is the same every time it is built", () => {
@@ -109,7 +120,11 @@ describe("speed profile", () => {
         fastest = Math.max(fastest, line.speedMps[index(d)] ?? 0);
       }
 
-      expect(slowest).toBeLessThan(fastest);
+      // A corner reached while still accelerating out of the one before, at full grip
+      // all the way, needs no slowing for.
+      const accelerating =
+        (line.speedMps[index(corner.startM)] ?? 0) > (line.speedMps[index(corner.startM - 300)] ?? 0);
+      expect(slowest < fastest || accelerating).toBe(true);
     }
 
     expect(limiting).toBeGreaterThanOrEqual(corners.length / 2);
@@ -259,7 +274,7 @@ describe("minimum-curvature solve", () => {
   // the kerb-clipping late apex is a minimum-time trait (C3).
   test("takes a 90° corner from the outside edge, through the inside half, and out again", () => {
     const geometry = buildTrackGeometry(square());
-    const squareLine = buildRacingLine(geometry, limits);
+    const squareLine = buildRacingLine(geometry, limits, { iterations: 0 });
     const room = geometry.halfWidthM - limits.clearanceM;
     const n = geometry.count;
     const at = (m: number) => Math.round(m / geometry.spacingM + n) % n;
@@ -301,7 +316,7 @@ describe("minimum-curvature solve", () => {
         16,
       ),
     );
-    const small = buildRacingLine(geometry, limits);
+    const small = buildRacingLine(geometry, limits, { iterations: 0 });
     const n = geometry.count;
     const bound = geometry.halfWidthM - limits.clearanceM;
 
@@ -360,4 +375,65 @@ describe("minimum-curvature solve", () => {
       expect(builtMs).toBeLessThan(3000);
     });
   }
+});
+
+describe("minimum-time refinement", () => {
+  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "corniche", "test-loop"]) {
+    test(`on ${id}, each iteration's estimated lap is no slower, and the last is faster`, () => {
+      const geometry = buildTrackGeometry(
+        parseTrack(
+          JSON.parse(readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8")),
+        ),
+      );
+      const refined = buildRacingLine(geometry, limits);
+      const laps = refined.lapTimesS;
+      expect(laps.length).toBeGreaterThan(1);
+      for (let k = 1; k < laps.length; k += 1) {
+        expect(laps[k] ?? Infinity).toBeLessThanOrEqual(laps[k - 1] ?? 0);
+      }
+
+      expect(laps.at(-1) ?? Infinity).toBeLessThan(laps[0] ?? 0);
+      expect(estimatedLapTimeS(refined)).toBeCloseTo(laps.at(-1) ?? 0, 6);
+      const minimumCurvature = buildRacingLine(geometry, limits, { iterations: 0 });
+      expect(minimumCurvature.lapTimesS).toEqual([laps[0] ?? 0]);
+    });
+  }
+
+  // On a symmetric corner this model moves the apex barely later (0.5 m); what the time
+  // gradient buys is the classic geometric line, clipping the inside at the apex.
+  test("clips the apex that the minimum-curvature line leaves open", () => {
+    const geometry = buildTrackGeometry(square());
+    const n = geometry.count;
+    const room = geometry.halfWidthM - limits.clearanceM;
+
+    // How far inside each line gets through each corner, averaged over the four.
+    const depth = (candidate: ReturnType<typeof buildRacingLine>) => {
+      let total = 0;
+      for (let c = 0; c < 4; c += 1) {
+        const from = Math.round((c * n) / 4);
+        let apex = from;
+        for (let k = 0; k < n / 4; k += 1) {
+          const i = (from + k) % n;
+          if (Math.abs(geometry.curvature[i] ?? 0) > Math.abs(geometry.curvature[apex] ?? 0)) {
+            apex = i;
+          }
+        }
+
+        const turn = Math.sign(geometry.curvature[apex] ?? 0);
+        let deepest = 0;
+        for (let o = -60; o <= 60; o += 1) {
+          deepest = Math.max(deepest, (candidate.offsetM[(apex + o + n) % n] ?? 0) * turn);
+        }
+
+        total += deepest / 4;
+      }
+
+      return total / room;
+    };
+
+    const open = depth(buildRacingLine(geometry, limits, { iterations: 0 }));
+    const clipped = depth(buildRacingLine(geometry, limits));
+    expect(open).toBeLessThan(0.6);
+    expect(clipped).toBeGreaterThan(0.85);
+  });
 });

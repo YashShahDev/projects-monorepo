@@ -13,6 +13,9 @@ const GRIP_USE = 0.8;
 const TYRE_HALF_WIDTH_M = 0.2;
 const EDGE_MARGIN_M = 0.3;
 
+// Softens the friction circle's square root at the grip limit, m/s².
+const SPARE_SOFTENING = 0.5;
+
 // The profile never plans above this; power and drag cap the car well below it.
 const TOP_SPEED_MPS = 120;
 
@@ -76,6 +79,12 @@ export interface RacingLine {
   /** The fastest speed the car can carry at each point, m/s. */
   speedMps: Float64Array;
   phase: GuidePhase[];
+
+  /**
+   * The profile's estimated lap at each step of the build: the minimum-curvature line,
+   * then each accepted minimum-time step.
+   */
+  lapTimesS: number[];
 }
 
 // Second differences of the line's points: Σ|p(i−1) − 2p(i) + p(i+1)|² is its squared
@@ -206,16 +215,9 @@ function cyclicBandedSolver(m: number, entry: (r: number, s: number) => number):
   };
 }
 
-/**
- * The offsets within ±`bound` that minimise the line's summed squared curvature: a
- * convex quadratic programme with box bounds (the minimum-curvature line of Braghin et
- * al., 2008, and Heilmeier et al., 2020), solved to convergence.
- */
-function solveOffsets(geometry: TrackGeometry, bound: number): Float64Array {
+/** The line's squared-curvature sum as ½xᵀHx + qᵀx in its offsets x. */
+function curvatureSystem(geometry: TrackGeometry) {
   const n = geometry.count;
-  if (bound <= 0) {
-    return new Float64Array(n);
-  }
 
   // The left normal of a tangent (tx, tz) is (tz, −tx).
   const nx = Float64Array.from({ length: n }, (_, i) => geometry.tz[i] ?? 0);
@@ -242,6 +244,21 @@ function solveOffsets(geometry: TrackGeometry, bound: number): Float64Array {
 
     return gx * (nx[i] ?? 0) + gz * (nz[i] ?? 0);
   });
+
+  return { n, nx, nz, wrap, hessian, q };
+}
+
+/**
+ * The offsets within ±`bound` that minimise the line's summed squared curvature: a
+ * convex quadratic programme with box bounds (the minimum-curvature line of Braghin et
+ * al., 2008, and Heilmeier et al., 2020), solved to convergence.
+ */
+function solveOffsets(geometry: TrackGeometry, bound: number): Float64Array {
+  if (bound <= 0) {
+    return new Float64Array(geometry.count);
+  }
+
+  const { n, wrap, hessian, q } = curvatureSystem(geometry);
   const gradientAt = (x: Float64Array, i: number) => {
     let g = q[i] ?? 0;
     for (let o = -2; o <= 2; o += 1) {
@@ -355,55 +372,176 @@ function curvatureAt(x: Float64Array, z: Float64Array, i: number, k: number): nu
   return lengths > 1e-9 ? (2 * cross) / lengths : 0;
 }
 
-function speedProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array): Float64Array {
+interface Profile {
+  speedMps: Float64Array;
+  lapTimeS: number;
+
+  /** ∂(lap time)/∂|κ| at each point, s·m: how much its curvature costs. */
+  timePerCurvature: Float64Array;
+
+  /** ∂(lap time)/∂(step length) from each point to the next, s/m. */
+  timePerStep: Float64Array;
+}
+
+/**
+ * The fastest speed profile along a path (a quasi-steady lap simulation on the g-g-v
+ * envelope: grip grows with downforce, shared between cornering and speed changes on a
+ * friction circle), its lap time, and that lap time's gradient in each point's
+ * curvature and step length, by reverse-mode differentiation through the forward and
+ * backward passes.
+ */
+function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array): Profile {
   const n = curvature.length;
   const m = l.massKg;
-  const cornerLimit = Float64Array.from(curvature, (k) => {
+  const bend = Float64Array.from(curvature, Math.abs);
+  const limitAt = (k: number) => {
     // v²·|κ| ≤ μ(g + k_df·v²/m), solved for v.
-    const denominator = Math.abs(k) - (l.mu * l.downforceK) / m;
+    const denominator = k - (l.mu * l.downforceK) / m;
 
     return denominator <= 0 ? TOP_SPEED_MPS : Math.min(TOP_SPEED_MPS, Math.sqrt((l.mu * GRAVITY) / denominator));
-  });
-
-  // Longitudinal grip left over from cornering, on a friction circle.
-  const spare = (v: number, i: number) => {
-    const grip = gripMps2(l, v);
-    const lateral = v * v * Math.abs(curvature[i] ?? 0);
-
-    return Math.sqrt(Math.max(0, grip * grip - lateral * lateral));
   };
+
+  // Longitudinal grip left over from cornering, on a friction circle. Its square root
+  // is softened by ε: still zero at the grip limit, but with a finite slope there, so
+  // the lap time's gradient stays finite at a corner's slowest point.
+  const spare = (v: number, k: number) => {
+    const grip = gripMps2(l, v);
+    const lateral = v * v * k;
+
+    return Math.sqrt(Math.max(0, grip * grip - lateral * lateral) + SPARE_SOFTENING ** 2) - SPARE_SOFTENING;
+  };
+
+  const onPower = (v: number, k: number, ds: number) => {
+    const drive = Math.min(l.maxDriveForceN, l.maxPowerW / Math.max(v, 1)) / m;
+    const accel = Math.min(drive, spare(v, k)) - (l.dragK * v * v) / m;
+
+    return Math.sqrt(Math.max(0, v * v + 2 * accel * ds));
+  };
+
+  const onBrakes = (v: number, k: number, ds: number) => {
+    const decel = Math.min(spare(v, k), l.maxBrakeForceN / m) + (l.dragK * v * v) / m;
+
+    return Math.sqrt(v * v + 2 * decel * ds);
+  };
+
+  const limit = Float64Array.from(bend, limitAt);
 
   // Both passes start at the slowest corner, where the profile must equal its limit,
   // so neither needs to be run round the lap seam again.
   let start = 0;
-  cornerLimit.forEach((v, i) => {
-    if (v < (cornerLimit[start] ?? Infinity)) {
+  limit.forEach((v, i) => {
+    if (v < (limit[start] ?? Infinity)) {
       start = i;
     }
   });
 
-  const forward = Float64Array.from(cornerLimit);
+  const forward = Float64Array.from(limit);
+  const forwardAtLimit = new Uint8Array(n).fill(1);
   for (let t = 0; t < n - 1; t += 1) {
     const i = (start + t) % n;
     const j = (i + 1) % n;
-    const v = forward[i] ?? 0;
-    const drive = Math.min(l.maxDriveForceN, l.maxPowerW / Math.max(v, 1)) / m;
-    const accel = Math.min(drive, spare(v, i)) - (l.dragK * v * v) / m;
-    const reach = Math.sqrt(Math.max(0, v * v + 2 * accel * (stepM[i] ?? 0)));
-    forward[j] = Math.min(cornerLimit[j] ?? 0, reach);
+    const reach = onPower(forward[i] ?? 0, bend[i] ?? 0, stepM[i] ?? 0);
+    if (reach < (limit[j] ?? 0)) {
+      forward[j] = reach;
+      forwardAtLimit[j] = 0;
+    }
   }
 
-  const backward = Float64Array.from(cornerLimit);
+  const backward = Float64Array.from(limit);
+  const backwardAtLimit = new Uint8Array(n).fill(1);
   for (let t = 0; t < n - 1; t += 1) {
     const i = (start - t + n) % n;
     const p = (i - 1 + n) % n;
-    const v = backward[i] ?? 0;
-    const decel = Math.min(spare(v, i), l.maxBrakeForceN / m) + (l.dragK * v * v) / m;
-    const reach = Math.sqrt(v * v + 2 * decel * (stepM[p] ?? 0));
-    backward[p] = Math.min(cornerLimit[p] ?? 0, reach);
+    const reach = onBrakes(backward[i] ?? 0, bend[i] ?? 0, stepM[p] ?? 0);
+    if (reach < (limit[p] ?? 0)) {
+      backward[p] = reach;
+      backwardAtLimit[p] = 0;
+    }
   }
 
-  return forward.map((v, i) => Math.min(v, backward[i] ?? 0));
+  const speedMps = forward.map((v, i) => Math.min(v, backward[i] ?? 0));
+  let lapTimeS = 0;
+  const perSpeed = new Float64Array(n);
+  const timePerStep = new Float64Array(n);
+  for (let i = 0; i < n; i += 1) {
+    const j = (i + 1) % n;
+    const mean = Math.max(((speedMps[i] ?? 0) + (speedMps[j] ?? 0)) / 2, 1e-6);
+    lapTimeS += (stepM[i] ?? 0) / mean;
+    timePerStep[i] = 1 / mean;
+
+    // d(ds / mean)/dv at either end.
+    const share = -(stepM[i] ?? 0) / (2 * mean * mean);
+    perSpeed[i] = (perSpeed[i] ?? 0) + share;
+    perSpeed[j] = (perSpeed[j] ?? 0) + share;
+  }
+
+  // Reverse mode: send each speed's sensitivity back through whichever pass set it,
+  // down to the corner limits and the friction circle's use of each curvature.
+  const byForward = new Float64Array(n);
+  const byBackward = new Float64Array(n);
+  speedMps.forEach((v, i) => {
+    if (v === forward[i]) {
+      byForward[i] = perSpeed[i] ?? 0;
+    } else {
+      byBackward[i] = perSpeed[i] ?? 0;
+    }
+  });
+
+  const byLimit = new Float64Array(n);
+  const timePerCurvature = new Float64Array(n);
+
+  // Central differences, one-sided only where the curvature is too small to step down.
+  const h = 1e-7;
+  const down = (k: number) => Math.min(h, k);
+  const partials = (f: (v: number, k: number, ds: number) => number, v: number, k: number, ds: number) => {
+    const hv = 1e-6 * Math.max(1, v);
+
+    return {
+      dv: (f(v + hv, k, ds) - f(v - hv, k, ds)) / (2 * hv),
+      dk: (f(v, k + h, ds) - f(v, k - down(k), ds)) / (h + down(k)),
+      dds: (f(v, k, ds + 1e-4) - f(v, k, Math.max(0, ds - 1e-4))) / (1e-4 + Math.min(1e-4, ds)),
+    };
+  };
+
+  for (let t = n - 2; t >= 0; t -= 1) {
+    const i = (start + t) % n;
+    const j = (i + 1) % n;
+    const g = byForward[j] ?? 0;
+    if (forwardAtLimit[j] === 1) {
+      byLimit[j] = (byLimit[j] ?? 0) + g;
+    } else if (g !== 0) {
+      const { dv, dk, dds } = partials(onPower, forward[i] ?? 0, bend[i] ?? 0, stepM[i] ?? 0);
+      byForward[i] = (byForward[i] ?? 0) + g * dv;
+      timePerCurvature[i] = (timePerCurvature[i] ?? 0) + g * dk;
+      timePerStep[i] = (timePerStep[i] ?? 0) + g * dds;
+    }
+  }
+
+  byLimit[start] = (byLimit[start] ?? 0) + (byForward[start] ?? 0);
+  for (let t = n - 2; t >= 0; t -= 1) {
+    const i = (start - t + n) % n;
+    const p = (i - 1 + n) % n;
+    const g = byBackward[p] ?? 0;
+    if (backwardAtLimit[p] === 1) {
+      byLimit[p] = (byLimit[p] ?? 0) + g;
+    } else if (g !== 0) {
+      const { dv, dk, dds } = partials(onBrakes, backward[i] ?? 0, bend[i] ?? 0, stepM[p] ?? 0);
+      byBackward[i] = (byBackward[i] ?? 0) + g * dv;
+      timePerCurvature[i] = (timePerCurvature[i] ?? 0) + g * dk;
+      timePerStep[p] = (timePerStep[p] ?? 0) + g * dds;
+    }
+  }
+
+  byLimit[start] = (byLimit[start] ?? 0) + (byBackward[start] ?? 0);
+  byLimit.forEach((g, i) => {
+    if (g !== 0) {
+      const k = bend[i] ?? 0;
+      const slope = (limitAt(k + h) - limitAt(k - down(k))) / (h + down(k));
+      timePerCurvature[i] = (timePerCurvature[i] ?? 0) + g * slope;
+    }
+  });
+
+  return { speedMps, lapTimeS, timePerCurvature, timePerStep };
 }
 
 function phases(speed: Float64Array, stepM: Float64Array): GuidePhase[] {
@@ -428,10 +566,24 @@ function phases(speed: Float64Array, stepM: Float64Array): GuidePhase[] {
   return phase;
 }
 
-export function buildRacingLine(geometry: TrackGeometry, limits: LineLimits): RacingLine {
+// Minimum-time descent after the minimum-curvature line: at most this many steps, each
+// kept only if the estimated lap falls.
+const REFINE_ITERATIONS = 80;
+
+// The first trial step moves no offset further than this; later ones adapt.
+const FIRST_STEP_M = 0.5;
+const STEP_GROWTH = 1.5;
+const STEP_HALVINGS = 12;
+
+// Damping in the step's metric, the curvature Hessian. It sets how smooth each step is:
+// with this much, shapes shorter than about 100 m are damped, which keeps the steps in
+// the region where the lap time's gradient still holds (the hairpin's speed goes as
+// 1/√κ, so a rough step overshoots).
+const METRIC_DAMPING = 0.0001;
+
+/** Everything about a line that follows from its offsets. */
+function lineFrom(geometry: TrackGeometry, limits: LineLimits, offsetM: Float64Array) {
   const n = geometry.count;
-  const bound = Math.max(0, geometry.halfWidthM - limits.clearanceM);
-  const offsetM = solveOffsets(geometry, bound);
   const x = Float64Array.from(
     { length: n },
     (_, i) => (geometry.x[i] ?? 0) + (offsetM[i] ?? 0) * (geometry.tz[i] ?? 0),
@@ -449,9 +601,145 @@ export function buildRacingLine(geometry: TrackGeometry, limits: LineLimits): Ra
   // Over ±2 samples, so the curvature reads the line's shape rather than the offset's
   // interpolation noise.
   const curvature = Float64Array.from({ length: n }, (_, i) => curvatureAt(x, z, i, 2));
-  const speedMps = speedProfile(limits, curvature, stepM);
 
-  return { count: n, x, z, offsetM, stepM, curvature, speedMps, phase: phases(speedMps, stepM) };
+  return { x, z, offsetM, stepM, curvature, profile: lapProfile(limits, curvature, stepM) };
+}
+
+type Line = ReturnType<typeof lineFrom>;
+
+/** ∂(estimated lap)/∂(offset) at each point, through its step lengths and curvatures. */
+function lapGradient(geometry: TrackGeometry, line: Line): Float64Array {
+  const n = geometry.count;
+  const { x, z, stepM, curvature, profile } = line;
+  const nx = (i: number) => geometry.tz[i] ?? 0;
+  const nz = (i: number) => -(geometry.tx[i] ?? 0);
+  const gradient = new Float64Array(n);
+  for (let i = 0; i < n; i += 1) {
+    const j = (i + 1) % n;
+    const length = Math.max(stepM[i] ?? 0, 1e-9);
+    const [ux, uz] = [((x[j] ?? 0) - (x[i] ?? 0)) / length, ((z[j] ?? 0) - (z[i] ?? 0)) / length];
+    const perStep = profile.timePerStep[i] ?? 0;
+    gradient[j] = (gradient[j] ?? 0) + perStep * (ux * nx(j) + uz * nz(j));
+    gradient[i] = (gradient[i] ?? 0) - perStep * (ux * nx(i) + uz * nz(i));
+  }
+
+  // Curvature at i is a circle through i − 2, i and i + 2; move each along its normal.
+  const h = 1e-3;
+  for (let i = 0; i < n; i += 1) {
+    const perBend = (profile.timePerCurvature[i] ?? 0) * Math.sign(curvature[i] ?? 0);
+    if (perBend === 0) {
+      continue;
+    }
+
+    for (const a of [(i - 2 + n) % n, i, (i + 2) % n]) {
+      const [x0, z0] = [x[a] ?? 0, z[a] ?? 0];
+      x[a] = x0 + h * nx(a);
+      z[a] = z0 + h * nz(a);
+      const up = curvatureAt(x, z, i, 2);
+      x[a] = x0 - h * nx(a);
+      z[a] = z0 - h * nz(a);
+      const down = curvatureAt(x, z, i, 2);
+      x[a] = x0;
+      z[a] = z0;
+      gradient[a] = (gradient[a] ?? 0) + (perBend * (up - down)) / (2 * h);
+    }
+  }
+
+  return gradient;
+}
+
+/**
+ * The racing line: the minimum-curvature line, then refined toward minimum time in the
+ * way of Kapania, Subosits and Gerdes (2016), alternating the speed profile with a path
+ * update. Here the update is a descent step on the profile's own estimated lap: its
+ * exact gradient in the offsets, smoothed by the curvature Hessian as the metric, and
+ * kept only if the lap falls. That moves apexes later where a straight follows, since
+ * the exit speed is carried down it.
+ */
+export function buildRacingLine(
+  geometry: TrackGeometry,
+  limits: LineLimits,
+  { iterations = REFINE_ITERATIONS }: { iterations?: number } = {},
+): RacingLine {
+  const bound = Math.max(0, geometry.halfWidthM - limits.clearanceM);
+  let line = lineFrom(geometry, limits, solveOffsets(geometry, bound));
+  const lapTimesS = [line.profile.lapTimeS];
+  if (bound > 0 && iterations > 0) {
+    const { n, hessian } = curvatureSystem(geometry);
+    let scale = Number.NaN;
+    for (let k = 0; k < iterations; k += 1) {
+      // Points on an edge that the gradient pushes further out are held; the step is
+      // solved for the rest, so clamping cannot undo it.
+      const gradient = lapGradient(geometry, line);
+      const free: number[] = [];
+      for (let i = 0; i < n; i += 1) {
+        const o = line.offsetM[i] ?? 0;
+        if (!(Math.abs(o) >= bound * (1 - 1e-9) && Math.sign(o) * (gradient[i] ?? 0) < 0)) {
+          free.push(i);
+        }
+      }
+
+      if (free.length === 0) {
+        break;
+      }
+
+      const metric = cyclicBandedSolver(
+        free.length,
+        (r, c) => hessian(free[r] ?? 0, free[c] ?? 0) + (r === c ? METRIC_DAMPING : 0),
+      );
+      const step = metric(Float64Array.from(free, (i) => -(gradient[i] ?? 0)));
+      const direction = new Float64Array(n);
+      free.forEach((i, r) => {
+        direction[i] = step[r] ?? 0;
+      });
+      const largest = Math.max(...direction.map(Math.abs));
+      if (!(largest > 0)) {
+        break;
+      }
+
+      if (Number.isNaN(scale)) {
+        scale = FIRST_STEP_M / largest;
+      }
+
+      let accepted: Line | undefined;
+      for (let halving = 0; halving <= STEP_HALVINGS && !accepted; halving += 1) {
+        const current = line.offsetM;
+        const trial = lineFrom(
+          geometry,
+          limits,
+          current.map((o, i) => Math.max(-bound, Math.min(bound, o + scale * (direction[i] ?? 0)))),
+        );
+        if (trial.profile.lapTimeS < line.profile.lapTimeS) {
+          accepted = trial;
+        } else {
+          scale /= 2;
+        }
+      }
+
+      if (!accepted) {
+        break;
+      }
+
+      line = accepted;
+      lapTimesS.push(line.profile.lapTimeS);
+      scale *= STEP_GROWTH;
+    }
+  }
+
+  const { x, z, offsetM, stepM, curvature, profile } = line;
+  const speedMps = profile.speedMps;
+
+  return {
+    count: geometry.count,
+    x,
+    z,
+    offsetM,
+    stepM,
+    curvature,
+    speedMps,
+    phase: phases(speedMps, stepM),
+    lapTimesS,
+  };
 }
 
 export interface GuideInput {
