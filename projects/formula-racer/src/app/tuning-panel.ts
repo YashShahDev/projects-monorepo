@@ -7,39 +7,71 @@ export interface Tunable {
 
 interface Field {
   label: string;
-
-  /** Path into the car definition. */
-  path: string[];
   step: string;
+  get(car: CarDefinition): number;
+
+  /** Writes into a cloned definition, which validation checks before it is used. */
+  set(car: CarDefinition, value: number): void;
 }
 
 const FIELDS: Field[] = [
-  { label: "Mass (kg)", path: ["massKg"], step: "10" },
-  { label: "Tyre friction μ", path: ["wheels", "frictionCoefficient"], step: "0.05" },
-  { label: "Spring stiffness", path: ["wheels", "suspensionStiffness"], step: "5" },
-  { label: "Max power (W)", path: ["powertrain", "maxPowerW"], step: "10000" },
-  { label: "Drag area (m²)", path: ["aero", "dragAreaM2"], step: "0.05" },
-  { label: "Downforce area (m²)", path: ["aero", "downforceAreaM2"], step: "0.1" },
-  { label: "Front downforce share", path: ["aero", "frontShare"], step: "0.01" },
+  {
+    label: "Mass (kg)",
+    step: "10",
+    get: (c) => c.massKg,
+    set: (c, v) => {
+      c.massKg = v;
+    },
+  },
+  {
+    label: "Tyre friction μ",
+    step: "0.05",
+    get: (c) => c.wheels.frictionCoefficient,
+    set: (c, v) => {
+      c.wheels.frictionCoefficient = v;
+    },
+  },
+  {
+    label: "Spring stiffness",
+    step: "5",
+    get: (c) => c.wheels.suspensionStiffness,
+    set: (c, v) => {
+      c.wheels.suspensionStiffness = v;
+    },
+  },
+  {
+    label: "Max power (W)",
+    step: "10000",
+    get: (c) => c.powertrain.maxPowerW,
+    set: (c, v) => {
+      c.powertrain.maxPowerW = v;
+    },
+  },
+  {
+    label: "Drag area (m²)",
+    step: "0.05",
+    get: (c) => c.aero.dragAreaM2,
+    set: (c, v) => {
+      c.aero.dragAreaM2 = v;
+    },
+  },
+  {
+    label: "Downforce area (m²)",
+    step: "0.1",
+    get: (c) => c.aero.downforceAreaM2,
+    set: (c, v) => {
+      c.aero.downforceAreaM2 = v;
+    },
+  },
+  {
+    label: "Front downforce share",
+    step: "0.01",
+    get: (c) => c.aero.frontShare,
+    set: (c, v) => {
+      c.aero.frontShare = v;
+    },
+  },
 ];
-
-type Tree = Record<string, unknown>;
-
-const read = (car: CarDefinition, path: string[]): unknown =>
-  path.reduce<unknown>((node, key) => (node as Tree)[key], car);
-
-function write(tree: Tree, path: string[], value: number): void {
-  const [key, ...rest] = path;
-  if (key === undefined) {
-    return;
-  }
-
-  if (rest.length === 0) {
-    tree[key] = value;
-  } else {
-    write(tree[key] as Tree, rest, value);
-  }
-}
 
 /**
  * Development-only panel (F2) for live handling experiments. Changes go through the same
@@ -77,17 +109,19 @@ export function installTuningPanel(target: Tunable): () => void {
     FIELDS.forEach((field, i) => {
       const input = inputs[i];
       if (input) {
-        input.value = String(read(car, field.path));
+        input.value = String(field.get(car));
       }
     });
   };
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    const next = structuredClone(target.car()) as unknown as Tree;
-    FIELDS.forEach((field, i) => write(next, field.path, Number(inputs[i]?.value)));
+    const next = structuredClone(target.car());
+    FIELDS.forEach((field, i) => {
+      field.set(next, Number(inputs[i]?.value));
+    });
     try {
-      target.retune(next as unknown as CarDefinition);
+      target.retune(next);
       status.textContent = "Queued. Press R to reset with the new setup.";
     } catch (error) {
       status.textContent = error instanceof Error ? error.message : String(error);
@@ -99,7 +133,9 @@ export function installTuningPanel(target: Tunable): () => void {
     }
 
     event.preventDefault();
-    form.hidden = !form.hidden;
+
+    // `hidden` may also be "until-found"; anything but false counts as hidden.
+    form.hidden = form.hidden === false;
     if (!form.hidden) {
       load();
     }

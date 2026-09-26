@@ -10,27 +10,28 @@ const TEXT_INPUTS = new Set(["text", "number", "search", "email", "password", "t
 
 // Typing into a text field (the dev tuning panel) must not steer the car.
 const isEditable = (target: EventTarget | null): boolean => {
-  const element = target as {
-    tagName?: unknown;
-    type?: unknown;
-    isContentEditable?: unknown;
-  } | null;
-  if (element?.isContentEditable === true) {
+  if (target === null) {
+    return false;
+  }
+
+  if ("isContentEditable" in target && target.isContentEditable === true) {
     return true;
   }
 
-  if (element?.tagName === "TEXTAREA" || element?.tagName === "SELECT") {
+  const tagName = "tagName" in target ? target.tagName : undefined;
+  if (tagName === "TEXTAREA" || tagName === "SELECT") {
     return true;
   }
 
-  return element?.tagName === "INPUT" && TEXT_INPUTS.has(String(element.type ?? "text"));
+  const type = "type" in target && typeof target.type === "string" ? target.type : "text";
+
+  return tagName === "INPUT" && TEXT_INPUTS.has(type);
 };
 
-const keyFields = (event: Event): KeyFields => {
-  const { code, repeat } = event as Event & Partial<KeyFields>;
-
-  return { code: code ?? "", repeat: repeat ?? false };
-};
+const keyFields = (event: Event): KeyFields => ({
+  code: "code" in event && typeof event.code === "string" ? event.code : "",
+  repeat: "repeat" in event && event.repeat === true,
+});
 
 export interface HeldKeys {
   throttle: boolean;
@@ -98,7 +99,10 @@ export function createKeyboard(window: EventTarget, document: EventTarget & { vi
     down.delete(keyFields(event).code);
   };
 
-  const release = () => down.clear();
+  const release = () => {
+    down.clear();
+  };
+
   const onVisibility = () => {
     if (document.visibilityState === "hidden") {
       release();

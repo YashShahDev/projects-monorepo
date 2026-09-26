@@ -10,6 +10,8 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { BenchReport } from "../src/app/bench.ts";
+import type { FrameSummary } from "../src/app/frame-stats.ts";
+import { finite, object, text } from "../src/content/validate.ts";
 import { isQualityPreset } from "../src/rendering/quality.ts";
 import type { QualityPreset } from "../src/rendering/quality.ts";
 import { serveStaticFile } from "./static-files.ts";
@@ -44,8 +46,50 @@ export interface RunSummary {
   meetsTarget: boolean;
 }
 
+function parseFrameSummary(value: unknown, path: string): FrameSummary {
+  const f = object(value, path);
+  const field = (key: keyof FrameSummary) => finite(f[key], `${path}.${key}`);
+
+  return {
+    frames: field("frames"),
+    medianMs: field("medianMs"),
+    p95Ms: field("p95Ms"),
+    p99Ms: field("p99Ms"),
+    maxMs: field("maxMs"),
+    overBudget: field("overBudget"),
+    budgetMs: field("budgetMs"),
+  };
+}
+
+/** Reads back the JSON a `?bench` page printed. */
+export function parseBenchReport(value: unknown, path = "report"): BenchReport {
+  const r = object(value, path);
+  const buffer = object(r.drawingBuffer, `${path}.drawingBuffer`);
+  const gl = object(r.gl, `${path}.gl`);
+
+  return {
+    route: text(r.route, `${path}.route`),
+    quality: text(r.quality, `${path}.quality`),
+    pixelRatio: finite(r.pixelRatio, `${path}.pixelRatio`),
+    drawingBuffer: {
+      width: finite(buffer.width, `${path}.drawingBuffer.width`),
+      height: finite(buffer.height, `${path}.drawingBuffer.height`),
+    },
+    gl: { vendor: text(gl.vendor, `${path}.gl.vendor`), renderer: text(gl.renderer, `${path}.gl.renderer`) },
+    userAgent: text(r.userAgent, `${path}.userAgent`),
+    transferBytes: finite(r.transferBytes, `${path}.transferBytes`),
+    measuredSeconds: finite(r.measuredSeconds, `${path}.measuredSeconds`),
+    frames: parseFrameSummary(r.frames, `${path}.frames`),
+    simMs: parseFrameSummary(r.simMs, `${path}.simMs`),
+    renderMs: parseFrameSummary(r.renderMs, `${path}.renderMs`),
+    drawCalls: finite(r.drawCalls, `${path}.drawCalls`),
+    triangles: finite(r.triangles, `${path}.triangles`),
+    distanceM: finite(r.distanceM, `${path}.distanceM`),
+  };
+}
+
 export function isSoftwareRenderer(renderer: string): boolean {
-  return /swiftshader|llvmpipe|softpipe|software/i.test(renderer);
+  return /swiftshader|llvmpipe|softpipe|software/iu.test(renderer);
 }
 
 /** Launch flags; ANGLE on GL matches what headed Chromium picks on the reference laptop. */
@@ -138,8 +182,8 @@ export function parseRunOptions(args: string[]): RunOptions {
     passes: whole("passes"),
     seconds: whole("seconds"),
     warmup: whole("warmup"),
-    headed: values.headed === true,
-    out: values.out ?? "docs/performance/runs",
+    headed: values.headed,
+    out: values.out,
   };
 }
 
@@ -158,7 +202,7 @@ async function main() {
   const browser = await chromium.launch({
     headless: !values.headed,
     args: chromiumArgs(!values.headed),
-    ...(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {}),
+    ...(process.env.PW_CHROMIUM_PATH !== undefined ? { executablePath: process.env.PW_CHROMIUM_PATH } : {}),
   });
   const reports: BenchReport[] = [];
   try {
@@ -170,7 +214,7 @@ async function main() {
       await page.goto(new URL(query, server.url).href);
       const pre = page.locator("#bench-report");
       await pre.waitFor({ timeout: (values.seconds + values.warmup + 60) * 1000 });
-      const report = JSON.parse((await pre.textContent()) ?? "") as BenchReport;
+      const report = parseBenchReport(JSON.parse((await pre.textContent()) ?? ""));
       reports.push(report);
       console.log(`pass ${String(pass)}: p95 ${report.frames.p95Ms.toFixed(2)} ms, ${report.gl.renderer}`);
       await page.close();
@@ -183,7 +227,7 @@ async function main() {
   const summary = summarizeRuns(reports);
   const outDir = resolve(import.meta.dirname, "..", values.out);
   mkdirSync(outDir, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const stamp = new Date().toISOString().replaceAll(/[:.]/gu, "-");
   const file = join(outDir, `${stamp}-${quality}.json`);
   writeFileSync(file, `${JSON.stringify({ summary, passes: reports }, null, 2)}\n`);
   console.log(JSON.stringify(summary, null, 2));

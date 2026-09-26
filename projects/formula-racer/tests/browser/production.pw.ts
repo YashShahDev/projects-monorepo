@@ -27,9 +27,10 @@ test("invalid content names the failing field", async ({ page }) => {
 
 test("missing WebGL2 is reported instead of a blank page", async ({ page }) => {
   await page.addInitScript(() => {
+    // oxlint-disable-next-line typescript/unbound-method -- re-bound to each canvas by Reflect.apply below
     const original = HTMLCanvasElement.prototype.getContext;
     Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
-      value(this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
+      value(this: HTMLCanvasElement, type: string, ...rest: unknown[]): unknown {
         return type === "webgl2" ? null : Reflect.apply(original, this, [type, ...rest]);
       },
     });
@@ -40,7 +41,9 @@ test("missing WebGL2 is reported instead of a blank page", async ({ page }) => {
 
 test("a WebAssembly failure is reported as a physics startup error", async ({ page }) => {
   await page.addInitScript(() => {
-    WebAssembly.instantiate = () => Promise.reject(new Error("blocked by test"));
+    Object.defineProperty(WebAssembly, "instantiate", {
+      value: () => Promise.reject(new Error("blocked by test")),
+    });
   });
   await page.goto("./");
   const alert = page.getByRole("alert");

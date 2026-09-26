@@ -35,7 +35,13 @@ describe("liveries", () => {
 const memory = (): StorageLike & { data: Map<string, string> } => {
   const data = new Map<string, string>();
 
-  return { data, getItem: (k) => data.get(k) ?? null, setItem: (k, v) => void data.set(k, v) };
+  return {
+    data,
+    getItem: (k) => data.get(k) ?? null,
+    setItem: (k, v) => {
+      data.set(k, v);
+    },
+  };
 };
 
 describe("preferences", () => {

@@ -1,4 +1,5 @@
 import type { Livery } from "../content/livery.ts";
+import { isRecord } from "../content/validate.ts";
 import { isQualityPreset } from "../rendering/quality.ts";
 import type { QualityPreset } from "../rendering/quality.ts";
 import type { StorageLike } from "./lap-store.ts";
@@ -36,9 +37,8 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
   let newerSave = false;
   try {
     const raw = storage?.getItem(STORAGE_KEY);
-    const saved = raw
-      ? (JSON.parse(raw) as { version?: unknown; livery?: unknown; quality?: unknown; sound?: unknown })
-      : undefined;
+    const parsed: unknown = raw === null || raw === undefined ? undefined : JSON.parse(raw);
+    const saved = isRecord(parsed) ? parsed : undefined;
     if (saved?.version === SCHEMA) {
       current = byId(saved.livery) ?? fallback;
 

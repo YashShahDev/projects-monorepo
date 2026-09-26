@@ -31,7 +31,7 @@ test("@smoke the countdown holds the car, then the lap clock runs", async ({ pag
   expect(await readSpeed(page)).toBe(0);
   await page.clock.runFor(2_000);
   await expect(page.locator("#countdown")).toBeHidden();
-  await expect(page.locator("#lap-time")).toHaveText(/^0:00\.[1-9]\d\d$/);
+  await expect(page.locator("#lap-time")).toHaveText(/^0:00\.[1-9]\d\d$/u);
 });
 
 test("@smoke holding the throttle drives off and shifts up", async ({ page }) => {
@@ -102,10 +102,10 @@ test("@smoke running wide onto the grass marks the lap invalid", async ({ page }
   await freezeFrames(page);
   await openGame(page);
   await page.clock.runFor(3_000);
-  await expect(page.locator("#lap-time")).not.toHaveClass(/invalid/);
+  await expect(page.locator("#lap-time")).not.toHaveClass(/invalid/u);
 
   // Flat out without steering: straight on at turn 1 and onto the grass.
   await page.keyboard.down("ArrowUp");
   await page.clock.runFor(9_000);
-  await expect(page.locator("#lap-time")).toHaveClass(/invalid/);
+  await expect(page.locator("#lap-time")).toHaveClass(/invalid/u);
 });

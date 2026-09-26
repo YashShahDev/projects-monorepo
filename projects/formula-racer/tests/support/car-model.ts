@@ -6,7 +6,7 @@ import type { CarModelInterface } from "../../src/content/car-model.ts";
 /** A 1×1 PNG, enough for a texture slot to count as present. */
 export const PNG = Uint8Array.from(
   atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC"),
-  (c) => c.charCodeAt(0),
+  (c) => c.codePointAt(0) ?? 0,
 );
 
 /**

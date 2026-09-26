@@ -10,12 +10,15 @@ export class ContentError extends Error {
 
 export type Json = Record<string, unknown>;
 
+export const isRecord = (value: unknown): value is Json =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 export function object(value: unknown, path: string): Json {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+  if (!isRecord(value)) {
     throw new ContentError(`${path} must be an object`);
   }
 
-  return value as Json;
+  return value;
 }
 
 export function array(value: unknown, path: string, minLength = 0): unknown[] {

@@ -67,6 +67,14 @@ function bar(label: string, id: string) {
  * The on-screen telemetry dashboard, a track map with the car's position, and a
  * heading-up preview of the next corner as the car approaches it.
  */
+const ledColour = (index: number) => {
+  if (index < 3) {
+    return "green";
+  }
+
+  return index < 6 ? "amber" : "red";
+};
+
 export function createDashboard(
   elements: DashboardElements,
   track: TrackGeometry,
@@ -75,9 +83,7 @@ export function createDashboard(
 ): Dashboard {
   // Telemetry.
   const lights = html("div", { id: "shift-lights", "aria-hidden": "true" });
-  const leds = Array.from({ length: SHIFT_LIGHTS }, (_, i) =>
-    html("i", { class: i < 3 ? "green" : i < 6 ? "amber" : "red" }),
-  );
+  const leds = Array.from({ length: SHIFT_LIGHTS }, (_, i) => html("i", { class: ledColour(i) }));
   lights.append(...leds);
   const rpm = html("span", { id: "rpm" }, "0");
   const rpmRow = html("div", { class: "rpm" });

@@ -11,7 +11,7 @@
     "test:browser": "node node_modules/@playwright/test/cli.js test --config=playwright.local.config.ts",
     "test:browser:full": "node node_modules/@playwright/test/cli.js test --config=playwright.config.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p src && tsc --noEmit -p tests/browser",
-    "lint": "bun run typecheck && oxlint --deny-warnings . && oxfmt --check . && bun run tools/check-docs.ts",
+    "lint": "bun run typecheck && oxlint --type-aware --deny-warnings . && oxfmt --check . && bun run tools/check-docs.ts",
     "doctor": "bun run tools/doctor.ts",
     "verify:prerequisites": "bun run tools/verify-prerequisites.ts",
     "browsers:install": "node node_modules/@playwright/test/cli.js install chromium firefox",
@@ -27,9 +27,11 @@
     "@playwright/test": "1.63.0",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@types/bun": "1.4.2",
+    "@types/node": "26.6.2",
     "@types/three": "0.186.0",
     "oxfmt": "0.70.0",
     "oxlint": "1.85.0",
+    "oxlint-tsgolint": "7.0.2003",
     "typescript": "7.0.2"
   },
   "engines": {

@@ -1,4 +1,5 @@
 import type { DriverAssists } from "../simulation/vehicle.ts";
+import { isRecord } from "../content/validate.ts";
 
 /** The part of `Storage` used here, so tests can pass a fake or a throwing one. */
 export interface StorageLike {
@@ -52,19 +53,13 @@ export function lapKey(parts: { trackId: string; physicsVersion: string; assists
   return `${parts.trackId}|${parts.physicsVersion}|${flags}`;
 }
 
-const isLap = (value: unknown): value is StoredLap => {
-  const lap = value as Partial<StoredLap> | null;
-
-  return (
-    typeof lap === "object" &&
-    lap !== null &&
-    typeof lap.timeS === "number" &&
-    Number.isFinite(lap.timeS) &&
-    lap.timeS > 0 &&
-    Array.isArray(lap.sectorsS) &&
-    lap.sectorsS.every((s) => typeof s === "number" && Number.isFinite(s))
-  );
-};
+const isLap = (lap: unknown): lap is StoredLap =>
+  isRecord(lap) &&
+  typeof lap.timeS === "number" &&
+  Number.isFinite(lap.timeS) &&
+  lap.timeS > 0 &&
+  Array.isArray(lap.sectorsS) &&
+  lap.sectorsS.every((s) => typeof s === "number" && Number.isFinite(s));
 
 /** Reads saved bests; anything malformed is discarded whole rather than half-trusted. */
 function load(raw: string | null): { bests: Map<string, StoredLap>; recovered: boolean } {
@@ -73,17 +68,21 @@ function load(raw: string | null): { bests: Map<string, StoredLap>; recovered: b
   }
 
   try {
-    const data = JSON.parse(raw) as { version?: unknown; bests?: unknown };
-    if (data.version !== SCHEMA || typeof data.bests !== "object" || data.bests === null) {
+    const data: unknown = JSON.parse(raw);
+    if (!isRecord(data) || data.version !== SCHEMA || !isRecord(data.bests)) {
       return { bests: new Map(), recovered: true };
     }
 
-    const entries = Object.entries(data.bests as Record<string, unknown>);
-    if (!entries.every(([, lap]) => isLap(lap))) {
-      return { bests: new Map(), recovered: true };
+    const bests = new Map<string, StoredLap>();
+    for (const [key, lap] of Object.entries(data.bests)) {
+      if (!isLap(lap)) {
+        return { bests: new Map(), recovered: true };
+      }
+
+      bests.set(key, lap);
     }
 
-    return { bests: new Map(entries as [string, StoredLap][]), recovered: false };
+    return { bests, recovered: false };
   } catch {
     return { bests: new Map(), recovered: true };
   }

@@ -1,13 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { parseEnergyRules } from "../src/content/energy-rules.ts";
 import { createEnergySystem, permittedDeployW } from "../src/simulation/energy.ts";
 import type { EnergyInput } from "../src/simulation/energy.ts";
+import { readJsonObject } from "./support/json.ts";
 
-const raw = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, "../public/assets/rules/energy-2026-c18.json"), "utf8"),
-) as Record<string, unknown>;
+const raw = readJsonObject("public/assets/rules/energy-2026-c18.json");
 const rules = parseEnergyRules(raw);
 const kmh = (v: number) => v / 3.6;
 const DT = 1 / 60;

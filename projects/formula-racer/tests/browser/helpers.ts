@@ -29,9 +29,9 @@ export async function freezeFrames(page: Page): Promise<void> {
  * rendering itself keep the default.
  */
 export async function lowQuality(page: Page): Promise<void> {
-  await page.addInitScript(() =>
-    localStorage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, quality: "low" })),
-  );
+  await page.addInitScript(() => {
+    localStorage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, quality: "low" }));
+  });
 }
 
 export async function openGame(page: Page, path = "./"): Promise<void> {

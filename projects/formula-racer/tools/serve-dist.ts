@@ -12,9 +12,9 @@ if (!existsSync(join(root, "index.html"))) {
   process.exit(1);
 }
 
-const base = normalizeBasePath(values.base ?? "/");
+const base = normalizeBasePath(values.base);
 const server = Bun.serve({
-  port: Number(values.port ?? "4173"),
+  port: Number(values.port),
   fetch: (request) => serveStaticFile(root, base, new URL(request.url).pathname),
 });
 console.log(`Serving dist/ at ${new URL(base, server.url).href}`);

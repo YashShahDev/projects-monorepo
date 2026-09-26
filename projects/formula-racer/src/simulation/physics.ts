@@ -1,4 +1,4 @@
-import RAPIER from "@dimforge/rapier3d-compat";
+import * as RAPIER from "@dimforge/rapier3d-compat";
 import type { Vec3 } from "../content/validate.ts";
 
 export interface Quat {

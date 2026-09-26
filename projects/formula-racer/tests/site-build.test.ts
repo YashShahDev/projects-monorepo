@@ -6,7 +6,9 @@ import { TEST_HOOK_GLOBAL } from "../src/app/test-hook-name.ts";
 import { assertNoLfsPointers, assertNoTestHooks, buildSite } from "../tools/site-build.ts";
 
 const outdir = mkdtempSync(join(tmpdir(), "formula-racer-build-test-"));
-afterAll(() => rmSync(outdir, { recursive: true, force: true }));
+afterAll(() => {
+  rmSync(outdir, { recursive: true, force: true });
+});
 const files = await buildSite(resolve(import.meta.dirname, ".."), outdir);
 const html = readFileSync(join(outdir, "index.html"), "utf8");
 
@@ -35,20 +37,22 @@ test("the production bundle excludes development test hooks", () => {
 });
 
 test("the leak guard names the offending script", () => {
-  expect(() =>
+  expect(() => {
     assertNoTestHooks([
       ["ok.js", "x"],
       ["bad.js", `w.${TEST_HOOK_GLOBAL}=1`],
-    ]),
-  ).toThrow("test hooks leaked into production: bad.js");
+    ]);
+  }).toThrow("test hooks leaked into production: bad.js");
 });
 
 test("a Git LFS pointer in place of a runtime asset fails the build and names the file", () => {
   const pointer = new TextEncoder().encode(
     "version https://git-lfs.github.com/spec/v1\noid sha256:79e41e3773e5\nsize 1753024\n",
   );
-  expect(() => assertNoLfsPointers([["assets/cars/fr26.glb", pointer]])).toThrow(
-    "assets/cars/fr26.glb is a Git LFS pointer",
-  );
-  expect(() => assertNoLfsPointers([["assets/cars/fr26.glb", new Uint8Array([0x67, 0x6c, 0x54, 0x46])]])).not.toThrow();
+  expect(() => {
+    assertNoLfsPointers([["assets/cars/fr26.glb", pointer]]);
+  }).toThrow("assets/cars/fr26.glb is a Git LFS pointer");
+  expect(() => {
+    assertNoLfsPointers([["assets/cars/fr26.glb", new Uint8Array([0x67, 0x6c, 0x54, 0x46])]]);
+  }).not.toThrow();
 });

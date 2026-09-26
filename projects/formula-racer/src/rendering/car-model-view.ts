@@ -5,6 +5,13 @@ import type { Livery } from "../content/livery.ts";
 import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import type { CameraAnchors } from "./camera-rig.ts";
 
+/** An ImageBitmap, or anything else holding memory until `close()`. */
+const isClosable = (value: unknown): value is { close(): void } =>
+  typeof value === "object" && value !== null && "close" in value && typeof value.close === "function";
+
+// `instanceof` on the generic class widens its type arguments to `any`.
+const isMesh = (object: THREE.Object3D): object is THREE.Mesh => object instanceof THREE.Mesh;
+
 /** How far a flap rotates about its hinge when fully open in Straight Mode. */
 export const FLAP_OPEN_RAD = 0.35;
 
@@ -33,7 +40,15 @@ export function bindCarModel(root: THREE.Object3D, spec: CarModelInterface, car:
     throw new Error(`car model is missing ${missing.join(", ")}`);
   }
 
-  const node = (name: string) => root.getObjectByName(name) as THREE.Object3D;
+  const node = (name: string): THREE.Object3D => {
+    const found = root.getObjectByName(name);
+    if (!found) {
+      throw new Error(`car model is missing ${name}`);
+    }
+
+    return found;
+  };
+
   const wheels = spec.wheels.map(node);
   const flaps = spec.flaps.map(node);
   const flapRest = flaps.map((flap) => flap.rotation.x);
@@ -50,11 +65,11 @@ export function bindCarModel(root: THREE.Object3D, spec: CarModelInterface, car:
 
   const materials = new Map<string, THREE.MeshStandardMaterial[]>();
   root.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) {
+    if (!isMesh(object)) {
       return;
     }
 
-    const list: THREE.Material[] = Array.isArray(object.material) ? object.material : [object.material];
+    const list = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of list) {
       if (material instanceof THREE.MeshStandardMaterial && spec.liveryMaterials.includes(material.name)) {
         const named = materials.get(material.name) ?? [];
@@ -107,24 +122,19 @@ export function bindCarModel(root: THREE.Object3D, spec: CarModelInterface, car:
     },
     dispose() {
       root.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) {
+        if (!isMesh(object)) {
           return;
         }
 
-        (object.geometry as THREE.BufferGeometry).dispose();
-        const list: THREE.Material[] = Array.isArray(object.material) ? object.material : [object.material];
+        object.geometry.dispose();
+        const list = Array.isArray(object.material) ? object.material : [object.material];
         for (const material of list) {
           for (const value of Object.values(material)) {
             if (value instanceof THREE.Texture) {
               // The loader decodes images to ImageBitmaps, which hold memory until closed.
               const image: unknown = value.source.data;
-              if (
-                typeof image === "object" &&
-                image !== null &&
-                "close" in image &&
-                typeof image.close === "function"
-              ) {
-                (image as { close(): void }).close();
+              if (isClosable(image)) {
+                image.close();
               }
 
               value.dispose();

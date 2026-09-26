@@ -1,17 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { chooseTrack, loadCatalogTrack, parseTrackCatalog } from "../src/content/track-catalog.ts";
 import { parseTrack } from "../src/content/track.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 import shipped from "../public/assets/tracks/tracks.json";
+import { readJsonObject } from "./support/json.ts";
 
 const catalog = parseTrackCatalog(shipped);
-const readTrack = (id: string) =>
-  JSON.parse(readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8")) as Record<
-    string,
-    unknown
-  >;
+const readTrack = (id: string) => readJsonObject(`public/assets/tracks/${id}.json`);
 
 /** Serves JSON bodies by URL path and records what was asked for. */
 function fakeFetch(files: Record<string, unknown>) {
@@ -81,21 +76,19 @@ describe("loading a catalog track", () => {
     expect(requested).toEqual(["/game/assets/tracks/tracks.json", "/game/assets/tracks/test-loop.json"]);
   });
 
-  test("rejects a track file whose id disagrees with the catalog", async () => {
+  test("rejects a track file whose id disagrees with the catalog", () => {
     const { fetchImpl } = fakeFetch({
       "/game/assets/tracks/tracks.json": shipped,
       "/game/assets/tracks/test-loop.json": readTrack("harbour"),
     });
-    await expect(loadCatalogTrack(asset, "test-loop", fetchImpl)).rejects.toThrow(
+    expect(loadCatalogTrack(asset, "test-loop", fetchImpl)).rejects.toThrow(
       "/game/assets/tracks/test-loop.json.id is harbour, but the catalog lists test-loop",
     );
   });
 
-  test("reports a missing track file by path", async () => {
+  test("reports a missing track file by path", () => {
     const { fetchImpl } = fakeFetch({ "/game/assets/tracks/tracks.json": shipped });
-    await expect(loadCatalogTrack(asset, null, fetchImpl)).rejects.toThrow(
-      "/game/assets/tracks/harbour.json: HTTP 404",
-    );
+    expect(loadCatalogTrack(asset, null, fetchImpl)).rejects.toThrow("/game/assets/tracks/harbour.json: HTTP 404");
   });
 });
 

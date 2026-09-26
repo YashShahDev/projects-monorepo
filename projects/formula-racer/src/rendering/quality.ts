@@ -16,18 +16,17 @@ export interface QualitySettings {
 }
 
 export const isQualityPreset = (value: unknown): value is QualityPreset =>
-  QUALITY_PRESETS.includes(value as QualityPreset);
+  QUALITY_PRESETS.some((preset) => preset === value);
 
 // Hypothesis, not yet measured: fill rate limits integrated GPUs, so presets mostly
 // trade resolution; Low renders below native even on a 1× display. P5-C1's `make bench`
 // runs on the reference laptop decide whether that holds.
+const PRESETS: Record<QualityPreset, (devicePixelRatio: number) => QualitySettings> = {
+  low: () => ({ pixelRatio: 0.6, drawDistanceM: 1500, carLod: 2, trees: false }),
+  medium: (dpr) => ({ pixelRatio: Math.min(dpr, 1.5), drawDistanceM: 3000, carLod: 1, trees: true }),
+  high: (dpr) => ({ pixelRatio: Math.min(dpr, 2), drawDistanceM: 4000, carLod: 0, trees: true }),
+};
+
 export function qualitySettings(preset: QualityPreset, devicePixelRatio: number): QualitySettings {
-  switch (preset) {
-    case "low":
-      return { pixelRatio: 0.6, drawDistanceM: 1500, carLod: 2, trees: false };
-    case "medium":
-      return { pixelRatio: Math.min(devicePixelRatio, 1.5), drawDistanceM: 3000, carLod: 1, trees: true };
-    case "high":
-      return { pixelRatio: Math.min(devicePixelRatio, 2), drawDistanceM: 4000, carLod: 0, trees: true };
-  }
+  return PRESETS[preset](devicePixelRatio);
 }

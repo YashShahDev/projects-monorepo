@@ -37,7 +37,7 @@ describe("engine sound", () => {
 describe("tyre sound", () => {
   test("is silent in gentle corners and squeals near the grip limit", () => {
     const moving = { ...base, speedMps: 50 };
-    expect(soundMix({ ...moving, lateralAccelMps2: 1 * G }).tyreGain).toBe(0);
+    expect(soundMix({ ...moving, lateralAccelMps2: G }).tyreGain).toBe(0);
     const hard = soundMix({ ...moving, lateralAccelMps2: 3 * G }).tyreGain;
     const harder = soundMix({ ...moving, lateralAccelMps2: -4 * G }).tyreGain;
     expect(hard).toBeGreaterThan(0);

@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { parseTrack } from "../src/content/track.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
-import { generateTrack } from "../tools/generate-track.ts";
+import { generateTrack, parseLayout } from "../tools/generate-track.ts";
 import type { Layout } from "../tools/generate-track.ts";
+import { readJsonObject } from "./support/json.ts";
 
 const base = {
   id: "square",
@@ -45,13 +44,8 @@ describe("track generator", () => {
   });
 
   test.each(["harbour", "test-loop"])("regenerates the shipped %s track exactly", (id) => {
-    const layout = JSON.parse(
-      readFileSync(resolve(import.meta.dirname, `../content/tracks/${id}.layout.json`), "utf8"),
-    ) as Layout;
-    const shipped = JSON.parse(
-      readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8"),
-    ) as Record<string, unknown>;
-    expect(generateTrack(layout).track).toEqual(shipped);
+    const layout = parseLayout(readJsonObject(`content/tracks/${id}.layout.json`));
+    expect(generateTrack(layout).track).toEqual(readJsonObject(`public/assets/tracks/${id}.json`));
   });
 
   test("rejects a layout that does not turn exactly once", () => {
@@ -67,5 +61,17 @@ describe("track generator", () => {
   test("needs exactly two solved straights", () => {
     const segments = square.segments.map((s) => ("solve" in s ? { straight: 200 } : s));
     expect(() => generateTrack({ ...square, segments })).toThrow("exactly two");
+  });
+
+  test("reads a layout file and names the first field that is wrong", () => {
+    const roundTrip: unknown = structuredClone(square);
+    expect(parseLayout(roundTrip)).toEqual(square);
+    expect(() => parseLayout({ ...square, widthM: "12" })).toThrow("layout.widthM must be a finite number");
+    expect(() => parseLayout({ ...square, segments: [{ straight: 10 }, { turn: 90 }] })).toThrow(
+      "layout.segments[1] must be a straight or an arc",
+    );
+    expect(() => parseLayout({ ...square, segments: [{ straight: 10, solve: "yes" }] })).toThrow(
+      "layout.segments[0].solve must be a boolean",
+    );
   });
 });

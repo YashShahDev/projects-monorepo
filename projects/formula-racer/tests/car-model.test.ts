@@ -34,9 +34,11 @@ describe("car model validation", () => {
     const doc = validModel(car, contract);
     findNode(doc, "camera_cockpit").dispose();
     findNode(doc, "wheel_RR").setName("wheel_RL");
-    expect(problems(doc)).toEqual(
-      expect.arrayContaining(["missing node camera_cockpit", "missing node wheel_RR", "node wheel_RL appears 2 times"]),
-    );
+    expect(problems(doc)).toContainValues([
+      "missing node camera_cockpit",
+      "missing node wheel_RR",
+      "node wheel_RL appears 2 times",
+    ]);
   });
 
   test("rejects meshes outside the interface, which would draw at every LOD", () => {
@@ -77,12 +79,10 @@ describe("car model validation", () => {
     const doc = validModel(car, contract);
     findNode(doc, "wheel_RL_LOD0").setTranslation([0, 0.05, 0]);
     findNode(doc, "wheel_FL_LOD0").setScale([1, 1.1, 1.1]);
-    expect(problems(doc)).toEqual(
-      expect.arrayContaining([
-        "wheel_RL_LOD0 is not centred on its pivot",
-        "wheel_FL_LOD0 has radius 0.396 m, physics uses 0.360 m",
-      ]),
-    );
+    expect(problems(doc)).toContainValues([
+      "wheel_RL_LOD0 is not centred on its pivot",
+      "wheel_FL_LOD0 has radius 0.396 m, physics uses 0.360 m",
+    ]);
   });
 
   test("checks overall size against the 2026 envelope, so a wrong scale fails", () => {
@@ -122,12 +122,10 @@ describe("car model validation", () => {
     const paint = doc.getRoot().listMaterials()[0];
     paint?.getNormalTexture()?.setImage(null);
     paint?.getOcclusionTexture()?.setMimeType("image/gif");
-    expect(problems(doc)).toEqual(
-      expect.arrayContaining([
-        "material paint normal texture has no image",
-        "material paint occlusion texture has unsupported type image/gif",
-      ]),
-    );
+    expect(problems(doc)).toContainValues([
+      "material paint normal texture has no image",
+      "material paint occlusion texture has unsupported type image/gif",
+    ]);
   });
 
   test("requires the materials liveries repaint on the body", () => {

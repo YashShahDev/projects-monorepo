@@ -22,7 +22,7 @@ export function parseTrackCatalog(value: unknown, source = "tracks"): TrackEntry
     const id = text(v.id, `${path}.id`);
 
     // The id becomes part of a URL path, so it must not be able to reach another file.
-    if (!/^[a-z0-9-]+$/.test(id)) {
+    if (!/^[a-z0-9-]+$/u.test(id)) {
       throw new ContentError(`${path}.id must use only a-z, 0-9 and -`);
     }
 

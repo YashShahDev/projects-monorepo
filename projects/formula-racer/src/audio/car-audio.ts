@@ -52,7 +52,7 @@ export function createCarAudio(): CarAudio {
     seed ^= seed << 13;
     seed ^= seed >>> 17;
     seed ^= seed << 5;
-    samples[i] = (seed | 0) / 2_147_483_648;
+    samples[i] = Math.trunc(seed) / 2_147_483_648;
   }
 
   const hiss = context.createBufferSource();
@@ -101,7 +101,9 @@ export function createCarAudio(): CarAudio {
 
       // Suspend only once the fade has played out, or muting clicks.
       if (!on) {
-        suspendTimer = setTimeout(() => void context.suspend(), SUSPEND_AFTER_MS);
+        suspendTimer = setTimeout(() => {
+          void context.suspend();
+        }, SUSPEND_AFTER_MS);
       }
     },
     update(mix) {

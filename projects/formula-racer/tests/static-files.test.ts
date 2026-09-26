@@ -9,7 +9,9 @@ mkdirSync(join(root, "assets"));
 writeFileSync(join(root, "index.html"), "<!doctype html>");
 writeFileSync(join(root, "assets/scene.json"), "{}");
 writeFileSync(join(root, "assets/a note.json"), "{}");
-afterAll(() => rmSync(root, { recursive: true, force: true }));
+afterAll(() => {
+  rmSync(root, { recursive: true, force: true });
+});
 
 describe("base paths", () => {
   test("normalize to leading and trailing slashes", () => {

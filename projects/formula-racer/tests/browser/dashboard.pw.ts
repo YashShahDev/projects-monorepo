@@ -10,17 +10,17 @@ test("@smoke the map tracks the car and the next corner is previewed on approach
   const at = async () => [Number(await dot.getAttribute("cx")), Number(await dot.getAttribute("cy"))];
   await page.clock.runFor(3_000);
   const grid = await at();
-  await expect(page.locator("#throttle-bar")).toHaveAttribute("style", /scaleX\(0(\.0+)?\)/);
+  await expect(page.locator("#throttle-bar")).toHaveAttribute("style", /scaleX\(0(\.0+)?\)/u);
 
   await page.keyboard.down("ArrowUp");
   await page.clock.runFor(2_000);
-  await expect(page.locator("#throttle-bar")).toHaveAttribute("style", /scaleX\(1(\.0+)?\)/);
+  await expect(page.locator("#throttle-bar")).toHaveAttribute("style", /scaleX\(1(\.0+)?\)/u);
   const moved = await at();
   expect(Math.hypot((moved[0] ?? 0) - (grid[0] ?? 0), (moved[1] ?? 0) - (grid[1] ?? 0))).toBeGreaterThan(2);
 
   // Harbour's turn 1 is a right-hander a few hundred metres from the grid.
   await expect(page.locator("#corner-preview")).toBeVisible();
-  await expect(page.locator("#corner-label")).toHaveText(/^Turn 1 · Right · (\d+ m|now)$/);
+  await expect(page.locator("#corner-label")).toHaveText(/^Turn 1 · Right · (\d+ m|now)$/u);
   expect(Number(await page.locator("#rpm").textContent())).toBeGreaterThan(4000);
   expect(errors).toEqual([]);
 });

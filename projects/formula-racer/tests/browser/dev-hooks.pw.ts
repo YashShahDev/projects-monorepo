@@ -1,18 +1,22 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import type { GameApp, GameAppState } from "../../src/app/game-app.ts";
+import type { GameAppState } from "../../src/app/game-app.ts";
 import { freezeFrames, openGame, lowQuality } from "./helpers.ts";
 
 type Call = { name: "state" | "dispose" } | { name: "step"; count: number; throttle: boolean };
 
 function hook(page: Page, call: Call): Promise<GameAppState | undefined> {
-  return page.evaluate((call) => {
-    const app = (window as unknown as { __formulaRacerTest: GameApp }).__formulaRacerTest;
-    if (call.name === "step") {
-      return app.step(call.count, call.throttle);
+  return page.evaluate((request) => {
+    const app = window.__formulaRacerTest;
+    if (!app) {
+      throw new Error("development test hooks are not installed");
     }
 
-    if (call.name === "state") {
+    if (request.name === "step") {
+      return app.step(request.count, request.throttle);
+    }
+
+    if (request.name === "state") {
       return app.state();
     }
 
@@ -22,7 +26,9 @@ function hook(page: Page, call: Call): Promise<GameAppState | undefined> {
   }, call);
 }
 
-async function state(page: Page, call: Call = { name: "state" }): Promise<GameAppState> {
+const STATE: Call = { name: "state" };
+
+async function state(page: Page, call: Call = STATE): Promise<GameAppState> {
   const result = await hook(page, call);
   if (!result) {
     throw new Error(`${call.name} returned no state`);

@@ -1,4 +1,4 @@
-import RAPIER from "@dimforge/rapier3d-compat";
+import * as RAPIER from "@dimforge/rapier3d-compat";
 import type { CarDefinition } from "../content/car.ts";
 import type { Vec3 } from "../content/validate.ts";
 import { initPhysics } from "./physics.ts";

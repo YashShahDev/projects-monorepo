@@ -10,5 +10,5 @@ export default defineConfig({
     env: { PORT: "4310" },
     url: "http://localhost:4310/",
   },
-  projects: fullConfig.projects?.filter((project) => project.name === "chromium-dev"),
+  projects: (fullConfig.projects ?? []).filter((project) => project.name === "chromium-dev"),
 });

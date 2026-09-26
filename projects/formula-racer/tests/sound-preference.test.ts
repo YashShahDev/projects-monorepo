@@ -8,7 +8,12 @@ const liveries = parseLiveries(shipped);
 const memory = (): StorageLike => {
   const data = new Map<string, string>();
 
-  return { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => void data.set(k, v) };
+  return {
+    getItem: (k) => data.get(k) ?? null,
+    setItem: (k, v) => {
+      data.set(k, v);
+    },
+  };
 };
 
 test("sound defaults to on and a muted choice is remembered with the others", () => {

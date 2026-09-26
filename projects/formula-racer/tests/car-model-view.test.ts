@@ -9,6 +9,7 @@ import type { VehicleSnapshot } from "../src/simulation/vehicle.ts";
 
 const read = (path: string) => JSON.parse(readFileSync(resolve(import.meta.dirname, path), "utf8")) as unknown;
 const car = parseCar(read("../public/assets/cars/fr26.json"));
+const isMesh = (object: THREE.Object3D): object is THREE.Mesh => object instanceof THREE.Mesh;
 const spec = parseCarModelInterface(read("../content/cars/model-interface.json"));
 
 /** The node tree a loader produces for a model that follows the interface. */
@@ -36,8 +37,12 @@ function modelTree(skip: string[] = []) {
   };
 
   add(spec.body);
-  spec.wheels.forEach((name, i) => add(name, [i % 2 === 0 ? 0.8 : -0.8, 0.3, i < 2 ? 1.8 : -1.8]));
-  spec.flaps.forEach((name, i) => add(name, [0, 0.4, i === 0 ? 2.6 : -2.2]));
+  spec.wheels.forEach((name, i) => {
+    add(name, [i % 2 === 0 ? 0.8 : -0.8, 0.3, i < 2 ? 1.8 : -1.8]);
+  });
+  spec.flaps.forEach((name, i) => {
+    add(name, [0, 0.4, i === 0 ? 2.6 : -2.2]);
+  });
   add("camera_chase", [0, 1, -1], false);
   add("camera_cockpit", [0, 0.8, 0.4], false);
   add(spec.collision, [0, 0, 0], false);
@@ -163,12 +168,14 @@ test("dispose frees every geometry, material and texture the model owns", () => 
   texture.source.data = bitmap;
   paint.normalMap = texture;
   const disposed = new Set<unknown>();
-  const watch = (resource: THREE.EventDispatcher<{ dispose: object }>) =>
+  const watch = (resource: THREE.EventDispatcher<{ dispose: object }>) => {
     resource.addEventListener("dispose", () => disposed.add(resource));
+  };
+
   const geometries = new Set<THREE.BufferGeometry>();
   root.traverse((object) => {
-    if (object instanceof THREE.Mesh) {
-      geometries.add(object.geometry as THREE.BufferGeometry);
+    if (isMesh(object)) {
+      geometries.add(object.geometry);
     }
   });
   for (const resource of [...geometries, paint, texture]) {

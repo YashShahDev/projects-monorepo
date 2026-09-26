@@ -134,7 +134,9 @@ describe("vehicle simulation", () => {
     const sim = await settledVehicle();
     sim.dispose();
     sim.dispose();
-    expect(() => sim.step(NO_CONTROLS)).toThrow("vehicle simulation used after dispose()");
+    expect(() => {
+      sim.step(NO_CONTROLS);
+    }).toThrow("vehicle simulation used after dispose()");
     expect(() => sim.snapshot()).toThrow("vehicle simulation used after dispose()");
   });
 });
