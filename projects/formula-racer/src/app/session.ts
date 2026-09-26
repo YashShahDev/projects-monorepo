@@ -14,13 +14,17 @@ import type { TrackGeometry } from "../simulation/track-geometry.ts";
 import { buildTrackside, GRAVEL_DRAG_N } from "../simulation/trackside.ts";
 import type { GroundSurface, Trackside } from "../simulation/trackside.ts";
 import { buildVehicleSimulation, createVehicleSimulation } from "../simulation/vehicle.ts";
-import type { VehicleOptions } from "../simulation/vehicle.ts";
-import type { DriverAssists, VehicleSnapshot } from "../simulation/vehicle.ts";
+import type {
+  VehicleOptions,
+  DriverAssists,
+  VehicleSnapshot,
+  EnergyTelemetry,
+  WingState,
+} from "../simulation/vehicle.ts";
 import type { Pose } from "../simulation/physics.ts";
 import type { KeyAction } from "./keyboard.ts";
 import type { EnergyRules } from "../content/energy-rules.ts";
 import type { EnergyMode } from "../simulation/energy.ts";
-import type { EnergyTelemetry, WingState } from "../simulation/vehicle.ts";
 
 /** A completed lap and the conditions it was driven under. */
 export interface SessionLap extends LapRecord {
@@ -324,9 +328,9 @@ export async function createDrivingSession(
       }
 
       const latest = sim.snapshot();
-      const car = { ...latest, ...blend(previous, poseOf(latest), alpha) };
+      const pose = { ...latest, ...blend(previous, poseOf(latest), alpha) };
 
-      return { car, camera: camera.update(car, frameSeconds) };
+      return { car: pose, camera: camera.update(pose, frameSeconds) };
     },
     action(action) {
       if (action === "pause") {

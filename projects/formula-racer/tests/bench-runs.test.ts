@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { chromiumArgs, isSoftwareRenderer, parseRunOptions, summarizeRuns } from "../tools/bench.ts";
+import { chromiumArgs, isSoftwareRenderer, parseBenchReport, parseRunOptions, summarizeRuns } from "../tools/bench.ts";
 import type { BenchReport } from "../src/app/bench.ts";
 
 const frames = (p95Ms: number) => ({
@@ -58,9 +58,7 @@ test("refuses to summarize runs of different routes or presets", () => {
 });
 
 test("forces the GPU in headless mode, where Chromium would otherwise render in software", () => {
-  expect(chromiumArgs(true)).toEqual(
-    expect.arrayContaining(["--use-angle=gl", "--enable-gpu", "--ignore-gpu-blocklist"]),
-  );
+  expect(chromiumArgs(true)).toContainValues(["--use-angle=gl", "--enable-gpu", "--ignore-gpu-blocklist"]);
   expect(chromiumArgs(false)).toEqual([]);
 });
 
@@ -93,4 +91,16 @@ test("run options must be whole positive numbers and a known preset", () => {
   expect(() => parseRunOptions(["--passes", "abc"])).toThrow("--passes must be a positive whole number");
   expect(() => parseRunOptions(["--seconds", "0"])).toThrow("--seconds must be a positive whole number");
   expect(() => parseRunOptions(["--quality", "ultra"])).toThrow("--quality must be low, medium or high");
+});
+
+test("reads a printed report back exactly and names the first field that is wrong", () => {
+  const printed: unknown = structuredClone(report(12));
+  expect(parseBenchReport(printed)).toEqual(report(12));
+  expect(() => parseBenchReport({ ...report(12), frames: { ...frames(12), p95Ms: "12" } })).toThrow(
+    "report.frames.p95Ms must be a finite number",
+  );
+  expect(() => parseBenchReport({ ...report(12), gl: { vendor: "Intel" } })).toThrow(
+    "report.gl.renderer must be a non-empty string",
+  );
+  expect(() => parseBenchReport([])).toThrow("report must be an object");
 });

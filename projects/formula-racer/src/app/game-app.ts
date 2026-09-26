@@ -114,7 +114,7 @@ export async function startGameApp(
 
   // Resolve against the document so the build works from any URL subpath.
   const asset = (path: string) => new URL(path, document.baseURI);
-  const [car, track, energy, liveries] = await stage("Could not load game content", () =>
+  const [carDefinition, track, energy, liveries] = await stage("Could not load game content", () =>
     Promise.all([
       fetchCar(asset("assets/cars/fr26.json")),
       loadCatalogTrack(asset, requestedTrack),
@@ -123,13 +123,13 @@ export async function startGameApp(
     ]),
   );
   const model = await stage("Could not load the car model", () =>
-    loadCarModel(asset("assets/cars/fr26.glb"), parseCarModelInterface(modelInterface), car),
+    loadCarModel(asset("assets/cars/fr26.glb"), parseCarModelInterface(modelInterface), carDefinition),
   );
   const session = await (async () => {
     await stage("Physics engine (WebAssembly) failed to start", initPhysics);
 
     return stage("Could not start the simulation", () =>
-      createDrivingSession(car, track, { energy, cameraAnchors: model.anchors }),
+      createDrivingSession(carDefinition, track, { energy, cameraAnchors: model.anchors }),
     );
   })().catch((error: unknown) => {
     model.dispose();
@@ -149,7 +149,7 @@ export async function startGameApp(
   const dashboard = createDashboard(
     { telemetry: hud.telemetry, map: hud.map, preview: hud.preview },
     session.geometry,
-    car.powertrain.gearbox,
+    carDefinition.powertrain.gearbox,
     track.startDistanceM,
   );
   const store = createLapStore(browserStorage());
@@ -363,8 +363,12 @@ export async function startGameApp(
       });
       if (phase === "done") {
         benchReported = true;
-        const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
-        const navigation = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
+        const resources = performance
+          .getEntriesByType("resource")
+          .filter((entry) => entry instanceof PerformanceResourceTiming);
+        const navigation = performance
+          .getEntriesByType("navigation")
+          .filter((entry) => entry instanceof PerformanceNavigationTiming);
         bench.onDone({
           ...recorder.result(),
           route: `${track.id}-autopilot-v1`,

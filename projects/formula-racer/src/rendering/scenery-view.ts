@@ -32,8 +32,8 @@ function boxes(parts: Box[]): THREE.BufferGeometry {
   for (const part of parts) {
     const box = new THREE.BoxGeometry(...part.size).toNonIndexed();
     box.translate(...part.centre);
-    positions.push(...(box.getAttribute("position").array as Float32Array));
-    normals.push(...(box.getAttribute("normal").array as Float32Array));
+    positions.push(...box.getAttribute("position").array);
+    normals.push(...box.getAttribute("normal").array);
     colour.set(part.colour);
     for (let i = 0; i < box.getAttribute("position").count; i += 1) {
       colours.push(colour.r, colour.g, colour.b);
@@ -57,7 +57,7 @@ function mergeColoured(...parts: [THREE.BufferGeometry, number][]): THREE.Buffer
   const colour = new THREE.Color();
   for (const [part, hex] of parts) {
     const flat = part.index ? part.toNonIndexed() : part;
-    positions.push(...(flat.getAttribute("position").array as Float32Array));
+    positions.push(...flat.getAttribute("position").array);
     colour.set(hex);
     for (let i = 0; i < flat.getAttribute("position").count; i += 1) {
       colours.push(colour.r, colour.g, colour.b);
@@ -181,7 +181,7 @@ function runoff(track: TrackGeometry, trackside: Trackside, batches: CellBatches
       // Outer lies left of inner on the left side only, so the right side winds the
       // other way round to face up as well.
       const quad = sign > 0 ? [a, c, b, b, c, d] : [a, b, c, b, d, c];
-      batches.add(quad.flat() as number[], colour.set(RUNOFF_COLOUR[kind]));
+      batches.add(quad.flat(), colour.set(RUNOFF_COLOUR[kind]));
     }
   }
 }

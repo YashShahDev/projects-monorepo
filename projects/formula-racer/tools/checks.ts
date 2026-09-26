@@ -31,15 +31,15 @@ export const runCommand: Runner = (command, args) => {
 
   return {
     status: result.status,
-    stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
+    stdout: result.stdout,
+    stderr: result.stderr,
     ...(result.error ? { error: result.error.message } : {}),
   };
 };
 
 export function checkTool(spec: ToolSpec, run: Runner = runCommand): CheckResult {
   const result = run(spec.command, spec.args);
-  if (result.error || result.status !== 0) {
+  if (result.error !== undefined || result.status !== 0) {
     return {
       name: spec.name,
       ok: false,
@@ -50,7 +50,7 @@ export function checkTool(spec: ToolSpec, run: Runner = runCommand): CheckResult
   const output = `${result.stdout}
 ${result.stderr}`.trim();
   const actual = /\d+\.\d+\.\d+(?:-[\w.-]+)?/u.exec(output)?.[0];
-  if (spec.version && actual !== spec.version) {
+  if (spec.version !== undefined && actual !== spec.version) {
     return {
       name: spec.name,
       ok: false,
@@ -58,7 +58,9 @@ ${result.stderr}`.trim();
     };
   }
 
-  return { name: spec.name, ok: true, detail: output.split("\n")[0] || "available" };
+  const [firstLine = ""] = output.split("\n");
+
+  return { name: spec.name, ok: true, detail: firstLine === "" ? "available" : firstLine };
 }
 
 export function checksPassed(results: readonly CheckResult[]): boolean {
@@ -68,7 +70,7 @@ export function checksPassed(results: readonly CheckResult[]): boolean {
 export function checkManagedTool(spec: ToolSpec, run: Runner = runCommand): CheckResult {
   // User PATH wrappers may install or upgrade tools even for --version.
   const resolved = run("mise", ["which", spec.command]);
-  if (resolved.error || resolved.status !== 0 || !resolved.stdout.trim()) {
+  if (resolved.error !== undefined || resolved.status !== 0 || resolved.stdout.trim() === "") {
     return {
       name: spec.name,
       ok: false,

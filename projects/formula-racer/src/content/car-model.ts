@@ -79,7 +79,7 @@ export function parseCarModelInterface(value: unknown, source = "model"): CarMod
   };
   const all = requiredNodes(spec);
   const duplicate = all.find((name, i) => all.indexOf(name) !== i);
-  if (duplicate) {
+  if (duplicate !== undefined) {
     throw new ContentError(`${source} names ${duplicate} twice (duplicate)`);
   }
 

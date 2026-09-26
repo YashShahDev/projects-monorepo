@@ -38,7 +38,8 @@ export function parseEnergyRules(value: unknown, source = "energy rules"): Energ
   }
 
   const ersMaxPowerW = positive(root.ersMaxPowerW, `${source}.ersMaxPowerW`);
-  const curve = array(root.deployCurveKphKw, `${source}.deployCurveKphKw`, 2).map((point, i, all): [number, number] => {
+  const curve: [number, number][] = [];
+  array(root.deployCurveKphKw, `${source}.deployCurveKphKw`, 2).forEach((point, i) => {
     const field = `${source}.deployCurveKphKw[${String(i)}]`;
     const pair = array(point, field, 2);
     const kph = inRange(pair[0], `${field}[0]`, 0, 500);
@@ -50,12 +51,12 @@ export function parseEnergyRules(value: unknown, source = "energy rules"): Energ
       throw new ContentError(`${field} must start at 0 km/h`);
     }
 
-    const before = i > 0 ? Number((all[i - 1] as unknown[] | undefined)?.[0]) : -1;
-    if (!(kph > before)) {
+    const before = curve.at(-1);
+    if (before && !(kph > before[0])) {
       throw new ContentError(`${field} speed must be greater than the point before`);
     }
 
-    return [kph, kw];
+    curve.push([kph, kw]);
   });
 
   return {

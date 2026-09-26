@@ -128,8 +128,14 @@ describe("ground surface", () => {
     const side = buildTrackside(track);
     const at = (lateralM: number) =>
       side.surfaceAt({ ...track.locate(track.x[0] ?? 0, track.z[0] ?? 0), lateralM, surface: surfaceOf(lateralM) });
-    const surfaceOf = (lateralM: number) =>
-      Math.abs(lateralM) <= 6 ? "road" : Math.abs(lateralM) <= 7.5 ? "kerb" : ("grass" as const);
+    const surfaceOf = (lateralM: number) => {
+      if (Math.abs(lateralM) <= 6) {
+        return "road";
+      }
+
+      return Math.abs(lateralM) <= 7.5 ? "kerb" : "grass";
+    };
+
     expect(at(3)).toBe("road");
     expect(at(-7)).toBe("kerb");
     expect(at(15)).toBe("gravel");

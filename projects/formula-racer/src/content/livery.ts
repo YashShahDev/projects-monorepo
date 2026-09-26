@@ -16,7 +16,7 @@ export interface Livery {
 const KEYS = new Set(["id", "name", "number", "paint", "accent"]);
 
 const colour = (value: unknown, path: string): string => {
-  if (typeof value !== "string" || !/^#[0-9a-f]{6}$/i.test(value)) {
+  if (typeof value !== "string" || !/^#[0-9a-f]{6}$/iu.test(value)) {
     throw new ContentError(`${path} must be a #rrggbb colour`);
   }
 

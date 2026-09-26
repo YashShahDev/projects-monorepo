@@ -1,11 +1,18 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import type { GameApp, GameAppState } from "../../src/app/game-app.ts";
+import type { GameAppState } from "../../src/app/game-app.ts";
 import { collectErrors, freezeFrames, openGame } from "./helpers.ts";
 
 const hooks = (page: Page, steps: number, throttle: boolean): Promise<GameAppState> =>
   page.evaluate(
-    ([count, held]) => (window as unknown as { __formulaRacerTest: GameApp }).__formulaRacerTest.step(count, held),
+    ([count, held]) => {
+      const app = window.__formulaRacerTest;
+      if (!app) {
+        throw new Error("development test hooks are not installed");
+      }
+
+      return app.step(count, held);
+    },
     [steps, throttle] as const,
   );
 
@@ -47,10 +54,8 @@ test("@dev the Sound option mutes the car and is remembered", async ({ page }) =
 test("@smoke the game still starts when audio cannot be created", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "AudioContext", {
-      value: class {
-        constructor() {
-          throw new Error("NotAllowedError: audio is blocked");
-        }
+      value: function BlockedAudioContext() {
+        throw new Error("NotAllowedError: audio is blocked");
       },
     });
   });

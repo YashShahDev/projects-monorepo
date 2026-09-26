@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import type { GameApp } from "../../src/app/game-app.ts";
 import { collectErrors, freezeFrames, openGame, scenePixels } from "./helpers.ts";
 
 test("@smoke loads the first catalog track by default", async ({ page }) => {
@@ -21,9 +20,14 @@ test("@smoke the track query loads the small test map", async ({ page }) => {
 test("@dev the test map's geometry drives the session", async ({ page }) => {
   await freezeFrames(page);
   await openGame(page, "./?track=test-loop");
-  const lapDistanceM = await page.evaluate(
-    () => (window as unknown as { __formulaRacerTest: GameApp }).__formulaRacerTest.state().lapDistanceM,
-  );
+  const lapDistanceM = await page.evaluate(() => {
+    const app = window.__formulaRacerTest;
+    if (!app) {
+      throw new Error("development test hooks are not installed");
+    }
+
+    return app.state().lapDistanceM;
+  });
 
   // The grid sits at the track's own start distance, not Harbour Park's 150 m.
   expect(lapDistanceM).toBeCloseTo(60, 0);

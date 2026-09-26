@@ -112,18 +112,18 @@ describe("driving session", () => {
     expect(camera.position.y).toBeCloseTo(pose.position.y + 3, 1);
   });
 
-  test("rejects an active-aero zone that runs past the end of the lap", async () => {
+  test("rejects an active-aero zone that runs past the end of the lap", () => {
     // Harbour Park's generated loop is about 3.93 km, so a zone ending at 5 km never fits.
     const beyond = { ...track, activeAeroZones: [{ startM: 3800, endM: 5000 }] };
-    await expect(createDrivingSession(car, beyond)).rejects.toThrow(
+    expect(createDrivingSession(car, beyond)).rejects.toThrow(
       "track.activeAeroZones[0].endM is 5000 m, past the 3932 m lap",
     );
     const zone = track.activeAeroZones[0];
     expect(zone && zone.endM <= 3932).toBe(true);
   });
 
-  test("rejects a start distance past the end of the lap", async () => {
-    await expect(createDrivingSession(car, { ...track, startDistanceM: 5000 })).rejects.toThrow(
+  test("rejects a start distance past the end of the lap", () => {
+    expect(createDrivingSession(car, { ...track, startDistanceM: 5000 })).rejects.toThrow(
       "track.startDistanceM is 5000 m, past the 3932 m lap",
     );
   });
@@ -185,8 +185,8 @@ describe("driving session", () => {
   test("each frame's camera follows the car pose drawn in that frame", async () => {
     const s = await atSpeed();
     for (let i = 0; i < 30; i += 1) {
-      const { car, camera } = s.frame(1 / 144, throttle);
-      const gap = Math.hypot(camera.position.x - car.position.x, camera.position.z - car.position.z);
+      const { car: pose, camera } = s.frame(1 / 144, throttle);
+      const gap = Math.hypot(camera.position.x - pose.position.x, camera.position.z - pose.position.z);
       expect(gap).toBeCloseTo(6, 1);
     }
   });

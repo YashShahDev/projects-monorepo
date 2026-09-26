@@ -1,14 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { fetchTrack, parseTrack } from "../src/content/track.ts";
 import { ContentError } from "../src/content/validate.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 import type { TrackGeometry } from "../src/simulation/track-geometry.ts";
+import { readJsonObject } from "./support/json.ts";
 
-const raw = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8"),
-) as Record<string, unknown>;
+const raw = readJsonObject("public/assets/tracks/harbour.json");
 const geometry = buildTrackGeometry(parseTrack(raw));
 const DEG = Math.PI / 180;
 
@@ -138,10 +135,10 @@ describe("track content", () => {
   });
 
   test("loads over fetch and reports the URL path on failure", async () => {
-    const ok = async () => new Response(JSON.stringify(raw));
+    const ok = () => Promise.resolve(new Response(JSON.stringify(raw)));
     expect((await fetchTrack(new URL("http://x/assets/tracks/harbour.json"), ok)).id).toBe("harbour");
-    const bad = async () => new Response(JSON.stringify({ ...raw, name: "" }));
-    await expect(fetchTrack(new URL("http://x/t.json"), bad)).rejects.toThrow("/t.json.name");
+    const bad = () => Promise.resolve(new Response(JSON.stringify({ ...raw, name: "" })));
+    expect(fetchTrack(new URL("http://x/t.json"), bad)).rejects.toThrow("/t.json.name");
   });
 
   test("rejects non-objects, arrays and non-finite numbers", () => {
@@ -150,14 +147,14 @@ describe("track content", () => {
     expect(() => parseTrack({ ...raw, startDistanceM: Number.POSITIVE_INFINITY })).toThrow("track.startDistanceM");
   });
 
-  test("reports a missing asset's path and HTTP status", async () => {
+  test("reports a missing asset's path and HTTP status", () => {
     const url = new URL("http://localhost/game/assets/tracks/harbour.json");
     const missing = () => Promise.resolve(new Response("", { status: 404 }));
-    await expect(fetchTrack(url, missing)).rejects.toThrow("/game/assets/tracks/harbour.json: HTTP 404");
+    expect(fetchTrack(url, missing)).rejects.toThrow("/game/assets/tracks/harbour.json: HTTP 404");
   });
 
-  test("reports malformed JSON as a content error", async () => {
+  test("reports malformed JSON as a content error", () => {
     const url = new URL("http://localhost/t.json");
-    await expect(fetchTrack(url, () => Promise.resolve(new Response("{")))).rejects.toThrow("not valid JSON");
+    expect(fetchTrack(url, () => Promise.resolve(new Response("{")))).rejects.toThrow("not valid JSON");
   });
 });

@@ -2,7 +2,7 @@ import { resolve, sep } from "node:path";
 
 /** Normalizes a deployment prefix such as `game` or `/game` to `/game/`. */
 export function normalizeBasePath(input: string): string {
-  const trimmed = input.trim().replace(/^\/+|\/+$/gu, "");
+  const trimmed = input.trim().replaceAll(/^\/+|\/+$/gu, "");
   if (trimmed === "") {
     return "/";
   }
@@ -51,7 +51,7 @@ export async function serveStaticFile(root: string, base: string, pathname: stri
   }
 
   const path = resolveStaticPath(root, base, pathname);
-  const file = path ? Bun.file(path) : null;
+  const file = path === null ? null : Bun.file(path);
   if (!file || !(await file.exists())) {
     return new Response("Not found", { status: 404 });
   }

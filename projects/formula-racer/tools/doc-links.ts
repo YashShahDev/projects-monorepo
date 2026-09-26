@@ -19,15 +19,15 @@ export function checkDocLinks(root: string): string[] {
         continue;
       }
 
-      const text = readFileSync(path, "utf8").replace(/```[\s\S]*?```/gu, "");
+      const text = readFileSync(path, "utf8").replaceAll(/```[\s\S]*?```/gu, "");
       for (const match of text.matchAll(/\[[^\]]*\]\(([^\s)]+)\)/gu)) {
         const target = match[1];
-        if (!target || /^(?:[a-z][a-z\d+.-]*:|#)/iu.test(target)) {
+        if (target === undefined || /^(?:[a-z][a-z\d+.-]*:|#)/iu.test(target)) {
           continue;
         }
 
         const filename = target.split("#")[0];
-        if (!filename) {
+        if (filename === undefined || filename === "") {
           continue;
         }
 

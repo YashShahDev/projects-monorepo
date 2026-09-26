@@ -94,18 +94,20 @@ function parseStraightMode(aero: Record<string, unknown>, source: string) {
 }
 
 function parsePowerCurve(value: unknown, source: string): [number, number][] {
-  return array(value, source, 2).map((point, i, all) => {
+  const curve = array(value, source, 2).map((point, i): [number, number] => {
     const field = `${source}[${String(i)}]`;
     const pair = array(point, field, 2);
-    const rpm = positive(pair[0], `${field}[0]`);
-    const share = inRange(pair[1], `${field}[1]`, 0, 1);
-    const before = i > 0 ? Number((all[i - 1] as unknown[] | undefined)?.[0]) : 0;
-    if (i > 0 && !(rpm > before)) {
-      throw new ContentError(`${field} rpm must be greater than the point before`);
-    }
 
-    return [rpm, share];
+    return [positive(pair[0], `${field}[0]`), inRange(pair[1], `${field}[1]`, 0, 1)];
   });
+  curve.forEach(([rpm], i) => {
+    const before = curve[i - 1];
+    if (before && !(rpm > before[0])) {
+      throw new ContentError(`${source}[${String(i)}] rpm must be greater than the point before`);
+    }
+  });
+
+  return curve;
 }
 
 function parseGearbox(value: unknown, source: string): GearboxDefinition {
@@ -116,18 +118,18 @@ function parseGearbox(value: unknown, source: string): GearboxDefinition {
   const idleRpm = inRange(g.idleRpm, `${source}.idleRpm`, 1, downshiftRpm);
   const gearTopSpeedsKmh = array(g.gearTopSpeedsKmh, `${source}.gearTopSpeedsKmh`, 1).map((speed, i, all) => {
     const field = `${source}.gearTopSpeedsKmh[${String(i)}]`;
-    const value = positive(speed, field);
+    const topSpeed = positive(speed, field);
     const below = i > 0 ? Number(all[i - 1]) : 0;
-    if (i > 0 && !(value > below)) {
+    if (i > 0 && !(topSpeed > below)) {
       throw new ContentError(`${field} must be greater than the gear below`);
     }
 
     // After an upshift the engine must still be above the downshift point.
-    if (i > 0 && (upshiftRpm * below) / value <= downshiftRpm) {
+    if (i > 0 && (upshiftRpm * below) / topSpeed <= downshiftRpm) {
       throw new ContentError(`${field} is too tall: an upshift would land below downshiftRpm`);
     }
 
-    return value;
+    return topSpeed;
   });
 
   return { idleRpm, upshiftRpm, downshiftRpm, redlineRpm, gearTopSpeedsKmh };

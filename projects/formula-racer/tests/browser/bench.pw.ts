@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { BenchReport } from "../../src/app/bench.ts";
+import { parseBenchReport } from "../../tools/bench.ts";
 import { freezeFrames, lowQuality } from "./helpers.ts";
 
 test("@smoke the bench route drives itself and reports frame and render statistics", async ({ page }) => {
@@ -13,7 +13,7 @@ test("@smoke the bench route drives itself and reports frame and render statisti
   await page.clock.runFor(5_500);
   const pre = page.locator("#bench-report");
   await expect(pre).toBeVisible();
-  const report = JSON.parse((await pre.textContent()) ?? "") as BenchReport;
+  const report = parseBenchReport(JSON.parse((await pre.textContent()) ?? ""));
   expect(report.route).toBe("harbour-autopilot-v1");
   expect(report.quality).toBe("low");
   expect(report.measuredSeconds).toBeGreaterThanOrEqual(2);

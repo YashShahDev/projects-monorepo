@@ -9,7 +9,10 @@ const POSITION_TOLERANCE_M = 0.01;
 const COLLISION_TOLERANCE_M = 0.03;
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/ktx2"]);
 
-type Box = { min: number[]; max: number[] };
+interface Box {
+  min: number[];
+  max: number[];
+}
 
 const f3 = (v: number[]) => `(${v.map((n) => n.toFixed(3)).join(", ")})`;
 const at = (v: number[], i: number) => v[i] ?? 0;
@@ -149,7 +152,7 @@ export function validateCarModel(doc: Document, car: CarDefinition, spec: CarMod
       }
 
       const label = `material ${material.getName()} ${slot} texture`;
-      if (!texture.getImage()?.byteLength) {
+      if ((texture.getImage()?.byteLength ?? 0) === 0) {
         problems.push(`${label} has no image`);
       } else if (!IMAGE_TYPES.has(texture.getMimeType())) {
         problems.push(`${label} has unsupported type ${texture.getMimeType()}`);

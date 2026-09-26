@@ -49,7 +49,9 @@ test("@smoke a saved best lap is shown after loading", async ({ page }) => {
 
 test("@smoke corrupt saved data does not stop the game", async ({ page }) => {
   const errors = collectErrors(page);
-  await page.addInitScript(() => localStorage.setItem("formula-racer:laps", "{broken"));
+  await page.addInitScript(() => {
+    localStorage.setItem("formula-racer:laps", "{broken");
+  });
   await openGame(page);
   await expect(page.locator("#storage-note")).toContainText("reset");
   await expect(page.locator("#best-lap")).toHaveText("–");

@@ -39,6 +39,10 @@ This guidance does not itself authorize spawning agents.
 - Formatting rules (braces on every `if`, blank lines after blocks and before `return`, blank line
   before nested comments) are enforced by Oxlint, since Oxfmt cannot insert blank lines. Fix with
   `bun run oxlint --fix .` then `bun run format`, repeating until clean.
+- Lint is type-aware (typescript-eslint's strict and stylistic type-checked rules): no `any`, no
+  `@ts-ignore`, no non-null `!`, and no `as` casts that narrow. Parse untrusted JSON as `unknown`
+  and narrow it with the `src/content/validate.ts` helpers or a type guard. A lint suppression
+  needs a `--` reason on the same line.
 - Simulation has no DOM or Three.js dependencies. The renderer consumes snapshots;
   Rapier types stay behind the physics adapter. Use SI units internally.
 - Validate external content at load boundaries. Keep track/team/rule data separate

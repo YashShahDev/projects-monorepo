@@ -15,7 +15,9 @@ const viewport = { width: 640, height: 360 };
 const chromium = {
   ...devices["Desktop Chrome"],
   viewport,
-  ...(process.env.PW_CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } } : {}),
+  ...(process.env.PW_CHROMIUM_PATH !== undefined
+    ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } }
+    : {}),
 };
 
 export default defineConfig({

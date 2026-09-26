@@ -71,8 +71,7 @@ describe("automatic gearbox", () => {
 
 describe("gearbox content", () => {
   const withBox = (patch: Record<string, unknown>) => {
-    const raw = structuredClone(car) as unknown as Record<string, Record<string, unknown>>;
-    raw.powertrain = { ...raw.powertrain, gearbox: { ...box, ...patch } };
+    const raw = { ...car, powertrain: { ...car.powertrain, gearbox: { ...box, ...patch } } };
 
     return () => parseCar(raw);
   };

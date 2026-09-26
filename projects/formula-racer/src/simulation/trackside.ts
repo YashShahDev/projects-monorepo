@@ -236,13 +236,15 @@ function runsOf(track: TrackGeometry, barrierM: Float64Array, sign: 1 | -1, side
  */
 export function buildTrackside(track: TrackGeometry): Trackside {
   const near = sampleGrid(track);
-  const edges = ([1, -1] as const).map((sign) => {
+  const edge = (sign: 1 | -1): TracksideEdge => {
     const runoff = runoffFor(track, sign);
     const barrierM = barrierFor(track, runoff, sign, near);
 
     return { runoff, barrierM, runoffM: runoffExtent(track, runoff, barrierM, sign) };
-  });
-  const [left, right] = edges as [TracksideEdge, TracksideEdge];
+  };
+
+  const left = edge(1);
+  const right = edge(-1);
 
   return {
     left,
@@ -255,10 +257,10 @@ export function buildTrackside(track: TrackGeometry): Trackside {
       }
 
       // The same extent the renderer paints, so what a wheel feels is what is drawn.
-      const edge = location.lateralM > 0 ? left : right;
-      const reach = edge.runoffM[location.index] ?? 0;
+      const side = location.lateralM > 0 ? left : right;
+      const reach = side.runoffM[location.index] ?? 0;
 
-      return Math.abs(location.lateralM) <= reach ? (edge.runoff[location.index] ?? "grass") : "grass";
+      return Math.abs(location.lateralM) <= reach ? (side.runoff[location.index] ?? "grass") : "grass";
     },
   };
 }

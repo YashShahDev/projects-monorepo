@@ -4,6 +4,7 @@
 //
 //   bun run tools/generate-track.ts <layout.json> <out.json> [preview.svg]
 import { readFileSync, writeFileSync } from "node:fs";
+import { ContentError, array, finite, object, positive, text } from "../src/content/validate.ts";
 
 export type Segment = { straight: number; solve?: boolean } | { arc: number; radius: number }; // degrees, positive turns left
 
@@ -16,6 +17,56 @@ export interface Layout {
   surfaceGrip: { road: number; kerb: number; grass: number; gravel: number };
   activeAeroZones: { startM: number; endM: number }[];
   segments: Segment[];
+}
+
+function parseSegment(value: unknown, path: string): Segment {
+  const s = object(value, path);
+  if ("straight" in s) {
+    if (s.solve !== undefined && typeof s.solve !== "boolean") {
+      throw new ContentError(`${path}.solve must be a boolean`);
+    }
+
+    const straight = finite(s.straight, `${path}.straight`);
+
+    return s.solve === undefined ? { straight } : { straight, solve: s.solve };
+  }
+
+  if ("arc" in s) {
+    return { arc: finite(s.arc, `${path}.arc`), radius: positive(s.radius, `${path}.radius`) };
+  }
+
+  throw new ContentError(`${path} must be a straight or an arc`);
+}
+
+/** Checks a layout file's shape; whether it closes into a loop is `generateTrack`'s job. */
+export function parseLayout(value: unknown, path = "layout"): Layout {
+  const l = object(value, path);
+  const grip = object(l.surfaceGrip, `${path}.surfaceGrip`);
+
+  return {
+    id: text(l.id, `${path}.id`),
+    name: text(l.name, `${path}.name`),
+    widthM: positive(l.widthM, `${path}.widthM`),
+    kerbWidthM: positive(l.kerbWidthM, `${path}.kerbWidthM`),
+    startDistanceM: finite(l.startDistanceM, `${path}.startDistanceM`),
+    surfaceGrip: {
+      road: positive(grip.road, `${path}.surfaceGrip.road`),
+      kerb: positive(grip.kerb, `${path}.surfaceGrip.kerb`),
+      grass: positive(grip.grass, `${path}.surfaceGrip.grass`),
+      gravel: positive(grip.gravel, `${path}.surfaceGrip.gravel`),
+    },
+    activeAeroZones: array(l.activeAeroZones, `${path}.activeAeroZones`).map((zone, i) => {
+      const z = object(zone, `${path}.activeAeroZones[${String(i)}]`);
+
+      return {
+        startM: finite(z.startM, `${path}.activeAeroZones[${String(i)}].startM`),
+        endM: finite(z.endM, `${path}.activeAeroZones[${String(i)}].endM`),
+      };
+    }),
+    segments: array(l.segments, `${path}.segments`, 1).map((segment, i) =>
+      parseSegment(segment, `${path}.segments[${String(i)}]`),
+    ),
+  };
 }
 
 export interface GeneratedTrack {
@@ -36,7 +87,7 @@ function trace(layout: Layout, lengths: number[]) {
   let solved = 0;
   for (const segment of layout.segments) {
     if ("straight" in segment) {
-      const length = segment.solve ? (lengths[solved++] ?? 0) : segment.straight;
+      const length = segment.solve === true ? (lengths[solved++] ?? 0) : segment.straight;
       const pieces = Math.max(1, Math.ceil(Math.abs(length) / 60));
       for (let i = 0; i < pieces; i += 1) {
         points.push({ x, z });
@@ -66,7 +117,7 @@ function trace(layout: Layout, lengths: number[]) {
 const round = (v: number) => Math.round(v * 10) / 10;
 
 export function generateTrack(layout: Layout): GeneratedTrack {
-  const solvable = layout.segments.filter((s) => "straight" in s && s.solve);
+  const solvable = layout.segments.filter((s) => "straight" in s && s.solve === true);
   if (solvable.length !== 2) {
     throw new Error("mark exactly two straights with solve: true");
   }
@@ -139,16 +190,16 @@ export function previewSvg(layout: Layout, points: { x: number; z: number }[]): 
 
 if (import.meta.main) {
   const [layoutPath, outPath, svgPath] = process.argv.slice(2);
-  if (!layoutPath || !outPath) {
+  if (layoutPath === undefined || outPath === undefined) {
     throw new Error("usage: generate-track <layout.json> <out.json> [preview.svg]");
   }
 
-  const layout = JSON.parse(readFileSync(layoutPath, "utf8")) as Layout;
+  const layout = parseLayout(JSON.parse(readFileSync(layoutPath, "utf8")), layoutPath);
   const result = generateTrack(layout);
   writeFileSync(outPath, `${JSON.stringify(result.track)}\n`);
   const [l1, l2] = result.solvedM;
   console.log(`solved straights ${l1.toFixed(1)} m and ${l2.toFixed(1)} m; ${String(result.points.length)} points`);
-  if (svgPath) {
+  if (svgPath !== undefined) {
     writeFileSync(svgPath, previewSvg(layout, result.points));
   }
 }

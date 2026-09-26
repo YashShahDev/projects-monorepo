@@ -71,9 +71,7 @@ export function createCameraRig(anchors: CameraAnchors = DEFAULT_ANCHORS): Camer
   return {
     update(car, dtSeconds) {
       const actual = headingOf(car.rotation);
-      if (heading === undefined) {
-        heading = actual;
-      }
+      heading ??= actual;
 
       let delta = actual - heading;
       delta = Math.atan2(Math.sin(delta), Math.cos(delta));

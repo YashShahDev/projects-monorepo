@@ -1,17 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { createDrivingSession } from "../src/app/session.ts";
 import type { DrivingSession } from "../src/app/session.ts";
 import { parseCar } from "../src/content/car.ts";
 import { parseTrack } from "../src/content/track.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 import { NO_CONTROLS } from "../src/simulation/vehicle.ts";
+import { readJsonObject } from "./support/json.ts";
 import { car, kmh, run, settledVehicle, timeTo } from "./support/vehicle.ts";
 
-const raw = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8"),
-) as Record<string, unknown>;
+const raw = readJsonObject("public/assets/tracks/harbour.json");
 const track = parseTrack(raw);
 const geometry = buildTrackGeometry(track);
 

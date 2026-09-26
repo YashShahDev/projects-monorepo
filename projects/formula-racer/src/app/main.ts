@@ -4,16 +4,18 @@ import { startGameApp } from "./game-app.ts";
 import { installTestHooks } from "./test-hooks.ts";
 import { installTuningPanel } from "./tuning-panel.ts";
 
-function element<T extends HTMLElement>(selector: string): T {
-  const found = document.querySelector<T>(selector);
-  if (!found) {
+function element<T extends HTMLElement>(selector: string, type: new () => T): T;
+function element(selector: string): HTMLElement;
+function element(selector: string, type: new () => HTMLElement = HTMLElement): HTMLElement {
+  const found = document.querySelector(selector);
+  if (!(found instanceof type)) {
     throw new Error(`index.html is missing ${selector}`);
   }
 
   return found;
 }
 
-const canvas = element<HTMLCanvasElement>("#view");
+const canvas = element("#view", HTMLCanvasElement);
 const status = element("#status");
 const hud = {
   speed: element("#speed"),
@@ -24,7 +26,7 @@ const hud = {
   lastLap: element("#last-lap"),
   energyMode: element("#energy-mode"),
   charge: element("#charge"),
-  chargeMeter: element<HTMLMeterElement>("#charge-meter"),
+  chargeMeter: element("#charge-meter", HTMLMeterElement),
   ers: element("#ers"),
   wing: element("#wing"),
   bestLap: element("#best-lap"),
@@ -35,14 +37,14 @@ const hud = {
   preview: element("#corner-preview"),
 };
 const menu = {
-  resume: element<HTMLButtonElement>("#resume"),
-  restart: element<HTMLButtonElement>("#restart"),
-  steering: element<HTMLInputElement>("#assist-steering"),
-  abs: element<HTMLInputElement>("#assist-abs"),
-  traction: element<HTMLInputElement>("#assist-traction"),
-  livery: element<HTMLSelectElement>("#livery"),
-  quality: element<HTMLSelectElement>("#quality"),
-  sound: element<HTMLInputElement>("#sound"),
+  resume: element("#resume", HTMLButtonElement),
+  restart: element("#restart", HTMLButtonElement),
+  steering: element("#assist-steering", HTMLInputElement),
+  abs: element("#assist-abs", HTMLInputElement),
+  traction: element("#assist-traction", HTMLInputElement),
+  livery: element("#livery", HTMLSelectElement),
+  quality: element("#quality", HTMLSelectElement),
+  sound: element("#sound", HTMLInputElement),
 };
 
 function showFatal(message: string): void {
@@ -54,7 +56,9 @@ function showFatal(message: string): void {
   const reload = document.createElement("button");
   reload.type = "button";
   reload.textContent = "Reload";
-  reload.addEventListener("click", () => location.reload());
+  reload.addEventListener("click", () => {
+    location.reload();
+  });
   status.append(text, reload);
 }
 

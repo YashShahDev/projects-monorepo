@@ -3,5 +3,8 @@
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["*.ts", "../../playwright.config.ts"]
+  "include": ["*.ts"],
+
+  // The root config excludes this folder, and `exclude` is inherited with `extends`.
+  "exclude": []
 }
