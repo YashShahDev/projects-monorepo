@@ -387,9 +387,10 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         const v = Math.max(speed, 1);
 
         // The MGU-K drives the rear axle, so it can only take over braking the rear tyres
-        // are delivering: none from a wheel in the air, less when ABS holds it back.
+        // are delivering: none from a wheel in the air, and no more than the tyre grips,
+        // whether ABS holds the wheel back or it locks.
         const rearBrakingN = [2, 3].reduce(
-          (sum, i) => sum + (vehicle.wheelIsInContact(i) ? (wheelBrakeN[i] ?? 0) : 0),
+          (sum, i) => sum + (vehicle.wheelIsInContact(i) ? Math.min(wheelBrakeN[i] ?? 0, longitudinalBudgetN(i)) : 0),
           0,
         );
 

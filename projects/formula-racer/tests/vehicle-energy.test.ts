@@ -171,6 +171,26 @@ describe("vehicle energy", () => {
     expect(await harvest(0.3)).toBeLessThan((await harvest(1)) * 0.5);
   });
 
+  test("with ABS off, a locked rear tyre on a slippery surface harvests only what it grips", async () => {
+    const harvest = async (grip: number) => {
+      const sim = await createVehicleSimulation(car, {
+        start: { position: { x: 0, y: 0, z: 0 }, headingRad: 0 },
+        energy: rules,
+        gripAt: () => grip,
+        assists: { steering: true, abs: false, traction: true },
+      });
+      run(sim, { throttle: 0, brake: 0, steer: 0 }, 1);
+      timeBetween(sim, 0, 100, { ...flatOut, deploy: true });
+      sim.step({ throttle: 0, brake: 1, steer: 0 });
+      const regen = sim.snapshot().energy?.regenW ?? 0;
+      sim.dispose();
+
+      return regen;
+    };
+
+    expect(await harvest(0.3)).toBeLessThan((await harvest(1)) * 0.5);
+  });
+
   test("braking in Harvest stores no more than braking in Balanced: energy comes from motion", async () => {
     const stop = async (mode: "balanced" | "harvest") => {
       const sim = await vehicle();
