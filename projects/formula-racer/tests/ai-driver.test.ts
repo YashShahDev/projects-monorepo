@@ -5,6 +5,7 @@ import { AI_LEVELS, createAiDriver } from "../src/ai/driver.ts";
 import type { AiDriver, AiLevelName } from "../src/ai/driver.ts";
 import { createControlEnvironment } from "../src/control/environment.ts";
 import type { ControlReply } from "../src/control/environment.ts";
+import { lineGripScale, parseLineData } from "../src/content/line-data.ts";
 import { parseTrack } from "../src/content/track.ts";
 import { estimatedLapTimeS } from "../src/simulation/racing-line.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
@@ -13,11 +14,15 @@ import { car } from "./support/vehicle.ts";
 
 const sources = fileSessions();
 const trackOf = (id: string) => {
-  const track = parseTrack(
-    JSON.parse(readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8")),
-  );
+  const asset = (path: string): unknown =>
+    JSON.parse(readFileSync(resolve(import.meta.dirname, `../public/assets/${path}`), "utf8"));
+  const track = parseTrack(asset(`tracks/${id}.json`));
+  const geometry = buildTrackGeometry(track);
 
-  return { track, geometry: buildTrackGeometry(track) };
+  // The grip the AI runs saved for the track, as the game loads it.
+  const gripScale = lineGripScale(parseLineData(asset(`lines/${id}.json`)), geometry.count);
+
+  return { track, geometry, ...(gripScale ? { gripScale } : {}) };
 };
 
 const driverFor = (id: string, level: AiLevelName, seed = 1) => createAiDriver({ car, ...trackOf(id), level, seed });
@@ -27,9 +32,12 @@ async function race(id: string, driver: AiDriver, laps: number) {
   const environment = createControlEnvironment(sources);
   const times: number[] = [];
   const events: string[] = [];
+  let offRoadSteps = 0;
   let reply: ControlReply = await environment.handle({ type: "reset", track: id, maxLaps: laps, maxSeconds: 900 });
   while (reply.type === "observation" && !reply.done) {
     reply = await environment.handle({ type: "step", ...driver.decide(reply.observation), steps: 1 });
+    const wheels = reply.type === "observation" ? reply.observation.wheels : [];
+    offRoadSteps += wheels.some((w) => w.surface !== "road" && w.surface !== "kerb") ? 1 : 0;
     for (const event of reply.type === "observation" ? reply.events : []) {
       events.push(event.type === "lap" && !event.valid ? "invalid lap" : event.type);
       if (event.type === "lap") {
@@ -40,20 +48,22 @@ async function race(id: string, driver: AiDriver, laps: number) {
 
   environment.close();
 
-  return { times, events };
+  return { times, events, offRoadSteps };
 }
 
 const total = (times: number[]) => times.reduce((sum, t) => sum + t, 0);
 
 describe("AI drivers", () => {
   for (const id of ["harbour", "riviera", "ardennes", "royal-park", "corniche", "test-loop"]) {
+    // Clean means no tyre ever touches the grass, gravel or run-off, not just the lap
+    // rule's all four: a car scraping a wall with one wheel on the road is not clean.
     test(`on ${id}, every level laps cleanly, and a higher level is never slower`, async () => {
       const totals: number[] = [];
       for (const level of AI_LEVELS) {
-        const { times, events } = await race(id, driverFor(id, level), 3);
+        const { times, events, offRoadSteps } = await race(id, driverFor(id, level), 3);
         expect(times).toHaveLength(3);
         expect(events).not.toContain("invalid lap");
-        expect(events).not.toContain("offTrack");
+        expect(offRoadSteps).toBe(0);
         totals.push(total(times));
       }
 

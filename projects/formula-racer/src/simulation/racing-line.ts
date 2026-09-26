@@ -62,9 +62,6 @@ export function lineLimits(car: CarDefinition): LineLimits {
   };
 }
 
-/** Total grip the tyres give at a speed, as an acceleration, m/s². */
-const gripMps2 = (l: LineLimits, v: number): number => l.mu * (GRAVITY + (l.downforceK * v * v) / l.massKg);
-
 export type GuidePhase = "go" | "lift" | "brake";
 
 export interface RacingLine {
@@ -84,6 +81,12 @@ export interface RacingLine {
   /** The fastest speed the car can carry at each point, m/s. */
   speedMps: Float64Array;
   phase: GuidePhase[];
+
+  /**
+   * Share of the planned grip the car has shown it holds at each point (see
+   * `tuneLine`); the profile plans on the planned grip times this.
+   */
+  gripScale: Float64Array;
 
   /**
    * The profile's estimated lap at each step of the build: the minimum-curvature line,
@@ -395,14 +398,16 @@ interface Profile {
  * curvature and step length, by reverse-mode differentiation through the forward and
  * backward passes.
  */
-function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array): Profile {
+function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array, gripScale: Float64Array): Profile {
   const n = curvature.length;
   const m = l.massKg;
   const bend = Float64Array.from(curvature, Math.abs);
-  const limitAt = (k: number) => {
+  const muAt = (i: number) => l.mu * (gripScale[i] ?? 1);
+  const limitAt = (k: number, i: number) => {
     // v²·|κ| ≤ μ(g + k_df·v²/m), solved for v.
-    const denominator = k - (l.mu * l.downforceK) / m;
-    const grip = denominator <= 0 ? TOP_SPEED_MPS : Math.min(TOP_SPEED_MPS, Math.sqrt((l.mu * GRAVITY) / denominator));
+    const mu = muAt(i);
+    const denominator = k - (mu * l.downforceK) / m;
+    const grip = denominator <= 0 ? TOP_SPEED_MPS : Math.min(TOP_SPEED_MPS, Math.sqrt((mu * GRAVITY) / denominator));
 
     return k > l.maxCurvature ? grip * (l.maxCurvature / k) ** LOCK_PENALTY_POWER : grip;
   };
@@ -410,27 +415,27 @@ function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array)
   // Longitudinal grip left over from cornering, on a friction circle. Its square root
   // is softened by ε: still zero at the grip limit, but with a finite slope there, so
   // the lap time's gradient stays finite at a corner's slowest point.
-  const spare = (v: number, k: number) => {
-    const grip = gripMps2(l, v);
+  const spare = (v: number, k: number, i: number) => {
+    const grip = muAt(i) * (GRAVITY + (l.downforceK * v * v) / m);
     const lateral = v * v * k;
 
     return Math.sqrt(Math.max(0, grip * grip - lateral * lateral) + SPARE_SOFTENING ** 2) - SPARE_SOFTENING;
   };
 
-  const onPower = (v: number, k: number, ds: number) => {
+  const onPower = (v: number, k: number, ds: number, i: number) => {
     const drive = Math.min(l.maxDriveForceN, l.maxPowerW / Math.max(v, 1)) / m;
-    const accel = Math.min(drive, spare(v, k)) - (l.dragK * v * v) / m;
+    const accel = Math.min(drive, spare(v, k, i)) - (l.dragK * v * v) / m;
 
     return Math.sqrt(Math.max(0, v * v + 2 * accel * ds));
   };
 
-  const onBrakes = (v: number, k: number, ds: number) => {
-    const decel = Math.min(spare(v, k), l.maxBrakeForceN / m) + (l.dragK * v * v) / m;
+  const onBrakes = (v: number, k: number, ds: number, i: number) => {
+    const decel = Math.min(spare(v, k, i), l.maxBrakeForceN / m) + (l.dragK * v * v) / m;
 
     return Math.sqrt(v * v + 2 * decel * ds);
   };
 
-  const limit = Float64Array.from(bend, limitAt);
+  const limit = bend.map(limitAt);
 
   // Both passes start at the slowest corner, where the profile must equal its limit,
   // so neither needs to be run round the lap seam again.
@@ -446,7 +451,7 @@ function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array)
   for (let t = 0; t < n - 1; t += 1) {
     const i = (start + t) % n;
     const j = (i + 1) % n;
-    const reach = onPower(forward[i] ?? 0, bend[i] ?? 0, stepM[i] ?? 0);
+    const reach = onPower(forward[i] ?? 0, bend[i] ?? 0, stepM[i] ?? 0, i);
     if (reach < (limit[j] ?? 0)) {
       forward[j] = reach;
       forwardAtLimit[j] = 0;
@@ -458,7 +463,7 @@ function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array)
   for (let t = 0; t < n - 1; t += 1) {
     const i = (start - t + n) % n;
     const p = (i - 1 + n) % n;
-    const reach = onBrakes(backward[i] ?? 0, bend[i] ?? 0, stepM[p] ?? 0);
+    const reach = onBrakes(backward[i] ?? 0, bend[i] ?? 0, stepM[p] ?? 0, i);
     if (reach < (limit[p] ?? 0)) {
       backward[p] = reach;
       backwardAtLimit[p] = 0;
@@ -499,13 +504,19 @@ function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array)
   // Central differences, one-sided only where the curvature is too small to step down.
   const h = 1e-7;
   const down = (k: number) => Math.min(h, k);
-  const partials = (f: (v: number, k: number, ds: number) => number, v: number, k: number, ds: number) => {
+  const partials = (
+    f: (v: number, k: number, ds: number, i: number) => number,
+    v: number,
+    k: number,
+    ds: number,
+    i: number,
+  ) => {
     const hv = 1e-6 * Math.max(1, v);
 
     return {
-      dv: (f(v + hv, k, ds) - f(v - hv, k, ds)) / (2 * hv),
-      dk: (f(v, k + h, ds) - f(v, k - down(k), ds)) / (h + down(k)),
-      dds: (f(v, k, ds + 1e-4) - f(v, k, Math.max(0, ds - 1e-4))) / (1e-4 + Math.min(1e-4, ds)),
+      dv: (f(v + hv, k, ds, i) - f(v - hv, k, ds, i)) / (2 * hv),
+      dk: (f(v, k + h, ds, i) - f(v, k - down(k), ds, i)) / (h + down(k)),
+      dds: (f(v, k, ds + 1e-4, i) - f(v, k, Math.max(0, ds - 1e-4), i)) / (1e-4 + Math.min(1e-4, ds)),
     };
   };
 
@@ -516,7 +527,7 @@ function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array)
     if (forwardAtLimit[j] === 1) {
       byLimit[j] = (byLimit[j] ?? 0) + g;
     } else if (g !== 0) {
-      const { dv, dk, dds } = partials(onPower, forward[i] ?? 0, bend[i] ?? 0, stepM[i] ?? 0);
+      const { dv, dk, dds } = partials(onPower, forward[i] ?? 0, bend[i] ?? 0, stepM[i] ?? 0, i);
       byForward[i] = (byForward[i] ?? 0) + g * dv;
       timePerCurvature[i] = (timePerCurvature[i] ?? 0) + g * dk;
       timePerStep[i] = (timePerStep[i] ?? 0) + g * dds;
@@ -531,7 +542,7 @@ function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array)
     if (backwardAtLimit[p] === 1) {
       byLimit[p] = (byLimit[p] ?? 0) + g;
     } else if (g !== 0) {
-      const { dv, dk, dds } = partials(onBrakes, backward[i] ?? 0, bend[i] ?? 0, stepM[p] ?? 0);
+      const { dv, dk, dds } = partials(onBrakes, backward[i] ?? 0, bend[i] ?? 0, stepM[p] ?? 0, i);
       byBackward[i] = (byBackward[i] ?? 0) + g * dv;
       timePerCurvature[i] = (timePerCurvature[i] ?? 0) + g * dk;
       timePerStep[p] = (timePerStep[p] ?? 0) + g * dds;
@@ -542,7 +553,7 @@ function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array)
   byLimit.forEach((g, i) => {
     if (g !== 0) {
       const k = bend[i] ?? 0;
-      const slope = (limitAt(k + h) - limitAt(k - down(k))) / (h + down(k));
+      const slope = (limitAt(k + h, i) - limitAt(k - down(k), i)) / (h + down(k));
       timePerCurvature[i] = (timePerCurvature[i] ?? 0) + g * slope;
     }
   });
@@ -588,7 +599,7 @@ const STEP_HALVINGS = 12;
 const METRIC_DAMPING = 0.0001;
 
 /** Everything about a line that follows from its offsets. */
-function lineFrom(geometry: TrackGeometry, limits: LineLimits, offsetM: Float64Array) {
+function lineFrom(geometry: TrackGeometry, limits: LineLimits, gripScale: Float64Array, offsetM: Float64Array) {
   const n = geometry.count;
   const x = Float64Array.from(
     { length: n },
@@ -608,7 +619,7 @@ function lineFrom(geometry: TrackGeometry, limits: LineLimits, offsetM: Float64A
   // interpolation noise.
   const curvature = Float64Array.from({ length: n }, (_, i) => curvatureAt(x, z, i, 2));
 
-  return { x, z, offsetM, stepM, curvature, profile: lapProfile(limits, curvature, stepM) };
+  return { x, z, offsetM, stepM, curvature, profile: lapProfile(limits, curvature, stepM, gripScale) };
 }
 
 type Line = ReturnType<typeof lineFrom>;
@@ -665,10 +676,13 @@ function lapGradient(geometry: TrackGeometry, line: Line): Float64Array {
 export function buildRacingLine(
   geometry: TrackGeometry,
   limits: LineLimits,
-  { iterations = REFINE_ITERATIONS }: { iterations?: number } = {},
+  {
+    iterations = REFINE_ITERATIONS,
+    gripScale = new Float64Array(geometry.count).fill(1),
+  }: { iterations?: number; gripScale?: Float64Array } = {},
 ): RacingLine {
   const bound = Math.max(0, geometry.halfWidthM - limits.clearanceM);
-  let line = lineFrom(geometry, limits, solveOffsets(geometry, bound));
+  let line = lineFrom(geometry, limits, gripScale, solveOffsets(geometry, bound));
   const lapTimesS = [line.profile.lapTimeS];
   if (bound > 0 && iterations > 0) {
     const { n, hessian } = curvatureSystem(geometry);
@@ -713,6 +727,7 @@ export function buildRacingLine(
         const trial = lineFrom(
           geometry,
           limits,
+          gripScale,
           current.map((o, i) => Math.max(-bound, Math.min(bound, o + scale * (direction[i] ?? 0)))),
         );
         if (trial.profile.lapTimeS < line.profile.lapTimeS) {
@@ -744,6 +759,7 @@ export function buildRacingLine(
     curvature,
     speedMps,
     phase: phases(speedMps, stepM),
+    gripScale,
     lapTimesS,
   };
 }

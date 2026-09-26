@@ -58,3 +58,21 @@ test("@smoke the corner preview gives the speed to carry through the next corner
   await expect(page.locator("#corner-preview")).toBeVisible();
   await expect(page.locator("#corner-speed")).toHaveText(/^\d+ km\/h$/u);
 });
+
+test("@smoke the racing line uses the grip the AI runs saved for the track", async ({ page }) => {
+  await lowQuality(page);
+  const errors = collectErrors(page);
+  await freezeFrames(page);
+  const tuned = async (track: string) => {
+    await openGame(page, `./?track=${track}`);
+    await page.clock.runFor(1_000);
+    await expect.poll(() => guide(page)).toBeDefined();
+
+    return page.evaluate(() => window.__formulaRacerTest?.state().loweredGripSamples);
+  };
+
+  // Riviera's hairpin approach is saved with less grip; Harbour's line is left as built.
+  expect(await tuned("riviera")).toBeGreaterThan(50);
+  expect(await tuned("harbour")).toBe(0);
+  expect(errors).toEqual([]);
+});

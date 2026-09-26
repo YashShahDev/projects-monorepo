@@ -73,8 +73,8 @@ export function guidance(input: GuidanceInput, line: RacingLine, limits: LineLim
   const n = line.count;
   const m = limits.massKg;
   const share = Math.max(input.gripShare, 0.05);
-  const grip = (v: number) => share * limits.mu * (GRAVITY + (limits.downforceK * v * v) / m);
-  const spare = (v: number, k: number) => Math.sqrt(Math.max(0, grip(v) ** 2 - (v * v * k) ** 2));
+  const grip = (v: number, mu: number) => mu * (GRAVITY + (limits.downforceK * v * v) / m);
+  const spare = (v: number, k: number, mu: number) => Math.sqrt(Math.max(0, grip(v, mu) ** 2 - (v * v * k) ** 2));
   const drive = (v: number) => Math.min(limits.maxDriveForceN, limits.maxPowerW / Math.max(v, 1)) / m;
   const drag = (v: number) => (limits.dragK * v * v) / m;
   const brake = limits.maxBrakeForceN / m;
@@ -92,17 +92,18 @@ export function guidance(input: GuidanceInput, line: RacingLine, limits: LineLim
   const aheadM = Float64Array.from(ahead);
   const stepM = Float64Array.from(points, (i) => line.stepM[i] ?? 0);
   const bend = Float64Array.from(points, (i) => Math.abs(line.curvature[i] ?? 0));
+  const mu = Float64Array.from(points, (i) => share * limits.mu * (line.gripScale[i] ?? 1));
 
   // The fastest steady speed the grip now holds on each point's curvature.
-  const cornerMps = (k: number) => {
-    const room = k - (share * limits.mu * limits.downforceK) / m;
+  const cornerMps = (k: number, pointMu: number) => {
+    const room = k - (pointMu * limits.downforceK) / m;
 
-    return room > 0 ? Math.sqrt((share * limits.mu * GRAVITY) / room) : Infinity;
+    return room > 0 ? Math.sqrt((pointMu * GRAVITY) / room) : Infinity;
   };
 
   const envelope = new Float64Array(count);
   for (let k = count - 1; k >= 0; k -= 1) {
-    const target = Math.min(line.speedMps[points[k] ?? 0] ?? 0, cornerMps(bend[k] ?? 0));
+    const target = Math.min(line.speedMps[points[k] ?? 0] ?? 0, cornerMps(bend[k] ?? 0, mu[k] ?? 0));
     if (k === count - 1) {
       envelope[k] = target;
       continue;
@@ -110,7 +111,7 @@ export function guidance(input: GuidanceInput, line: RacingLine, limits: LineLim
 
     const next = envelope[k + 1] ?? 0;
     const reach = Math.sqrt(
-      next * next + 2 * (Math.min(spare(next, bend[k] ?? 0), brake) + drag(next)) * (stepM[k] ?? 0),
+      next * next + 2 * (Math.min(spare(next, bend[k] ?? 0, mu[k] ?? 0), brake) + drag(next)) * (stepM[k] ?? 0),
     );
     envelope[k] = Math.min(target, reach);
   }
@@ -121,7 +122,7 @@ export function guidance(input: GuidanceInput, line: RacingLine, limits: LineLim
     const ds = Math.max(stepM[k] ?? 0, 1e-6);
     const k2 = bend[k] ?? 0;
     const next = k + 1 < count ? (envelope[k + 1] ?? 0) : Infinity;
-    const power = Math.min(drive(v), spare(v, k2));
+    const power = Math.min(drive(v), spare(v, k2, mu[k] ?? 0));
     const full = Math.sqrt(Math.max(0, v * v + 2 * (power - drag(v)) * ds));
     if (full <= next) {
       pedal[k] = drive(v) > 0 ? power / drive(v) : 0;
@@ -134,7 +135,7 @@ export function guidance(input: GuidanceInput, line: RacingLine, limits: LineLim
         v = next;
       } else {
         pedal[k] = Math.max(-1, wanted / brake);
-        const decel = Math.min(-wanted, Math.min(spare(v, k2), brake)) + drag(v);
+        const decel = Math.min(-wanted, Math.min(spare(v, k2, mu[k] ?? 0), brake)) + drag(v);
         v = Math.sqrt(Math.max(0, v * v - 2 * decel * ds));
       }
     }

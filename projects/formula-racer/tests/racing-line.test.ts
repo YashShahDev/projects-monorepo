@@ -423,3 +423,25 @@ describe("minimum-time refinement", () => {
     expect(clipped).toBeGreaterThan(0.85);
   });
 });
+
+describe("grip measured along the line", () => {
+  const n = harbour.count;
+  const hairpin = line.speedMps.indexOf(Math.min(...line.speedMps));
+  const near = (i: number) => Math.abs(((i - hairpin + n + n / 2) % n) - n / 2) * harbour.spacingM < 60;
+
+  test("a scale of one everywhere is the line built without one", () => {
+    const same = buildRacingLine(harbour, limits, { gripScale: new Float64Array(n).fill(1) });
+    expect(same.offsetM).toEqual(line.offsetM);
+    expect(same.speedMps).toEqual(line.speedMps);
+    expect(Array.from(same.gripScale)).toEqual(Array.from({ length: n }, () => 1));
+  });
+
+  test("more grip at one corner carries more speed there, and less carries less", () => {
+    const scaled = (s: number) =>
+      buildRacingLine(harbour, limits, { gripScale: Float64Array.from({ length: n }, (_, i) => (near(i) ? s : 1)) });
+    const [more, less] = [scaled(1.2), scaled(0.8)];
+    expect(more.speedMps[hairpin] ?? 0).toBeGreaterThan((line.speedMps[hairpin] ?? 0) * 1.05);
+    expect(less.speedMps[hairpin] ?? 0).toBeLessThan((line.speedMps[hairpin] ?? 0) * 0.95);
+    expect(Array.from(more.gripScale.filter((s) => s !== 1))).not.toHaveLength(0);
+  });
+});

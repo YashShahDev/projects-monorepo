@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "track": "riviera",
+  "samples": 1638,
+  "lowered": [
+    {
+      "from": 109,
+      "to": 201,
+      "scale": 0.925
+    }
+  ],
+  "lapS": 77.19800350124638,
+  "baselineLapS": 78.01572195369206
+}

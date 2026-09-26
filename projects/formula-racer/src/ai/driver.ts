@@ -74,6 +74,9 @@ export interface AiDriverOptions {
 
   /** The line to follow; built from the car and the level's grip use when absent. */
   line?: RacingLine;
+
+  /** Per-point grip for building that line, as `make tune-lines` saved it for the track. */
+  gripScale?: Float64Array;
   stepSeconds?: number;
 }
 
@@ -129,7 +132,7 @@ export function createAiDriver(options: AiDriverOptions): AiDriver {
   const { car, geometry: g } = options;
   const limits = lineLimits(car);
   const planned = { ...limits, mu: limits.mu * level.gripUse };
-  const line = options.line ?? buildRacingLine(g, planned);
+  const line = options.line ?? buildRacingLine(g, planned, options.gripScale ? { gripScale: options.gripScale } : {});
   const n = line.count;
   const wheelbase = car.wheels.frontAxleZ - car.wheels.rearAxleZ;
   const stepSeconds = options.stepSeconds ?? 1 / 60;

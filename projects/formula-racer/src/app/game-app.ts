@@ -6,6 +6,7 @@ import { fetchCar } from "../content/car.ts";
 import type { CarDefinition } from "../content/car.ts";
 import { fetchEnergyRules } from "../content/energy-rules.ts";
 import { fetchLiveries } from "../content/livery.ts";
+import { fetchLineData, lineGripScale } from "../content/line-data.ts";
 import { loadCatalogTrack } from "../content/track-catalog.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import type { DriverControls, VehicleSnapshot } from "../simulation/vehicle.ts";
@@ -61,6 +62,9 @@ export interface GameAppState extends SessionState {
 
   /** The AI driver has the car (I hands it over and takes it back). */
   aiDriving: boolean;
+
+  /** Centreline samples where the racing line plans on less grip, from `make tune-lines`. */
+  loweredGripSamples: number;
 }
 
 export interface GameApp {
@@ -165,6 +169,9 @@ export async function startGameApp(
       fetchEnergyRules(asset("assets/rules/energy-2026-c18.json")),
       fetchLiveries(asset("assets/cars/liveries.json")),
     ]),
+  );
+  const lineData = await stage("Could not load the racing line", () =>
+    fetchLineData(asset(`assets/lines/${track.id}.json`)),
   );
   const model = await stage("Could not load the car model", () =>
     loadCarModel(asset("assets/cars/fr26.glb"), parseCarModelInterface(modelInterface), carDefinition),
@@ -283,6 +290,11 @@ export async function startGameApp(
   // I hands the car to an Ace-level AI driver, on the same racing line the guide shows,
   // and takes it back. It sees the car through the control API's observation.
   let racingLine: RacingLine | undefined;
+
+  // A line saved for an older version of the track no longer fits it, so it is ignored.
+  const gripScale = lineData && lineGripScale(lineData, session.geometry.count);
+  const buildLine = (car: CarDefinition) =>
+    buildRacingLine(session.geometry, lineLimits(car), gripScale ? { gripScale } : {});
   let ai: { driver: AiDriver; link: ControlLink } | undefined;
   let aiDriving = false;
   const toggleAi = () => {
@@ -292,7 +304,7 @@ export async function startGameApp(
     }
 
     const car = session.car();
-    const line = racingLine ?? buildRacingLine(session.geometry, lineLimits(car));
+    const line = racingLine ?? buildLine(car);
     racingLine = line;
     ai ??= {
       driver: createAiDriver({ car, track, geometry: session.geometry, level: "ace", seed: 1, line }),
@@ -466,7 +478,7 @@ export async function startGameApp(
   let guideState: GuideState | undefined;
   const guideTimer = setTimeout(() => {
     const limits = lineLimits(carDefinition);
-    const line = buildRacingLine(session.geometry, limits);
+    const line = buildLine(carDefinition);
     racingLine = line;
     guide = createGuideView(session.geometry, line, limits);
     view.add(guide);
@@ -497,6 +509,7 @@ export async function startGameApp(
     held: keyboard.held(),
     sound: { ...sound, enabled: preferences.sound(), output: audio?.state() ?? "none" },
     guide: guideState,
+    loweredGripSamples: gripScale?.filter((s) => s !== 1).length ?? 0,
     ghost: { mode: preferences.ghost(), visible: ghostView.object.visible, deltaS },
     marks: marksState,
     aiDriving,

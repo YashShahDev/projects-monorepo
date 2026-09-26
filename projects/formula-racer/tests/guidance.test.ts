@@ -77,6 +77,25 @@ describe("guidance", () => {
     expect(Math.min(...g.pedal)).toBeLessThan(-0.9);
   });
 
+  test("on a line planned on more grip, it brakes where that line's profile does", () => {
+    const grippy = buildRacingLine(harbour, limits, { gripScale: new Float64Array(n).fill(1.15) });
+
+    // That line's braking zone for the same corner, 200 m or so after the car.
+    let start = before;
+    while (grippy.phase[start] !== "brake") {
+      start = (start + 1) % n;
+    }
+
+    let aheadM = 0;
+    for (let i = before; i !== start; i = (i + 1) % n) {
+      aheadM += grippy.stepM[i] ?? 0;
+    }
+
+    const at = { x: grippy.x[before] ?? 0, z: grippy.z[before] ?? 0, index: before, gripShare: 1 };
+    const g = guidance({ ...at, speedMps: grippy.speedMps[before] ?? 0 }, grippy, limits);
+    expect(Math.abs(firstBrakeM(g) - aheadM)).toBeLessThan(2);
+  });
+
   test("a car faster than the line brakes earlier and harder", () => {
     const planned = onLine(line.speedMps[before] ?? 0);
     const fast = onLine((line.speedMps[before] ?? 0) + 12);
