@@ -3,11 +3,12 @@ SHELL := /bin/sh
 # mise selects project-local versions without changing global defaults.
 RUN := MISE_AUTO_INSTALL=0 mise exec --
 
-.PHONY: help setup install doctor verify-prerequisites browsers-install dev build preview test test-full test-unit test-browser test-browser-full assets assets-verify lint clean
+.PHONY: help setup install doctor verify-prerequisites browsers-install dev build preview bench test test-full test-unit test-browser test-browser-full assets assets-verify lint clean
 help:
 	@echo "Formula Racer: setup doctor verify-prerequisites dev build preview test test-full test-unit test-browser test-browser-full lint clean"
 	@echo "test runs unit + Chromium dev checks; test-full adds the complete browser matrix."
 	@echo "preview serves dist/; pass BASE=/some/path/ to check subpath hosting."
+	@echo "bench runs the benchmark route in headed Chromium; QUALITY=low|medium|high (default medium)."
 	@echo "assets rebuilds the car GLB in Blender; assets-verify checks the committed one is reproducible."
 setup: install browsers-install
 install:
@@ -24,6 +25,8 @@ build:
 	$(RUN) bun run build
 preview:
 	$(RUN) bun run preview --base "$(or $(BASE),/)"
+bench: build
+	$(RUN) bun run tools/bench.ts --quality "$(or $(QUALITY),medium)"
 test: test-unit test-browser
 test-full: test-unit assets-verify test-browser-full
 test-unit:
