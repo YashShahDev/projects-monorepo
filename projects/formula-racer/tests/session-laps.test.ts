@@ -141,13 +141,23 @@ describe("session energy", () => {
     JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/assets/rules/energy-2026-c18.json"), "utf8")),
   );
 
-  test("E cycles Balanced → Harvest → Balanced", async () => {
+  test("E cycles Balanced → Attack → Qualifying → Harvest → Balanced", async () => {
     session = await createDrivingSession(car, track, { energy: rules });
-    expect(session.state().energy?.mode).toBe("balanced");
-    session.action("energyMode");
-    expect(session.state().energy?.mode).toBe("harvest");
-    session.action("energyMode");
-    expect(session.state().energy?.mode).toBe("balanced");
+    const seen = [session.state().energy?.mode];
+    for (let k = 0; k < 4; k += 1) {
+      session.action("energyMode");
+      seen.push(session.state().energy?.mode);
+    }
+
+    expect(seen).toEqual(["balanced", "attack", "qualifying", "harvest", "balanced"]);
+  });
+
+  test("a chosen energy mode holds through a retune", async () => {
+    session = await createDrivingSession(car, track, { energy: rules });
+    session.setEnergyMode("qualifying");
+    session.retune({ ...car, massKg: car.massKg + 10 });
+    session.action("reset");
+    expect(session.state().energy?.mode).toBe("qualifying");
   });
 
   test("holding Shift deploys more than Balanced", async () => {

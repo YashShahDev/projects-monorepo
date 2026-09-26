@@ -46,6 +46,7 @@ const menu = {
   livery: element("#livery", HTMLSelectElement),
   quality: element("#quality", HTMLSelectElement),
   gearbox: element("#gearbox", HTMLSelectElement),
+  energy: element("#energy-select", HTMLSelectElement),
   racingLine: element("#racing-line", HTMLSelectElement),
   ghost: element("#ghost", HTMLSelectElement),
   sound: element("#sound", HTMLInputElement),

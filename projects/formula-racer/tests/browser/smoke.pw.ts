@@ -83,9 +83,11 @@ test("@smoke E switches the energy mode and Shift deploys from the battery", asy
   await openGame(page);
   await expect(page.locator("#energy-mode")).toHaveText("Balanced");
   await expect(page.locator("#charge")).toHaveText("100%");
-  await page.keyboard.press("KeyE");
-  await expect(page.locator("#energy-mode")).toHaveText("Harvest");
-  await page.keyboard.press("KeyE");
+  for (const mode of ["Attack", "Qualifying", "Harvest", "Balanced"]) {
+    await page.keyboard.press("KeyE");
+    await expect(page.locator("#energy-mode")).toHaveText(mode);
+  }
+
   await page.clock.runFor(3_000);
   await page.keyboard.down("Shift");
   await page.keyboard.down("ArrowUp");
@@ -125,4 +127,16 @@ test("@smoke running wide onto the grass marks the lap invalid", async ({ page }
   await page.keyboard.down("ArrowUp");
   await page.clock.runFor(9_000);
   await expect(page.locator("#lap-time")).toHaveClass(/invalid/u);
+});
+
+test("@smoke the energy mode chosen in the menu applies and is remembered", async ({ page }) => {
+  // No lowQuality here: its saved preferences would replace the choice on reload.
+  await openGame(page);
+  await page.keyboard.press("Escape");
+  await page.locator("#energy-select").selectOption("qualifying");
+  await expect(page.locator("#energy-mode")).toHaveText("Qualifying");
+  await page.reload();
+  await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });
+  await expect(page.locator("#energy-mode")).toHaveText("Qualifying");
+  await expect(page.locator("#energy-select")).toHaveValue("qualifying");
 });

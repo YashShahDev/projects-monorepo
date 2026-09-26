@@ -232,7 +232,7 @@ describe("vehicle energy", () => {
     const before = sim.snapshot().energy?.socJ ?? 0;
     run(sim, { throttle: 0, brake: 0, steer: 0 }, 2);
     expect((sim.snapshot().energy?.socJ ?? 0) - before).toBeCloseTo(
-      rules.liftOffHarvestW * 2 * rules.regenEfficiency,
+      rules.modes.harvest.liftOffHarvestW * 2 * rules.regenEfficiency,
       -4,
     );
     expect(sim.snapshot().energy?.mode).toBe("harvest");

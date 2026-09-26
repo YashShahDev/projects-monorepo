@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "id": "f1-2026-c18",
   "name": "2026 energy rules (Section C Issue 18)",
   "source": "FIA 2026 F1 Regulations, Section C Technical Issue 18 (2026-05-07) C5.2.7-C5.2.12; Section B Sporting Issue 07 (2026-06-25) B7.1-B7.2",
@@ -16,6 +16,26 @@
   "standingStartDeployKph": 50,
   "deployEfficiency": 0.95,
   "regenEfficiency": 0.9,
-  "balancedDeployShare": 0.6,
-  "liftOffHarvestW": 120000
+  "modes": {
+    "harvest": {
+      "name": "Harvest",
+      "deployShare": 0,
+      "liftOffHarvestW": 120000
+    },
+    "balanced": {
+      "name": "Balanced",
+      "deployShare": 0.6,
+      "liftOffHarvestW": 0
+    },
+    "attack": {
+      "name": "Attack",
+      "deployShare": 0.85,
+      "liftOffHarvestW": 0
+    },
+    "qualifying": {
+      "name": "Qualifying",
+      "deployShare": 1,
+      "liftOffHarvestW": 0
+    }
+  }
 }

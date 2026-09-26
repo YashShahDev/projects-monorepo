@@ -254,3 +254,53 @@ describe("energy system", () => {
     expect(energy.update(cruise({ mode: "harvest", throttle: 0, speedMps: 2 })).regenW).toBe(0);
   });
 });
+
+describe("energy modes", () => {
+  const modes = ["harvest", "balanced", "attack", "qualifying"] as const;
+
+  /** Half a store, then a lap of three straights, lifts and braking zones in `mode`. */
+  function lap(mode: (typeof modes)[number]) {
+    const energy = rolling();
+    for (let i = 0; i < 60 * 6; i += 1) {
+      energy.update(cruise({ deployRequest: true }));
+    }
+
+    energy.newLap();
+    let flow = energy.update(cruise({ mode }));
+    let deployedJ = 0;
+    for (let i = 0; i < 60 * 42; i += 1) {
+      const phase = i % (60 * 14);
+      const throttle = phase < 60 * 6 ? 1 : 0;
+      const brakePowerW = phase >= 60 * 8 ? 600_000 : 0;
+      flow = energy.update(cruise({ mode, throttle, brakePowerW, braking: brakePowerW > 0 }));
+      deployedJ += flow.deployW * DT;
+      expect(flow.lapRechargeJ).toBeLessThanOrEqual(rules.rechargePerLapJ + 1e-6);
+    }
+
+    return { socJ: flow.socJ, deployedJ };
+  }
+
+  test("each mode is a row of the rules, from harvesting most to deploying most", () => {
+    expect(Object.keys(rules.modes)).toEqual([...modes]);
+    const laps = modes.map(lap);
+    for (let k = 1; k < laps.length; k += 1) {
+      expect(laps[k]?.socJ ?? 0).toBeLessThan(laps[k - 1]?.socJ ?? 0);
+      expect(laps[k]?.deployedJ ?? 0).toBeGreaterThan(laps[k - 1]?.deployedJ ?? 0);
+    }
+
+    expect(laps[0]?.deployedJ).toBe(0);
+  });
+
+  test("Qualifying deploys all the permitted power without the deploy key", () => {
+    const flow = rolling().update(cruise({ mode: "qualifying" }));
+    expect(flow.deployW).toBeCloseTo(permittedDeployW(rules, kmh(200)), 6);
+  });
+
+  test("rejects rules missing a mode or with a share out of range", () => {
+    const { attack: _attack, ...three } = rules.modes;
+    expect(() => parseEnergyRules({ ...raw, modes: three })).toThrow("modes.attack");
+    expect(() =>
+      parseEnergyRules({ ...raw, modes: { ...rules.modes, attack: { ...rules.modes.attack, deployShare: 1.5 } } }),
+    ).toThrow("modes.attack.deployShare");
+  });
+});

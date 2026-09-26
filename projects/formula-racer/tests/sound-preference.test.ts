@@ -62,3 +62,12 @@ test("the ghost races the best lap by default, and the choice is remembered", ()
   prefs.setGhost("everyone");
   expect(createPreferences(storage, liveries).ghost()).toBe("last");
 });
+
+test("the energy mode defaults to balanced, is remembered, and ignores unknown values", () => {
+  const storage = memory();
+  const prefs = createPreferences(storage, liveries);
+  expect(prefs.energyMode()).toBe("balanced");
+  prefs.setEnergyMode("attack");
+  prefs.setEnergyMode("turbo");
+  expect(createPreferences(storage, liveries).energyMode()).toBe("attack");
+});

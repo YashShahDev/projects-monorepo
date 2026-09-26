@@ -78,7 +78,7 @@ const LABELS: Record<keyof HeldKeys | KeyAction, string> = {
   deploy: "Deploy battery (hold)",
   shiftUp: "Shift up",
   shiftDown: "Shift down (R when stopped)",
-  energyMode: "Energy mode: Balanced / Harvest",
+  energyMode: "Energy mode: Balanced / Attack / Qualifying / Harvest",
   camera: "Change camera",
   reset: "Restart from the grid",
   pause: "Pause menu",

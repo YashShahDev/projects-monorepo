@@ -98,6 +98,7 @@ export interface Menu {
   livery: HTMLSelectElement;
   quality: HTMLSelectElement;
   gearbox: HTMLSelectElement;
+  energy: HTMLSelectElement;
   racingLine: HTMLSelectElement;
   ghost: HTMLSelectElement;
   sound: HTMLInputElement;
@@ -211,6 +212,8 @@ export async function startGameApp(
   menu.quality.value = preferences.quality();
   menu.gearbox.value = preferences.gearboxMode();
   session.setGearboxMode(preferences.gearboxMode());
+  menu.energy.value = preferences.energyMode();
+  session.setEnergyMode(preferences.energyMode());
   menu.racingLine.value = preferences.racingLine();
   menu.ghost.value = preferences.ghost();
   view.setQuality(qualitySettings(preferences.quality(), window.devicePixelRatio));
@@ -390,6 +393,13 @@ export async function startGameApp(
   };
 
   menu.gearbox.addEventListener("change", onGearbox);
+  const onEnergy = () => {
+    preferences.setEnergyMode(menu.energy.value);
+    session.setEnergyMode(preferences.energyMode());
+    show();
+  };
+
+  menu.energy.addEventListener("change", onEnergy);
   const onRacingLine = () => {
     preferences.setRacingLine(menu.racingLine.value);
   };
@@ -458,7 +468,14 @@ export async function startGameApp(
     hud.lapTime.textContent = s.lap ? formatLapTime(s.lap.elapsedS) : "–";
     hud.lapTime.classList.toggle("invalid", s.lap?.valid === false);
     if (s.energy) {
-      hud.energyMode.textContent = s.energy.mode === "harvest" ? "Harvest" : "Balanced";
+      hud.energyMode.textContent = energy.modes[s.energy.mode].name;
+
+      // The E key changes the mode too; the menu and the saved choice follow it.
+      if (s.energy.mode !== preferences.energyMode()) {
+        preferences.setEnergyMode(s.energy.mode);
+        menu.energy.value = s.energy.mode;
+      }
+
       const percent = Math.round((100 * s.energy.socJ) / energy.socWindowJ);
       hud.charge.textContent = `${String(percent)}%`;
       hud.chargeMeter.value = percent;
@@ -625,6 +642,7 @@ export async function startGameApp(
     menu.livery.removeEventListener("change", onLivery);
     menu.quality.removeEventListener("change", onQuality);
     menu.gearbox.removeEventListener("change", onGearbox);
+    menu.energy.removeEventListener("change", onEnergy);
     menu.racingLine.removeEventListener("change", onRacingLine);
     menu.ghost.removeEventListener("change", onGhost);
     clearTimeout(guideTimer);

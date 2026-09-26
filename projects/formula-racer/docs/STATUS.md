@@ -16,7 +16,7 @@ summary: P0–P5 complete; P6 (user feedback after playing) planned and Codex-re
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)); P4 — content and presentation ([record](checkpoints/P4.md)).
 - Active phase: P6 — driving aids, views and presentation ([phase](phases/P6-polish.md)).
-- Next: the P6 phase review, then P7-C1 energy modes ([P7](phases/P7-ai.md)).
+- Next: fix the P6 phase review's findings, then P7-C2 ([P7](phases/P7-ai.md)).
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
@@ -79,7 +79,8 @@ repository sources.
 | P5-C3     | done    | Lint, Chromium tests, screenshots, limitations; [P5](checkpoints/P5.md)       |
 | P5 review | done    | Independent agent, 5 fixed; [P5](checkpoints/P5.md#phase-review)              |
 | P6-C1–C11 | done    | [P6 record](checkpoints/P6.md)                                                |
-| P7-C1–C9  | planned | [P7](phases/P7-ai.md)                                                         |
+| P7-C1     | done    | [P7 record](checkpoints/P7.md)                                                |
+| P7-C2–C9  | planned | [P7](phases/P7-ai.md)                                                         |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 

@@ -1,3 +1,5 @@
+import { isEnergyMode } from "../content/energy-rules.ts";
+import type { EnergyMode } from "../content/energy-rules.ts";
 import type { Livery } from "../content/livery.ts";
 import { isRecord } from "../content/validate.ts";
 import { isGhostMode } from "../rendering/ghost-view.ts";
@@ -25,6 +27,10 @@ export interface Preferences {
 
   /** Ignores values that are not a gearbox mode. */
   setGearboxMode(mode: string): void;
+  energyMode(): EnergyMode;
+
+  /** Ignores values that are not an energy mode. */
+  setEnergyMode(mode: string): void;
   racingLine(): GuideMode;
 
   /** Ignores values that are not a racing-line mode. */
@@ -54,6 +60,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
   let quality: QualityPreset = "medium";
   let sound = true;
   let gearboxMode: GearboxMode = "automatic";
+  let energyMode: EnergyMode = "balanced";
   let racingLine: GuideMode = "off";
   let ghost: GhostMode = "best";
   let newerSave = false;
@@ -68,6 +75,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
       quality = isQualityPreset(saved.quality) ? saved.quality : quality;
       sound = typeof saved.sound === "boolean" ? saved.sound : sound;
       gearboxMode = isGearboxMode(saved.gearboxMode) ? saved.gearboxMode : gearboxMode;
+      energyMode = isEnergyMode(saved.energyMode) ? saved.energyMode : energyMode;
       racingLine = isGuideMode(saved.racingLine) ? saved.racingLine : racingLine;
       ghost = isGhostMode(saved.ghost) ? saved.ghost : ghost;
     }
@@ -86,7 +94,16 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
     try {
       storage?.setItem(
         STORAGE_KEY,
-        JSON.stringify({ version: SCHEMA, livery: current.id, quality, sound, gearboxMode, racingLine, ghost }),
+        JSON.stringify({
+          version: SCHEMA,
+          livery: current.id,
+          quality,
+          sound,
+          gearboxMode,
+          energyMode,
+          racingLine,
+          ghost,
+        }),
       );
     } catch {
       // Quota or revoked permission: the choice still holds for this visit.
@@ -125,6 +142,15 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
       }
 
       gearboxMode = mode;
+      save();
+    },
+    energyMode: () => energyMode,
+    setEnergyMode(mode) {
+      if (!isEnergyMode(mode) || mode === energyMode) {
+        return;
+      }
+
+      energyMode = mode;
       save();
     },
     racingLine: () => racingLine,

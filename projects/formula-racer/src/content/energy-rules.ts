@@ -1,11 +1,30 @@
 import { array, ContentError, fetchJson, inRange, object, positive, text } from "./validate.ts";
 
+/** Driver-selectable energy modes, from harvesting most to deploying most. */
+export const ENERGY_MODES = ["harvest", "balanced", "attack", "qualifying"] as const;
+export type EnergyMode = (typeof ENERGY_MODES)[number];
+
+export function isEnergyMode(value: unknown): value is EnergyMode {
+  return ENERGY_MODES.some((mode) => mode === value);
+}
+
+/** Gameplay: how one energy mode deploys and harvests. */
+export interface EnergyModeRules {
+  name: string;
+
+  /** Share of permitted power deployed on full throttle without the deploy key. */
+  deployShare: number;
+
+  /** Charging power off throttle and off the brakes. */
+  liftOffHarvestW: number;
+}
+
 /**
  * Versioned, sourced energy-management rules. Values come from the regulation named in
  * `source`, apart from the gameplay parameters marked below.
  */
 export interface EnergyRules {
-  version: 1;
+  version: 2;
   id: string;
   name: string;
   source: string;
@@ -24,17 +43,13 @@ export interface EnergyRules {
   deployEfficiency: number;
   regenEfficiency: number;
 
-  /** Gameplay: share of permitted power Balanced mode deploys without a request. */
-  balancedDeployShare: number;
-
-  /** Gameplay: charging power in Harvest mode off throttle. */
-  liftOffHarvestW: number;
+  modes: Record<EnergyMode, EnergyModeRules>;
 }
 
 export function parseEnergyRules(value: unknown, source = "energy rules"): EnergyRules {
   const root = object(value, source);
-  if (root.version !== 1) {
-    throw new ContentError(`${source}.version must be 1`);
+  if (root.version !== 2) {
+    throw new ContentError(`${source}.version must be 2`);
   }
 
   const ersMaxPowerW = positive(root.ersMaxPowerW, `${source}.ersMaxPowerW`);
@@ -59,8 +74,20 @@ export function parseEnergyRules(value: unknown, source = "energy rules"): Energ
     curve.push([kph, kw]);
   });
 
+  const modes = object(root.modes, `${source}.modes`);
+  const mode = (id: EnergyMode): EnergyModeRules => {
+    const field = `${source}.modes.${id}`;
+    const row = object(modes[id], field);
+
+    return {
+      name: text(row.name, `${field}.name`),
+      deployShare: inRange(row.deployShare, `${field}.deployShare`, 0, 1),
+      liftOffHarvestW: inRange(row.liftOffHarvestW, `${field}.liftOffHarvestW`, 0, ersMaxPowerW),
+    };
+  };
+
   return {
-    version: 1,
+    version: 2,
     id: text(root.id, `${source}.id`),
     name: text(root.name, `${source}.name`),
     source: text(root.source, `${source}.source`),
@@ -72,8 +99,12 @@ export function parseEnergyRules(value: unknown, source = "energy rules"): Energ
     standingStartDeployKph: inRange(root.standingStartDeployKph, `${source}.standingStartDeployKph`, 0, 200),
     deployEfficiency: inRange(root.deployEfficiency, `${source}.deployEfficiency`, 0.5, 1),
     regenEfficiency: inRange(root.regenEfficiency, `${source}.regenEfficiency`, 0.5, 1),
-    balancedDeployShare: inRange(root.balancedDeployShare, `${source}.balancedDeployShare`, 0, 1),
-    liftOffHarvestW: inRange(root.liftOffHarvestW, `${source}.liftOffHarvestW`, 0, ersMaxPowerW),
+    modes: {
+      harvest: mode("harvest"),
+      balanced: mode("balanced"),
+      attack: mode("attack"),
+      qualifying: mode("qualifying"),
+    },
   };
 }
 

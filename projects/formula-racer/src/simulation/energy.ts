@@ -1,6 +1,7 @@
-import type { EnergyRules } from "../content/energy-rules.ts";
+import { ENERGY_MODES } from "../content/energy-rules.ts";
+import type { EnergyMode, EnergyRules } from "../content/energy-rules.ts";
 
-export type EnergyMode = "balanced" | "harvest";
+export type { EnergyMode } from "../content/energy-rules.ts";
 
 export interface EnergyInput {
   speedMps: number;
@@ -19,7 +20,10 @@ export interface EnergyInput {
    */
   braking?: boolean;
 
-  /** Driver holding the deploy key: the full permitted power instead of the mode's share. */
+  /**
+   * Driver holding the deploy key: the full permitted power instead of the mode's share,
+   * in every mode that deploys at all.
+   */
   deployRequest: boolean;
   dtS: number;
 
@@ -59,6 +63,14 @@ export interface EnergySystem {
   state(): { socJ: number; lapRechargeJ: number };
 }
 
+/**
+ * The mode the E key moves to: up through the deploying modes from Balanced, then round
+ * to Harvest.
+ */
+export function nextEnergyMode(mode: EnergyMode): EnergyMode {
+  return ENERGY_MODES[(ENERGY_MODES.indexOf(mode) + 1) % ENERGY_MODES.length] ?? "balanced";
+}
+
 /** C5.2.8 (i): permitted ERS-K propulsion power at a road speed. */
 export function permittedDeployW(rules: EnergyRules, speedMps: number): number {
   const kph = Math.abs(speedMps) * 3.6;
@@ -94,9 +106,10 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
         launched = true;
       }
 
+      const row = rules.modes[mode];
       let deployW = 0;
-      if (launched && throttle > 0 && mode !== "harvest") {
-        const share = deployRequest ? 1 : rules.balancedDeployShare;
+      if (launched && throttle > 0 && row.deployShare > 0) {
+        const share = deployRequest ? 1 : row.deployShare;
         deployW = Math.min(throttle * share * permittedDeployW(rules, speedMps), limitW ?? Number.POSITIVE_INFINITY);
 
         // Never draw more than is stored.
@@ -104,7 +117,7 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
       }
 
       const turning = Math.abs(speedMps) >= MIN_HARVEST_SPEED_MPS;
-      const liftOff = mode === "harvest" && throttle === 0 && braking !== true && turning ? rules.liftOffHarvestW : 0;
+      const liftOff = throttle === 0 && braking !== true && turning ? row.liftOffHarvestW : 0;
       const wanted = Math.min(
         rules.ersMaxPowerW,
         regenLimitW ?? Number.POSITIVE_INFINITY,

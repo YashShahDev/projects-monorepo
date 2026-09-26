@@ -24,6 +24,7 @@ import type {
 import type { Pose } from "../simulation/physics.ts";
 import type { KeyAction } from "./keyboard.ts";
 import type { EnergyRules } from "../content/energy-rules.ts";
+import { nextEnergyMode } from "../simulation/energy.ts";
 import type { EnergyMode } from "../simulation/energy.ts";
 import type { GearboxMode, ShiftRequest } from "../simulation/gearbox.ts";
 import { createGhostRecorder } from "../simulation/ghost.ts";
@@ -108,6 +109,7 @@ export interface DrivingSession {
   focusLost(): void;
   setAssists(assists: DriverAssists): void;
   setGearboxMode(mode: GearboxMode): void;
+  setEnergyMode(mode: EnergyMode): void;
 
   /**
    * Validates a change to the car and applies it on the next reset, since changing mass,
@@ -432,9 +434,8 @@ export async function createDrivingSession(
           pendingShift = action === "shiftUp" ? "up" : "down";
         }
       } else if (action === "energyMode") {
-        const next: EnergyMode = sim.snapshot().energy?.mode === "harvest" ? "balanced" : "harvest";
-        energyMode = next;
-        sim.setEnergyMode(next);
+        energyMode = nextEnergyMode(energyMode);
+        sim.setEnergyMode(energyMode);
       } else {
         // Fails to compile if a new action reaches here unhandled.
         action satisfies "camera";
@@ -443,6 +444,10 @@ export async function createDrivingSession(
     },
     focusLost() {
       paused = true;
+    },
+    setEnergyMode(mode) {
+      energyMode = mode;
+      sim.setEnergyMode(mode);
     },
     setGearboxMode(mode) {
       gearboxMode = mode;
