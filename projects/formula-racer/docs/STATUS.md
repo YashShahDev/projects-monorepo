@@ -16,7 +16,7 @@ summary: P0–P5 complete; P6 (user feedback after playing) planned and Codex-re
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)); P4 — content and presentation ([record](checkpoints/P4.md)).
 - Active phase: P6 — driving aids, views and presentation ([phase](phases/P6-polish.md)).
-- Next: fix the P6 phase review's findings, then P7-C2 ([P7](phases/P7-ai.md)).
+- Next: P7-C2, a minimum-curvature racing line that converges ([P7](phases/P7-ai.md)).
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
@@ -43,7 +43,7 @@ P6 adds the user's requests from playing the game: a menu redesign and keyboard 
 a bigger corner preview, manual gears and reverse, a physics and assists check, two
 more cameras, F1-style scenery, a racing line with a braking guide, and a ghost. The
 plan is in [P6](phases/P6-polish.md), reviewed by Codex. It lands in PR #7 (user).
-C1–C11 are done; next is the P6 phase review.
+C1–C11 are done and Codex-reviewed (6 findings fixed, [P6](checkpoints/P6.md#phase-review)).
 P7 (user, 2026-09-27) follows the P6 review: energy modes, a correct and dynamic 3D
 racing line, a headless control API, and AI drivers ([plan](phases/P7-ai.md)).
 The PR is ready for the user's review; don't merge. The open items listed in that
@@ -79,6 +79,7 @@ repository sources.
 | P5-C3     | done    | Lint, Chromium tests, screenshots, limitations; [P5](checkpoints/P5.md)       |
 | P5 review | done    | Independent agent, 5 fixed; [P5](checkpoints/P5.md#phase-review)              |
 | P6-C1–C11 | done    | [P6 record](checkpoints/P6.md)                                                |
+| P6 review | done    | Codex, 6 fixed; [P6](checkpoints/P6.md#phase-review)                          |
 | P7-C1     | done    | [P7 record](checkpoints/P7.md)                                                |
 | P7-C2–C9  | planned | [P7](phases/P7-ai.md)                                                         |
 

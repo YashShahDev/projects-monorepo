@@ -44,7 +44,10 @@ test("@smoke while help is open, the menu behind it cannot be reached or used", 
     expect(await menu.evaluate((el) => el.contains(document.activeElement))).toBe(false);
   }
 
-  await menu.getByRole("button", { name: "Resume" }).click({ force: true, timeout: 2_000 }).catch(() => undefined);
+  await menu
+    .getByRole("button", { name: "Resume" })
+    .click({ force: true, timeout: 2_000 })
+    .catch(() => undefined);
   await expect(help).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Paused" })).toBeVisible();
 
