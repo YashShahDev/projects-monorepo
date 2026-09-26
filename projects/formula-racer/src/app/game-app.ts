@@ -107,6 +107,12 @@ export async function startGameApp(
   requestedTrack: string | null = null,
   bench?: { options: BenchOptions; onDone: (report: BenchReport) => void },
 ): Promise<GameApp> {
+  // Checked before anything is created, so failing here leaves nothing to dispose.
+  const map = hud.map;
+  if (!map) {
+    throw new StartupError("index.html is missing #track-map");
+  }
+
   const context = canvas.getContext("webgl2", { antialias: true });
   if (!context) {
     throw new StartupError("WebGL2 is not available in this browser");
@@ -142,12 +148,8 @@ export async function startGameApp(
     model.dispose();
     throw error;
   });
-  if (!hud.map) {
-    throw new StartupError("index.html is missing #track-map");
-  }
-
   const dashboard = createDashboard(
-    { telemetry: hud.telemetry, map: hud.map, preview: hud.preview },
+    { telemetry: hud.telemetry, map, preview: hud.preview },
     session.geometry,
     carDefinition.powertrain.gearbox,
     track.startDistanceM,
