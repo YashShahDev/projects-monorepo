@@ -168,6 +168,55 @@ describe("manual gearbox", () => {
   });
 });
 
+describe("hybrid gearbox", () => {
+  const hybrid = () => {
+    const gearbox = createGearbox(box);
+    gearbox.setMode("hybrid");
+
+    return gearbox;
+  };
+
+  test("takes the driver's early upshift, and holds a gear past the automatic shift point", () => {
+    const gearbox = hybrid();
+    gearbox.update(kmh(60));
+    gearbox.request("up");
+    expect(gearbox.update(kmh(60)).gear).toBe(2);
+
+    // Automatic would upshift from 2nd at the upshift point; hybrid waits for the limiter.
+    const top2 = box.gearTopSpeedsKmh[1] ?? 0;
+    expect(gearbox.update(kmh((top2 * box.upshiftRpm) / box.redlineRpm + 1)).gear).toBe(2);
+  });
+
+  test("refuses an upshift that would bog the engine, rather than taking it and shifting back", () => {
+    const gearbox = hybrid();
+    gearbox.update(kmh(30));
+    gearbox.request("up");
+    expect(gearbox.update(kmh(30)).gear).toBe(1);
+  });
+
+  test("upshifts by itself at the limiter", () => {
+    const gearbox = hybrid();
+    const top1 = box.gearTopSpeedsKmh[0] ?? 0;
+    expect(gearbox.update(kmh(top1)).gear).toBe(2);
+  });
+
+  test("downshifts by itself when the engine would bog down", () => {
+    const gearbox = hybrid();
+    for (let v = 0; v <= 150; v += 1) {
+      gearbox.update(kmh(v));
+    }
+
+    // Upshifting only at the limiter, 150 km/h is 3rd (tops out at 165 km/h).
+    expect(gearbox.update(kmh(150)).gear).toBe(3);
+    let gear = 3;
+    for (let v = 150; v >= 40; v -= 1) {
+      gear = gearbox.update(kmh(v)).gear;
+    }
+
+    expect(gear).toBe(1);
+  });
+});
+
 describe("gearbox content", () => {
   const withBox = (patch: Record<string, unknown>) => {
     const raw = { ...car, powertrain: { ...car.powertrain, gearbox: { ...box, ...patch } } };
