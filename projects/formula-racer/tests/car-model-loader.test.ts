@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { assertGlb } from "../src/rendering/car-model-loader.ts";
 
-const bytes = (text: string) => new TextEncoder().encode(text).buffer;
+const bytes = (text: string) => new Uint8Array(new TextEncoder().encode(text)).buffer;
 
 test("accepts a binary glTF by its magic number", () => {
   expect(() => assertGlb(bytes("glTF\u0002\u0000\u0000\u0000"), "car.glb")).not.toThrow();
