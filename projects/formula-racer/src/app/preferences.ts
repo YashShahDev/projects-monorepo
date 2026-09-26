@@ -1,4 +1,6 @@
 import type { Livery } from "../content/livery.ts";
+import { isQualityPreset } from "../rendering/quality.ts";
+import type { QualityPreset } from "../rendering/quality.ts";
 import type { StorageLike } from "./lap-store.ts";
 
 export interface Preferences {
@@ -6,6 +8,10 @@ export interface Preferences {
 
   /** Ignores ids that are not in the livery list. */
   setLivery(id: string): void;
+  quality(): QualityPreset;
+
+  /** Ignores values that are not a preset. */
+  setQuality(preset: string): void;
 }
 
 const STORAGE_KEY = "formula-racer:prefs";
@@ -23,15 +29,27 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
 
   const byId = (id: unknown) => liveries.find((l) => l.id === id);
   let current = fallback;
+  let quality: QualityPreset = "medium";
   try {
     const raw = storage?.getItem(STORAGE_KEY);
-    const saved = raw ? (JSON.parse(raw) as { version?: unknown; livery?: unknown }) : undefined;
+    const saved = raw ? (JSON.parse(raw) as { version?: unknown; livery?: unknown; quality?: unknown }) : undefined;
     if (saved?.version === SCHEMA) {
       current = byId(saved.livery) ?? fallback;
+
+      // Quality was added within schema 1, so older saves simply lack it.
+      quality = isQualityPreset(saved.quality) ? saved.quality : quality;
     }
   } catch {
     // Unreadable or blocked: start from the defaults.
   }
+
+  const save = () => {
+    try {
+      storage?.setItem(STORAGE_KEY, JSON.stringify({ version: SCHEMA, livery: current.id, quality }));
+    } catch {
+      // Quota or revoked permission: the choice still holds for this visit.
+    }
+  };
 
   return {
     livery: () => current,
@@ -42,11 +60,16 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
       }
 
       current = livery;
-      try {
-        storage?.setItem(STORAGE_KEY, JSON.stringify({ version: SCHEMA, livery: id }));
-      } catch {
-        // Quota or revoked permission: the choice still holds for this visit.
+      save();
+    },
+    quality: () => quality,
+    setQuality(preset) {
+      if (!isQualityPreset(preset)) {
+        return;
       }
+
+      quality = preset;
+      save();
     },
   };
 }
