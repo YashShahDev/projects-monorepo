@@ -15,8 +15,13 @@ describe("car model interface", () => {
     expect(contract.anchors).toEqual(["camera_chase", "camera_cockpit"]);
   });
   test("rejects duplicate names and budgets that do not shrink", () => {
-    expect(() => parseCarModelInterface({ ...spec, anchors: ["body"] })).toThrow("duplicate");
+    expect(() => parseCarModelInterface({ ...spec, anchors: ["body", "camera_cockpit"] })).toThrow("duplicate");
     expect(() => parseCarModelInterface({ ...spec, trianglesPerLod: [100, 200, 50] })).toThrow("trianglesPerLod");
+  });
+  test("needs exactly the chase and cockpit anchors, in that order", () => {
+    expect(() => parseCarModelInterface({ ...spec, anchors: ["camera_chase"] })).toThrow(
+      "model.anchors must list exactly 2 names",
+    );
   });
 });
 

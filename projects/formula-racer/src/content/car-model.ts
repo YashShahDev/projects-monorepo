@@ -24,7 +24,7 @@ export interface CarModelInterface {
 }
 
 const names = (value: unknown, path: string, count?: number) => {
-  const list = array(value, path, count ?? 1).map((v, i) => text(v, `${path}[${String(i)}]`));
+  const list = array(value, path, 1).map((v, i) => text(v, `${path}[${String(i)}]`));
   if (count !== undefined && list.length !== count) {
     throw new ContentError(`${path} must list exactly ${String(count)} names`);
   }
@@ -64,7 +64,9 @@ export function parseCarModelInterface(value: unknown, source = "model"): CarMod
     wheels: names(v.wheels, `${source}.wheels`, 4),
     flaps: names(v.flaps, `${source}.flaps`, 2),
     body: text(v.body, `${source}.body`),
-    anchors: names(v.anchors, `${source}.anchors`),
+
+    // Chase first, then cockpit: the renderer reads them by position.
+    anchors: names(v.anchors, `${source}.anchors`, 2),
     collision: text(v.collision, `${source}.collision`),
     trianglesPerLod,
     collisionMaxTriangles: positive(v.collisionMaxTriangles, `${source}.collisionMaxTriangles`),
