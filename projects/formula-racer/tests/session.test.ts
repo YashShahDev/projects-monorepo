@@ -112,6 +112,16 @@ describe("driving session", () => {
     expect(camera.position.y).toBeCloseTo(pose.position.y + 3, 1);
   });
 
+  test("rejects an active-aero zone that runs past the end of the lap", async () => {
+    // Harbour Park's generated loop is about 3.93 km, so a zone ending at 5 km never fits.
+    const beyond = { ...track, activeAeroZones: [{ startM: 3800, endM: 5000 }] };
+    await expect(createDrivingSession(car, beyond)).rejects.toThrow(
+      "track.activeAeroZones[0].endM is 5000 m, past the 3932 m lap",
+    );
+    const zone = track.activeAeroZones[0];
+    expect(zone && zone.endM <= 3932).toBe(true);
+  });
+
   test("C switches camera", async () => {
     const s = await start();
     s.action("camera");

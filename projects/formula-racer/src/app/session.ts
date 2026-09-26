@@ -1,6 +1,7 @@
 import { parseCar } from "../content/car.ts";
 import type { CarDefinition } from "../content/car.ts";
 import type { TrackDefinition } from "../content/track.ts";
+import { ContentError } from "../content/validate.ts";
 import { createCameraRig } from "../rendering/camera-rig.ts";
 import type { CameraAnchors, CameraMode, CameraView } from "../rendering/camera-rig.ts";
 import { FixedStepper } from "../simulation/fixed-step.ts";
@@ -137,6 +138,16 @@ export async function createDrivingSession(
   sessionOptions: SessionOptions = {},
 ): Promise<DrivingSession> {
   const geometry = buildTrackGeometry(track);
+
+  // The lap length is only known once the centreline is built, so a zone past it could
+  // not be rejected when the track file was parsed; it would never activate.
+  track.activeAeroZones.forEach((zone, i) => {
+    if (zone.endM > geometry.lengthM) {
+      throw new ContentError(
+        `track.activeAeroZones[${String(i)}].endM is ${String(zone.endM)} m, past the ${String(Math.round(geometry.lengthM))} m lap`,
+      );
+    }
+  });
   const start = geometry.pointAt(track.startDistanceM);
 
   // One lookup hint per wheel keeps each locate to a short windowed search.
