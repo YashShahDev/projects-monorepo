@@ -208,6 +208,17 @@ the findings are recorded at the end.
     within what the car can turn); catalog and `?track=` load for each; the
     autopilot completes a lap of each in the session.
 
+- **P6-C11 Night racing and a Jeddah-style street circuit (user, 2026-09-26).**
+  - A track can declare `"lighting": "night"`. The scene then uses a dark sky and dim
+    ambient light, and floodlight towers along the track light the road. The lights are
+    baked into the road's vertex colours plus a few real lights near the car, so the
+    frame cost stays bounded. The HUD is unchanged.
+  - A fourth imported layout from Jeddah (`sa-2021`, 6.174 km) is a night track. It is
+    fast and walled, with little run-off.
+  - Seams: parsing the lighting field (day by default, unknown values rejected); the
+    importer's length check for Jeddah; a browser test that the night track renders
+    dark sky pixels and a lit road; `make bench` on the night track.
+
 ## Risks and decisions
 
 - Keys: `X`, `Z` and `H`/`?` are free. `E` stays as energy mode.
