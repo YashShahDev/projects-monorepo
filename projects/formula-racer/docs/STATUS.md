@@ -5,7 +5,7 @@ type: status
 status: active
 date: 2026-09-26
 updated: 2026-09-26
-summary: P3 done and reviewed; P4 content and presentation in progress.
+summary: P3 done and reviewed; P4-C1 and P4-C2 done, P4-C3 presentation next.
 ---
 
 # Current delivery status
@@ -16,17 +16,17 @@ summary: P3 done and reviewed; P4 content and presentation in progress.
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)).
 - Active phase: P4 — Blender content and presentation ([phase](phases/P4-content.md)).
-- Next checkpoint: P4-C2 liveries and the original circuit ([record](checkpoints/P4.md)).
+- Next checkpoint: P4-C3 presentation ([record](checkpoints/P4.md)).
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
 ## Next action
 
-P4-C1 is done: LFS round trip proven; car model interface, procedural Blender car,
-reproducible GLB and validation ([record](checkpoints/P4.md)). Next, P4-C2 test-first:
-three fictional equal-performance liveries (the `paint` material is the livery slot)
-and the original ~4 km circuit (hairpin, fast sweeper, chicane, long active-aero
-straight, kerbs/runoff), plus a second small map fixture for loading tests.
+P4-C2 is done: three visual-only liveries, Harbour Park confirmed as the original
+circuit by its existing feature tests, and a track catalog with the small Test Loop
+map selectable by `?track=` ([record](checkpoints/P4.md)). Next, P4-C3 test-first:
+low/medium/high graphics presets, wheel spin and wing flap animation, a basic engine
+audio model, the missing favicon, then drawing the car GLB (needs LFS objects).
 
 ## Checkpoints
 
@@ -45,12 +45,17 @@ straight, kerbs/runoff), plus a second small map fixture for loading tests.
 | P3-C1–C3  | done    | `09c6ec9`… (`--grep=P3-C`); [P3 record](checkpoints/P3.md)                  |
 | P3 review | done    | Codex `gpt-6-astra`, 3/3 fixed; [P3 record](checkpoints/P3.md)              |
 | P4-C1     | done    | `--grep=P4-C1`; [P4 record](checkpoints/P4.md)                              |
-| P4-C2     | next    | [P4](phases/P4-content.md)                                                  |
-| P4-C3, P5 | planned | [Roadmap](ROADMAP.md)                                                       |
+| P4-C2     | done    | `--grep=P4-C2`; [P4 record](checkpoints/P4.md)                              |
+| P4-C3     | next    | [P4](phases/P4-content.md)                                                  |
+| P5        | planned | [Roadmap](ROADMAP.md)                                                       |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
 ## Verified
+
+P4-C2: liveries (paint/accent only, saved choice); track catalog with safe ids and a
+catalog/file id check; Test Loop second map loaded by `?track=`; 245 unit tests pass
+(the 2 GLB tests need LFS objects); Chromium browser 22/22.
 
 P4-C1: LFS push and fresh-clone fetch of a probe object; car GLB (LOD0 18,596
 triangles, 5.22 × 1.89 × 0.95 m, baked 1024² normal/AO) validated against the node
