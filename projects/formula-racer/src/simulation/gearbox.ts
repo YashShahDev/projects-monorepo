@@ -38,7 +38,13 @@ const HYBRID_BOG_SHARE = 0.5;
 // Below this the car counts as stopped, so selecting R cannot throw it backwards.
 const STANDSTILL_MPS = 1 / 3.6;
 
-export function createGearbox(box: GearboxDefinition): Gearbox {
+/**
+ * `forceAt` is the drive force the engine gives at an rpm and road speed. With it,
+ * Automatic upshifts where the next gear's force overtakes the current one's (the
+ * steady-state optimum), falling back to the redline when it never does. Without it,
+ * the box shifts at the fixed `upshiftRpm`.
+ */
+export function createGearbox(box: GearboxDefinition, forceAt?: (rpm: number, speedMps: number) => number): Gearbox {
   const tops = box.gearTopSpeedsKmh.map((kmh) => kmh / 3.6);
   const topFor = (gear: Gear) => (gear === REVERSE ? REVERSE_TOP_KMH / 3.6 : (tops[gear - 1] ?? 1));
   const rpmIn = (gear: Gear, speedMps: number) => (box.redlineRpm * Math.abs(speedMps)) / topFor(gear);
@@ -67,8 +73,14 @@ export function createGearbox(box: GearboxDefinition): Gearbox {
 
       // Step one gear at a time so a sudden speed change still reads as a sequence of shifts.
       if (mode !== "manual" && gear !== REVERSE) {
-        const upshiftAt = mode === "hybrid" ? box.redlineRpm : box.upshiftRpm;
-        if (gear < tops.length && rpmIn(gear, speedMps) >= upshiftAt) {
+        const rpm = rpmIn(gear, speedMps);
+        const upshiftAt = mode === "hybrid" || forceAt ? box.redlineRpm : box.upshiftRpm;
+        const nextPullsHarder =
+          mode === "automatic" &&
+          forceAt !== undefined &&
+          rpm <= box.redlineRpm &&
+          forceAt(rpmIn(gear + 1, speedMps), speedMps) > forceAt(rpm, speedMps);
+        if (gear < tops.length && (rpm >= upshiftAt || nextPullsHarder)) {
           gear += 1;
         } else if (gear > 1 && rpmIn(gear, speedMps) < downshiftAt()) {
           gear -= 1;

@@ -43,7 +43,7 @@ describe("powertrain", () => {
     expect(at256?.driveForceN ?? 0).toBeCloseTo(5622, -1);
   });
 
-  test("upshifting past the power peak lands back near it, so drive rises", () => {
+  test("an upshift at the force crossover loses no drive once the cut ends", () => {
     const run = sweep(300);
     const cutSteps = Math.round(car.powertrain.shiftTimeS / DT);
     const shift = run.findIndex((s, i) => i > 0 && s.gear === 7 && (run[i - 1]?.gear ?? 0) === 6);
@@ -54,7 +54,9 @@ describe("powertrain", () => {
     }
 
     expect(after.rpm).toBeLessThan(before.rpm);
-    expect(after.driveForceN).toBeGreaterThan(before.driveForceN);
+
+    // Equal at the crossover; the speed gained during the 50 ms cut costs well under 1%.
+    expect(after.driveForceN).toBeGreaterThan(before.driveForceN * 0.99);
   });
 
   test("no throttle, no drive", () => {
@@ -71,6 +73,36 @@ describe("powertrain", () => {
     const state = powertrain.update(1, 0, DT);
     expect(state.gear).toBe(1);
     expect(state.driveForceN).toBe(car.powertrain.maxDriveForceN);
+  });
+});
+
+describe("automatic shift points", () => {
+  /** The rpm each upshift left its gear at, in a full-throttle sweep. */
+  const upshiftRpms = () => {
+    const run = sweep(340);
+    const out = new Map<number, number>();
+    for (let i = 1; i < run.length; i += 1) {
+      const [was, now] = [run[i - 1], run[i]];
+      if (was && now && now.gear > was.gear) {
+        out.set(was.gear, was.rpm);
+      }
+    }
+
+    return out;
+  };
+
+  test("widely spaced low gears are held to the redline, where the next gear still gives less force", () => {
+    // 1st→2nd is 95→130 km/h: at 12 500 rpm, 2nd would sit at 9 135 rpm, on the rising
+    // part of the curve (0.93 of peak) against 0.94 at the redline.
+    expect(upshiftRpms().get(1)).toBeGreaterThan(12_400);
+  });
+
+  test("closely spaced top gears shift where the next gear's force overtakes, before the redline", () => {
+    // 7th→8th is 305→345 km/h. Solving share(r) = share(r · 305/345) on the curve gives
+    // about 11 430 rpm, earlier than the old fixed 11 800 rpm point.
+    const rpm = upshiftRpms().get(7) ?? 0;
+    expect(rpm).toBeGreaterThan(11_300);
+    expect(rpm).toBeLessThan(11_600);
   });
 });
 

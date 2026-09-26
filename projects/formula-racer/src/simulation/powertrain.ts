@@ -50,7 +50,9 @@ function share(curve: [number, number][], rpm: number): number {
 }
 
 export function createPowertrain(def: PowertrainDefinition): Powertrain {
-  const gearbox = createGearbox(def.gearbox);
+  const forceAt = (rpm: number, speedMps: number) =>
+    Math.min(def.maxDriveForceN, (def.maxPowerW * share(def.powerCurve, rpm)) / Math.max(Math.abs(speedMps), 1));
+  const gearbox = createGearbox(def.gearbox, forceAt);
   let cutSeconds = 0;
   let gear = 1;
   let limited = false;
