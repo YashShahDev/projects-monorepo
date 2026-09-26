@@ -401,6 +401,7 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
           // Rapier drops engine force on a braking wheel, so braking also stops deployment.
           throttle: brakeN > 0 ? 0 : applied.throttle,
           brakePowerW: rearBrakingN * speed,
+          braking: brakeN > 0,
           mode: energyMode,
           deployRequest,
           dtS: stepSeconds,

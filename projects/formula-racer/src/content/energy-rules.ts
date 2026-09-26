@@ -43,6 +43,13 @@ export function parseEnergyRules(value: unknown, source = "energy rules"): Energ
     const pair = array(point, field, 2);
     const kph = inRange(pair[0], `${field}[0]`, 0, 500);
     const kw = inRange(pair[1], `${field}[1]`, 0, ersMaxPowerW / 1000);
+
+    // Deployment is interpolated between points, so a curve starting above 0 km/h would
+    // be extrapolated below it, possibly to negative power.
+    if (i === 0 && kph !== 0) {
+      throw new ContentError(`${field} must start at 0 km/h`);
+    }
+
     const before = i > 0 ? Number((all[i - 1] as unknown[] | undefined)?.[0]) : -1;
     if (!(kph > before)) {
       throw new ContentError(`${field} speed must be greater than the point before`);

@@ -48,6 +48,19 @@ describe("energy rules content", () => {
     ).toThrow("energy rules.deployCurveKphKw[2] speed must be greater than the point before");
   });
 
+  test("rejects a deployment curve that does not start at 0 km/h, which would extrapolate below it", () => {
+    expect(() =>
+      parseEnergyRules({
+        ...raw,
+        deployCurveKphKw: [
+          [100, 100],
+          [200, 350],
+          [345, 0],
+        ],
+      }),
+    ).toThrow("energy rules.deployCurveKphKw[0] must start at 0 km/h");
+  });
+
   test("rejects a curve that allows more than the ERS maximum", () => {
     expect(() =>
       parseEnergyRules({
@@ -213,6 +226,20 @@ describe("energy system", () => {
   test("deployment never exceeds what the drivetrain can use", () => {
     const flow = rolling().update(cruise({ deployRequest: true, limitW: 50_000 }));
     expect(flow.deployW).toBe(50_000);
+  });
+
+  test("Harvest adds no lift-off charging while the driver brakes", () => {
+    const energy = rolling();
+    for (let i = 0; i < 120; i += 1) {
+      energy.update(cruise({ deployRequest: true }));
+    }
+
+    const braking = energy.update(cruise({ mode: "harvest", throttle: 0, brakePowerW: 100_000, braking: true }));
+    expect(braking.regenW).toBeCloseTo(100_000, 6);
+    expect(braking.engineBrakeW).toBe(0);
+
+    // Even with no rear braking to take (the rear wheels in the air).
+    expect(energy.update(cruise({ mode: "harvest", throttle: 0, brakePowerW: 0, braking: true })).regenW).toBe(0);
   });
 
   test("lift-off harvesting reports the drivetrain braking it needs, and stops near rest", () => {

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseTrack } from "../src/content/track.ts";
+import { findCorners } from "../src/app/track-map.ts";
 import { layoutScenery } from "../src/rendering/scenery-layout.ts";
 import type { Footprint } from "../src/rendering/scenery-layout.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
@@ -66,6 +67,14 @@ describe("scenery layout", () => {
       }
     });
   }
+
+  test("never places more than four corner stands, even when the main stand does not fit", () => {
+    // Harbour's turn 1 apex has no room for the main stand and pits.
+    const apex = findCorners(harbour.geometry)[0]?.apexM ?? 0;
+    const crowded = layoutScenery(harbour.geometry, harbour.trackside, apex);
+    expect(crowded.buildings).toEqual([]);
+    expect(crowded.grandstands.length).toBeLessThanOrEqual(4);
+  });
 
   test("a grandstand and the pit building face each other across the start straight", () => {
     const start = harbour.geometry.pointAt(harbour.track.startDistanceM);

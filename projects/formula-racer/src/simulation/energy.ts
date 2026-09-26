@@ -13,6 +13,12 @@ export interface EnergyInput {
   brakePowerW: number;
   mode: EnergyMode;
 
+  /**
+   * The driver is braking. Lift-off harvesting is then off: its drivetrain braking cannot
+   * be applied while the brakes are on, so its energy would come from nowhere.
+   */
+  braking?: boolean;
+
   /** Driver holding the deploy key: the full permitted power instead of the mode's share. */
   deployRequest: boolean;
   dtS: number;
@@ -83,7 +89,7 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
   let launched = false;
 
   return {
-    update({ speedMps, throttle, brakePowerW, mode, deployRequest, dtS, limitW, regenLimitW }) {
+    update({ speedMps, throttle, brakePowerW, braking, mode, deployRequest, dtS, limitW, regenLimitW }) {
       if (Math.abs(speedMps) * 3.6 >= rules.standingStartDeployKph) {
         launched = true;
       }
@@ -98,7 +104,7 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
       }
 
       const turning = Math.abs(speedMps) >= MIN_HARVEST_SPEED_MPS;
-      const liftOff = mode === "harvest" && throttle === 0 && turning ? rules.liftOffHarvestW : 0;
+      const liftOff = mode === "harvest" && throttle === 0 && braking !== true && turning ? rules.liftOffHarvestW : 0;
       const wanted = Math.min(
         rules.ersMaxPowerW,
         regenLimitW ?? Number.POSITIVE_INFINITY,

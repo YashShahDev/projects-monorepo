@@ -168,8 +168,9 @@ export function layoutScenery(
   }
 
   corners.sort((a, b) => b.curvature - a.curvature);
+  const mainStands = grandstands.length;
   for (const corner of corners) {
-    if (grandstands.length > MAX_CORNER_STANDS) {
+    if (grandstands.length - mainStands >= MAX_CORNER_STANDS) {
       break;
     }
 

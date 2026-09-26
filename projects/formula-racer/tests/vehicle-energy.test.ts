@@ -171,6 +171,29 @@ describe("vehicle energy", () => {
     expect(await harvest(0.3)).toBeLessThan((await harvest(1)) * 0.5);
   });
 
+  test("braking in Harvest stores no more than braking in Balanced: energy comes from motion", async () => {
+    const stop = async (mode: "balanced" | "harvest") => {
+      const sim = await vehicle();
+      timeBetween(sim, 0, 200, { ...flatOut, deploy: true });
+      sim.setEnergyMode(mode);
+      const soc = sim.snapshot().energy?.socJ ?? 0;
+      const start = sim.snapshot().position.z;
+      while (kmh(sim) > 20) {
+        sim.step({ throttle: 0, brake: 1, steer: 0 });
+      }
+
+      const result = { gainedJ: (sim.snapshot().energy?.socJ ?? 0) - soc, distance: sim.snapshot().position.z - start };
+      sim.dispose();
+
+      return result;
+    };
+
+    const balanced = await stop("balanced");
+    const harvest = await stop("harvest");
+    expect(harvest.gainedJ).toBeLessThanOrEqual(balanced.gainedJ + 1);
+    expect(Math.abs(harvest.distance - balanced.distance)).toBeLessThan(0.5);
+  });
+
   test("a stationary car harvests nothing", async () => {
     const sim = await vehicle();
     run(sim, { ...flatOut, deploy: true }, 3);

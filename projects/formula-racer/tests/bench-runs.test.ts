@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { chromiumArgs, isSoftwareRenderer, summarizeRuns } from "../tools/bench.ts";
+import { chromiumArgs, isSoftwareRenderer, parseRunOptions, summarizeRuns } from "../tools/bench.ts";
 import type { BenchReport } from "../src/app/bench.ts";
 
 const frames = (p95Ms: number) => ({
@@ -68,4 +68,29 @@ test("a hardware run locked to 60 Hz meets the target despite 0.1 ms timestamp r
   const summary = summarizeRuns([report(16.8), report(16.8), report(16.7)]);
   expect(summary.meetsTarget).toBe(true);
   expect(summarizeRuns([report(18), report(18), report(18)]).meetsTarget).toBe(false);
+});
+
+test("an even number of passes reports the middle of the two, not the better pass", () => {
+  const summary = summarizeRuns([report(15), report(25)]);
+  expect(summary.p95Ms).toBe(20);
+  expect(summary.meetsTarget).toBe(false);
+});
+
+test("run options must be whole positive numbers and a known preset", () => {
+  expect(parseRunOptions([])).toEqual({
+    quality: "medium",
+    passes: 3,
+    seconds: 120,
+    warmup: 10,
+    headed: false,
+    out: "docs/performance/runs",
+  });
+  expect(parseRunOptions(["--passes", "5", "--quality", "high", "--headed"])).toMatchObject({
+    passes: 5,
+    quality: "high",
+    headed: true,
+  });
+  expect(() => parseRunOptions(["--passes", "abc"])).toThrow("--passes must be a positive whole number");
+  expect(() => parseRunOptions(["--seconds", "0"])).toThrow("--seconds must be a positive whole number");
+  expect(() => parseRunOptions(["--quality", "ultra"])).toThrow("--quality must be low, medium or high");
 });

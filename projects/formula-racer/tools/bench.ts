@@ -11,6 +11,7 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { BenchReport } from "../src/app/bench.ts";
 import { isQualityPreset } from "../src/rendering/quality.ts";
+import type { QualityPreset } from "../src/rendering/quality.ts";
 import { serveStaticFile } from "./static-files.ts";
 
 const TARGET_P95_MS = 16.7;
@@ -52,10 +53,13 @@ export function chromiumArgs(headless: boolean): string[] {
   return headless ? ["--use-angle=gl", "--enable-gpu", "--ignore-gpu-blocklist"] : [];
 }
 
+/** The middle value, or the mean of the two middle values, so no pass is favoured. */
 const median = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b);
+  const low = sorted[Math.floor((sorted.length - 1) / 2)] ?? 0;
+  const high = sorted[Math.ceil((sorted.length - 1) / 2)] ?? 0;
 
-  return sorted[Math.floor((sorted.length - 1) / 2)] ?? 0;
+  return (low + high) / 2;
 };
 
 export function summarizeRuns(reports: readonly BenchReport[]): RunSummary {
@@ -94,8 +98,19 @@ export function summarizeRuns(reports: readonly BenchReport[]): RunSummary {
   };
 }
 
-async function main() {
+export interface RunOptions {
+  quality: QualityPreset;
+  passes: number;
+  seconds: number;
+  warmup: number;
+  headed: boolean;
+  out: string;
+}
+
+/** Command-line options, checked so a typo fails at once rather than as a NaN timeout. */
+export function parseRunOptions(args: string[]): RunOptions {
   const { values } = parseArgs({
+    args,
     options: {
       quality: { type: "string", default: "medium" },
       passes: { type: "string", default: "3" },
@@ -105,10 +120,32 @@ async function main() {
       out: { type: "string", default: "docs/performance/runs" },
     },
   });
-  const quality = values.quality ?? "medium";
-  if (!isQualityPreset(quality)) {
+  if (!isQualityPreset(values.quality)) {
     throw new Error("--quality must be low, medium or high");
   }
+
+  const whole = (name: "passes" | "seconds" | "warmup") => {
+    const value = Number(values[name]);
+    if (!Number.isInteger(value) || value <= 0) {
+      throw new Error(`--${name} must be a positive whole number`);
+    }
+
+    return value;
+  };
+
+  return {
+    quality: values.quality,
+    passes: whole("passes"),
+    seconds: whole("seconds"),
+    warmup: whole("warmup"),
+    headed: values.headed === true,
+    out: values.out ?? "docs/performance/runs",
+  };
+}
+
+async function main() {
+  const values = parseRunOptions(process.argv.slice(2));
+  const { quality } = values;
 
   const root = resolve(import.meta.dirname, "../dist");
   if (!existsSync(join(root, "index.html"))) {
@@ -125,14 +162,14 @@ async function main() {
   });
   const reports: BenchReport[] = [];
   try {
-    for (let pass = 1; pass <= Number(values.passes); pass += 1) {
+    for (let pass = 1; pass <= values.passes; pass += 1) {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
       const prefs = JSON.stringify({ version: 1, quality });
       await page.addInitScript({ content: `localStorage.setItem("formula-racer:prefs", ${JSON.stringify(prefs)});` });
       const query = `?bench&warmupSeconds=${String(values.warmup)}&benchSeconds=${String(values.seconds)}`;
       await page.goto(new URL(query, server.url).href);
       const pre = page.locator("#bench-report");
-      await pre.waitFor({ timeout: (Number(values.seconds) + Number(values.warmup) + 60) * 1000 });
+      await pre.waitFor({ timeout: (values.seconds + values.warmup + 60) * 1000 });
       const report = JSON.parse((await pre.textContent()) ?? "") as BenchReport;
       reports.push(report);
       console.log(`pass ${String(pass)}: p95 ${report.frames.p95Ms.toFixed(2)} ms, ${report.gl.renderer}`);
@@ -144,7 +181,7 @@ async function main() {
   }
 
   const summary = summarizeRuns(reports);
-  const outDir = resolve(import.meta.dirname, "..", values.out ?? "docs/performance/runs");
+  const outDir = resolve(import.meta.dirname, "..", values.out);
   mkdirSync(outDir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const file = join(outDir, `${stamp}-${quality}.json`);
