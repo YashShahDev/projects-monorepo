@@ -7,6 +7,9 @@ export interface PowertrainState {
   driveForceN: number;
   gear: number;
   rpm: number;
+
+  /** The rev limiter is cutting drive; the MGU-K, geared to the crank, is cut with it. */
+  limited: boolean;
 }
 
 export interface Powertrain {
@@ -72,18 +75,18 @@ export function createPowertrain(def: PowertrainDefinition): Powertrain {
       if (cutSeconds > EPSILON) {
         cutSeconds -= dtSeconds;
 
-        return { driveForceN: 0, ...state };
+        return { driveForceN: 0, ...state, limited };
       }
 
       if (limited) {
-        return { driveForceN: 0, ...state };
+        return { driveForceN: 0, ...state, limited };
       }
 
       const powerW = def.maxPowerW * share(def.powerCurve, state.rpm);
       const direction = gear === REVERSE ? -1 : 1;
       const driveForceN = direction * throttle * Math.min(def.maxDriveForceN, powerW / Math.max(Math.abs(speedMps), 1));
 
-      return { driveForceN, ...state };
+      return { driveForceN, ...state, limited };
     },
     request(shift) {
       gearbox.request(shift);

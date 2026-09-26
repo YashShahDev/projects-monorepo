@@ -482,7 +482,7 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
           mode: energyMode,
           deployRequest,
           dtS: stepSeconds,
-          limitW: mgukLimitW,
+          limitW: drivetrain.limited ? 0 : mgukLimitW,
           regenLimitW: mgukLimitW,
         });
         flow = result;

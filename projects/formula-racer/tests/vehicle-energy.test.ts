@@ -39,6 +39,16 @@ function timeBetween(sim: VehicleSimulation, fromKmh: number, toKmh: number, con
 const flatOut: DriverControls = { throttle: 1, brake: 0, steer: 0 };
 
 describe("vehicle energy", () => {
+  test("the rev limiter holds a manual gear at its redline speed, ERS or not", async () => {
+    const hybrid = await vehicle();
+    hybrid.setGearboxMode("manual");
+    run(hybrid, { ...flatOut, deploy: true }, 10);
+    const firstGearTopKmh = car.powertrain.gearbox.gearTopSpeedsKmh[0] ?? 0;
+    expect(hybrid.snapshot().gear).toBe(1);
+    expect(kmh(hybrid)).toBeLessThan(firstGearTopKmh + 3);
+    hybrid.dispose();
+  });
+
   test("ERS deployment adds to the ICE", async () => {
     const ice = await vehicle(false);
     const hybrid = await vehicle();
