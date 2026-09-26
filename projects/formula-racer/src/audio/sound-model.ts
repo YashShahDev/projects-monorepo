@@ -63,14 +63,21 @@ export function soundMix(input: SoundInput): SoundMix {
   };
 }
 
-/** Counts wheels in the kerb band from the car's signed offset from the centreline. */
-export function wheelsOnKerb(car: { lateralM: number; halfWidthM: number; kerbWidthM: number; halfTrackM: number }) {
-  const onKerb = (offset: number) => {
-    const d = Math.abs(offset);
+/** Counts wheels whose tyres touch the kerb band, from the car's offset from the centreline. */
+export function wheelsOnKerb(car: {
+  lateralM: number;
+  halfWidthM: number;
+  kerbWidthM: number;
+  halfTrackM: number;
+  tyreHalfWidthM: number;
+}) {
+  const onKerb = (centre: number) => {
+    const d = Math.abs(centre);
 
-    return d > car.halfWidthM && d <= car.halfWidthM + car.kerbWidthM;
+    return d + car.tyreHalfWidthM > car.halfWidthM && d - car.tyreHalfWidthM <= car.halfWidthM + car.kerbWidthM;
   };
 
-  // Front and rear wheels on each side share a lateral offset along a straight.
+  // Front and rear wheels share a lateral offset; yaw relative to the track is ignored,
+  // which only misplaces the rumble briefly in a slide.
   return 2 * (Number(onKerb(car.lateralM + car.halfTrackM)) + Number(onKerb(car.lateralM - car.halfTrackM)));
 }

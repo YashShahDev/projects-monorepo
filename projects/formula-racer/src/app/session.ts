@@ -92,6 +92,8 @@ export interface DrivingSession {
   dispose(): void;
 }
 
+/** Half a tyre's tread width, for track limits and kerb contact. */
+export const TYRE_HALF_WIDTH_M = 0.2;
 const MAX_STEPS_PER_FRAME = 8;
 const COUNTDOWN_S = 3;
 const SECTORS = 3;
@@ -163,9 +165,9 @@ export async function createDrivingSession(
   const lapTimer = createLapTimer({ lengthM: geometry.lengthM, sectors: SECTORS });
   const laps: SessionLap[] = [];
 
-  // Counted in whole steps so the countdown ends on the same step at any frame rate.
-  const TYRE_HALF_WIDTH_M = 0.2;
   const innerWheelOffsetM = car.wheels.halfTrack + TYRE_HALF_WIDTH_M;
+
+  // Counted in whole steps so the countdown ends on the same step at any frame rate.
   const countdownSteps = Math.round(COUNTDOWN_S / sim.stepSeconds);
   let countdownLeft = countdownSteps;
 

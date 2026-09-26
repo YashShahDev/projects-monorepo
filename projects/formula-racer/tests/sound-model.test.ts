@@ -67,7 +67,7 @@ describe("kerb sound", () => {
   });
 
   test("counts wheels whose lateral position lies in the kerb band", () => {
-    const band = { halfWidthM: 6, kerbWidthM: 1.5, halfTrackM: 0.8 };
+    const band = { halfWidthM: 6, kerbWidthM: 1.5, halfTrackM: 0.8, tyreHalfWidthM: 0.2 };
     expect(wheelsOnKerb({ ...band, lateralM: 0 })).toBe(0);
 
     // Left wheels at 6.8 m are on the kerb; right wheels at 5.2 m are on the road.
@@ -77,6 +77,12 @@ describe("kerb sound", () => {
     // Straddling: right wheels at 6.2 m on the kerb, left at 7.8 m on the grass.
     expect(wheelsOnKerb({ ...band, lateralM: 7 })).toBe(2);
     expect(wheelsOnKerb({ ...band, lateralM: 20 })).toBe(0);
+
+    // Wheel centres at 5.9 m are on the road, but the tyres' outer edges reach the kerb.
+    expect(wheelsOnKerb({ ...band, lateralM: 5.1 })).toBe(2);
+
+    // Centres at 7.6 m are past the kerb, but the tyres' inner edges still touch it.
+    expect(wheelsOnKerb({ ...band, lateralM: 8.4 })).toBe(2);
   });
 });
 

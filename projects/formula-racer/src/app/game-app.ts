@@ -20,7 +20,7 @@ import { formatLapTime } from "./format.ts";
 import { createLapStore, lapKey, storageNotice } from "./lap-store.ts";
 import type { StorageLike } from "./lap-store.ts";
 import { createPreferences } from "./preferences.ts";
-import { createDrivingSession } from "./session.ts";
+import { createDrivingSession, TYRE_HALF_WIDTH_M } from "./session.ts";
 import type { SessionState } from "./session.ts";
 
 export class StartupError extends Error {
@@ -239,6 +239,7 @@ export async function startGameApp(
         halfWidthM: session.geometry.halfWidthM,
         kerbWidthM: session.geometry.kerbWidthM,
         halfTrackM: session.car().wheels.halfTrack,
+        tyreHalfWidthM: TYRE_HALF_WIDTH_M,
       }),
     });
     audio?.update(sound);
