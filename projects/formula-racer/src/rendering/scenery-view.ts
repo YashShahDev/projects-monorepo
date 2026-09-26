@@ -16,6 +16,10 @@ const STEPS = 7;
 const TREE_GREEN = 0x2f5f2a;
 const TREE_BROWN = 0x5a4030;
 const CELL_M = 250;
+const SPONSORS = [0x1f4fbf, 0xf2f2f2, 0xd81e2c, 0x1b1b1b, 0xf5c400, 0x00a19a];
+const TECPRO = [0x2456b0, 0xd23a2a];
+const FENCE_GREY = 0x8a9096;
+const RUNOFF_STRIPE = 0x2f5fa8;
 
 interface Box {
   centre: [number, number, number];
@@ -108,9 +112,17 @@ function building(f: { lengthM: number; depthM: number; heightM: number }, kind:
     ]);
   }
 
+  // A row of garage doors, 5 m wide with a metre of wall between them.
+  const doors = Math.floor((f.lengthM - 4) / 6);
+  const doorParts: Box[] = Array.from({ length: doors }, (_, k) => ({
+    centre: [-f.depthM / 2 - 0.05, 2, (k - (doors - 1) / 2) * 6],
+    size: [0.1, 4, 5],
+    colour: 0x3a4148,
+  }));
+
   return boxes([
     { centre: [0, f.heightM / 2, 0], size: [f.depthM, f.heightM, f.lengthM], colour: 0xd9dde1 },
-    { centre: [-f.depthM / 2 - 0.05, 2, 0], size: [0.1, 4, f.lengthM - 4], colour: 0x3a4148 },
+    ...doorParts,
     { centre: [0, f.heightM + 0.4, 0], size: [f.depthM + 1, 0.8, f.lengthM + 1], colour: 0x9aa3ab },
   ]);
 }
@@ -181,7 +193,10 @@ function runoff(track: TrackGeometry, trackside: Trackside, batches: CellBatches
       // Outer lies left of inner on the left side only, so the right side winds the
       // other way round to face up as well.
       const quad = sign > 0 ? [a, c, b, b, c, d] : [a, b, c, b, d, c];
-      batches.add(quad.flat(), colour.set(RUNOFF_COLOUR[kind]));
+
+      // Painted bands across asphalt run-off, every 10 m.
+      const striped = kind === "asphalt" && i % Math.round(10 / track.spacingM) === 0;
+      batches.add(quad.flat(), colour.set(striped ? RUNOFF_STRIPE : RUNOFF_COLOUR[kind]));
     }
   }
 }
@@ -201,6 +216,134 @@ function barriers(trackside: Trackside, batches: CellBatches): void {
       travelled += Math.hypot(b.x - a.x, b.z - a.z);
       batches.add([a.x, 0, a.z, b.x, 0, b.z, b.x, h, b.z, a.x, 0, a.z, b.x, h, b.z, a.x, h, a.z], c);
     }
+  }
+}
+
+/**
+ * Adds a box standing on `y`: `along` runs with `headingRad` (0 faces +z), `across` to
+ * its left. Drawn double-sided, so the winding does not matter.
+ */
+function worldBox(
+  batches: CellBatches,
+  at: { x: number; y: number; z: number },
+  headingRad: number,
+  size: { along: number; across: number; height: number },
+  colour: THREE.Color,
+): void {
+  const [fx, fz] = [Math.sin(headingRad), Math.cos(headingRad)];
+  const corner = (a: number, b: number, up: number) => [
+    at.x + (fx * a * size.along) / 2 + (fz * b * size.across) / 2,
+    at.y + up * size.height,
+    at.z + (fz * a * size.along) / 2 - (fx * b * size.across) / 2,
+  ];
+  const quad = (p: number[][]) => [p[0], p[1], p[2], p[0], p[2], p[3]].flatMap((v) => v ?? []);
+  const faces = [
+    [corner(-1, -1, 0), corner(1, -1, 0), corner(1, 1, 0), corner(-1, 1, 0)],
+    [corner(-1, -1, 1), corner(1, -1, 1), corner(1, 1, 1), corner(-1, 1, 1)],
+    [corner(-1, -1, 0), corner(1, -1, 0), corner(1, -1, 1), corner(-1, -1, 1)],
+    [corner(-1, 1, 0), corner(1, 1, 0), corner(1, 1, 1), corner(-1, 1, 1)],
+    [corner(-1, -1, 0), corner(-1, 1, 0), corner(-1, 1, 1), corner(-1, -1, 1)],
+    [corner(1, -1, 0), corner(1, 1, 0), corner(1, 1, 1), corner(1, -1, 1)],
+  ];
+  batches.add(faces.flatMap(quad), colour);
+}
+
+/** Hoardings, tyre walls, fences and the pit wall, each on its barrier segment. */
+function dressing(layout: SceneryLayout, batches: CellBatches): void {
+  const colour = new THREE.Color();
+  const h = BARRIER_HEIGHT_M;
+  let travelled = 0;
+  layout.attachments.forEach((a, k) => {
+    const [dx, dz] = [a.b.x - a.a.x, a.b.z - a.a.z];
+    const length = Math.hypot(dx, dz);
+    if (length < 1e-6) {
+      return;
+    }
+
+    travelled += length;
+    const heading = Math.atan2(dx, dz);
+    const mid = { x: (a.a.x + a.b.x) / 2, z: (a.a.z + a.b.z) / 2 };
+
+    // The track lies to the right of travel for a left-side barrier, and to the left
+    // for a right-side one. The segment's left is (dz, −dx) / length.
+    const toTrack = a.side === "left" ? -1 : 1;
+    const inward = (m: number) => ({ x: mid.x + (dz / length) * toTrack * m, z: mid.z - (dx / length) * toTrack * m });
+    const along = length + 0.02;
+    if (a.kind === "hoarding") {
+      const sponsor = SPONSORS[Math.floor(travelled / 8) % SPONSORS.length] ?? 0xffffff;
+      worldBox(batches, { ...mid, y: h }, heading, { along, across: 0.12, height: 1 }, colour.set(sponsor));
+    } else if (a.kind === "tyres") {
+      const block = TECPRO[Math.floor(k / 2) % TECPRO.length] ?? 0x2456b0;
+      worldBox(batches, { ...inward(0.5), y: 0 }, heading, { along, across: 0.9, height: 1.05 }, colour.set(block));
+    } else if (a.kind === "fence") {
+      worldBox(batches, { ...a.a, y: h }, heading, { along: 0.1, across: 0.1, height: 3.4 }, colour.set(FENCE_GREY));
+      for (const y of [2.3, 3.4, 4.5]) {
+        worldBox(batches, { ...mid, y }, heading, { along, across: 0.04, height: 0.05 }, colour.set(FENCE_GREY));
+      }
+    } else {
+      worldBox(batches, { ...mid, y: h }, heading, { along, across: 0.4, height: 0.3 }, colour.set(0xf2f2f2));
+
+      // Team stands on the pit-lane side of the wall, every 12 m or so.
+      if (Math.floor(travelled / 12) !== Math.floor((travelled - length) / 12)) {
+        worldBox(
+          batches,
+          { ...inward(-1.4), y: 0 },
+          heading,
+          { along: 3, across: 1.6, height: 2.6 },
+          colour.set(0x2a2f36),
+        );
+      }
+    }
+  });
+}
+
+/** The start gantry with its lights, and sponsor bridges. */
+function spans(layout: SceneryLayout, batches: CellBatches): void {
+  const colour = new THREE.Color();
+  layout.spans.forEach((span, k) => {
+    const [ax, az] = [Math.cos(span.headingRad), -Math.sin(span.headingRad)];
+    const beam = span.kind === "gantry" ? 1.4 : 2.2;
+    for (const sign of [-1, 1]) {
+      const leg = { x: span.x + (ax * sign * span.widthM) / 2, y: 0, z: span.z + (az * sign * span.widthM) / 2 };
+      worldBox(
+        batches,
+        leg,
+        span.headingRad,
+        { along: 0.7, across: 0.7, height: span.clearanceM + beam },
+        colour.set(0x3a3f45),
+      );
+    }
+
+    const body = span.kind === "gantry" ? 0x1e2226 : (SPONSORS[(k * 2) % SPONSORS.length] ?? 0x1f4fbf);
+    worldBox(
+      batches,
+      { x: span.x, y: span.clearanceM, z: span.z },
+      span.headingRad,
+      { along: span.kind === "gantry" ? 1 : 2, across: span.widthM, height: beam },
+      colour.set(body),
+    );
+    if (span.kind === "gantry") {
+      // Five red lights facing the grid, which approaches from behind the gantry.
+      const [fx, fz] = [Math.sin(span.headingRad), Math.cos(span.headingRad)];
+      for (let light = -2; light <= 2; light += 1) {
+        const at = {
+          x: span.x + ax * light * 1.1 - fx * 0.55,
+          y: span.clearanceM + 0.35,
+          z: span.z + az * light * 1.1 - fz * 0.55,
+        };
+        worldBox(batches, at, span.headingRad, { along: 0.2, across: 0.7, height: 0.7 }, colour.set(0xff2a1a));
+      }
+    }
+  });
+}
+
+/** Marshal posts: a white hut with an orange roof. */
+function marshalPosts(layout: SceneryLayout, batches: CellBatches): void {
+  const colour = new THREE.Color();
+  for (const f of layout.marshals) {
+    const size = { along: f.lengthM, across: f.depthM, height: 2.4 };
+    worldBox(batches, { x: f.x, y: 0, z: f.z }, f.headingRad, size, colour.set(0xf2f2f2));
+    worldBox(batches, { x: f.x, y: 2.4, z: f.z }, f.headingRad, { ...size, height: 0.35 }, colour.set(0xff7a00));
   }
 }
 
@@ -229,6 +372,14 @@ export function createScenery(
   barriers(trackside, fences);
   for (const geometry of fences.geometries()) {
     group.add(Object.assign(new THREE.Mesh(own(geometry), walls), { name: "barrier" }));
+  }
+
+  const dressed = new CellBatches(CELL_M);
+  dressing(layout, dressed);
+  spans(layout, dressed);
+  marshalPosts(layout, dressed);
+  for (const geometry of dressed.geometries()) {
+    group.add(Object.assign(new THREE.Mesh(own(geometry), walls), { name: "dressing" }));
   }
 
   const [first] = layout.grandstands;

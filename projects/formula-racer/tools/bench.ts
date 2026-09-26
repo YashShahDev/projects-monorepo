@@ -1,7 +1,10 @@
 // Runs the ?bench route on the production build and records a comparable summary.
 //
 //   bun run tools/bench.ts [--quality medium] [--passes 3] [--seconds 120]
-//                          [--warmup 10] [--headed] [--out docs/performance/runs]
+//                          [--warmup 10] [--headed] [--loaded] [--out docs/performance/runs]
+//
+// --loaded is the heaviest view a player can pick: full racing line, best-lap ghost
+// and the far chase camera. The ghost appears once the route completes its first lap.
 //
 // Headless by default so runs don't open windows on the desktop, with the GPU forced on:
 // plain headless Chromium renders in software, whose numbers say nothing about the
@@ -156,6 +159,7 @@ export interface RunOptions {
   seconds: number;
   warmup: number;
   headed: boolean;
+  loaded: boolean;
   out: string;
 }
 
@@ -169,6 +173,7 @@ export function parseRunOptions(args: string[]): RunOptions {
       seconds: { type: "string", default: "120" },
       warmup: { type: "string", default: "10" },
       headed: { type: "boolean", default: false },
+      loaded: { type: "boolean", default: false },
       out: { type: "string", default: "docs/performance/runs" },
     },
   });
@@ -197,6 +202,7 @@ export function parseRunOptions(args: string[]): RunOptions {
     seconds: duration("seconds", 0.1),
     warmup: duration("warmup", 0),
     headed: values.headed,
+    loaded: values.loaded,
     out: values.out,
   };
 }
@@ -219,17 +225,36 @@ async function main() {
     ...(process.env.PW_CHROMIUM_PATH !== undefined ? { executablePath: process.env.PW_CHROMIUM_PATH } : {}),
   });
   const reports: BenchReport[] = [];
+  const heapBytes: number[] = [];
   try {
     for (let pass = 1; pass <= values.passes; pass += 1) {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-      const prefs = JSON.stringify({ version: 1, quality });
+      const extras = values.loaded ? { racingLine: "full", ghost: "best" } : {};
+      const prefs = JSON.stringify({ version: 1, quality, ...extras });
       await page.addInitScript({ content: `localStorage.setItem("formula-racer:prefs", ${JSON.stringify(prefs)});` });
       const query = `?bench&warmupSeconds=${String(values.warmup)}&benchSeconds=${String(values.seconds)}`;
       await page.goto(new URL(query, server.url).href);
+      if (values.loaded) {
+        // Chase, cockpit, T-cam, then far chase.
+        await page.locator("#status").waitFor({ state: "hidden", timeout: 60_000 });
+        for (let press = 0; press < 3; press += 1) {
+          await page.keyboard.press("c");
+        }
+      }
+
       const pre = page.locator("#bench-report");
       await pre.waitFor({ timeout: (values.seconds + values.warmup + 60) * 1000 });
       const report = parseBenchReport(JSON.parse((await pre.textContent()) ?? ""));
       reports.push(report);
+
+      // Chromium-only and coarse, but enough to see a leak or a doubled footprint.
+      const heap = await page.evaluate(() => {
+        const memory: unknown = Reflect.get(performance, "memory");
+        const used: unknown = typeof memory === "object" && memory !== null ? Reflect.get(memory, "usedJSHeapSize") : 0;
+
+        return typeof used === "number" ? used : 0;
+      });
+      heapBytes.push(heap);
       console.log(`pass ${String(pass)}: p95 ${report.frames.p95Ms.toFixed(2)} ms, ${report.gl.renderer}`);
       await page.close();
     }
@@ -242,8 +267,8 @@ async function main() {
   const outDir = resolve(import.meta.dirname, "..", values.out);
   mkdirSync(outDir, { recursive: true });
   const stamp = new Date().toISOString().replaceAll(/[:.]/gu, "-");
-  const file = join(outDir, `${stamp}-${quality}.json`);
-  writeFileSync(file, `${JSON.stringify({ summary, passes: reports }, null, 2)}\n`);
+  const file = join(outDir, `${stamp}-${quality}${values.loaded ? "-loaded" : ""}.json`);
+  writeFileSync(file, `${JSON.stringify({ summary, loaded: values.loaded, heapBytes, passes: reports }, null, 2)}\n`);
   console.log(JSON.stringify(summary, null, 2));
   console.log(`wrote ${file}`);
   if (!summary.hardware) {

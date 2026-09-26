@@ -26,10 +26,35 @@ export interface Tree {
   heightM: number;
 }
 
+/** A structure spanning the road: its legs stand `widthM` apart across the track. */
+export interface Span {
+  kind: "gantry" | "bridge";
+  x: number;
+  z: number;
+
+  /** The track's direction under it. */
+  headingRad: number;
+  widthM: number;
+
+  /** Height of the underside above the road. */
+  clearanceM: number;
+}
+
+/** Dressing on one barrier segment, from one barrier point to the next. */
+export interface Attachment {
+  kind: "hoarding" | "tyres" | "fence" | "pitwall";
+  side: "left" | "right";
+  a: { x: number; z: number };
+  b: { x: number; z: number };
+}
+
 export interface SceneryLayout {
   grandstands: Footprint[];
   buildings: Building[];
   trees: Tree[];
+  spans: Span[];
+  attachments: Attachment[];
+  marshals: Footprint[];
 }
 
 const STAND = { lengthM: 48, depthM: 14 };
@@ -42,7 +67,21 @@ const SETBACK_M = 6;
 const TREE_CLEARANCE_M = 24;
 const TREE_ATTEMPTS = 700;
 const TREE_BELT_M = 140;
-const MAX_CORNER_STANDS = 4;
+const MAX_CORNER_STANDS = 7;
+
+// Overhead structures clear the road by more than a car's camera ever rises.
+const SPAN_CLEARANCE_M = { gantry: 6, bridge: 6.5 };
+
+// Legs stand this far outside the kerbs, or a metre past a nearer barrier.
+const SPAN_LEG_M = 3;
+const MAX_BRIDGES = 2;
+const STRAIGHT_CURVATURE = 1 / 800;
+
+// Hoardings take alternate stretches of this length, so the barrier still shows.
+const HOARDING_STRETCH_M = 40;
+const FENCE_REACH_M = 70;
+const MARSHAL = { lengthM: 2.5, depthM: 2.5 };
+const MARSHAL_EVERY_M = 300;
 
 /** Mulberry32: small, fast and the same on every engine, so scenery never shifts. */
 function random(seed: number) {
@@ -224,5 +263,137 @@ export function layoutScenery(
     trees.push({ x, z, heightM });
   }
 
-  return { grandstands, buildings, trees };
+  const spans = layoutSpans(track, trackside, start, edge);
+
+  // Marshal posts at intervals round the lap, alternating sides.
+  const marshals: Footprint[] = [];
+  const every = Math.round(MARSHAL_EVERY_M / track.spacingM);
+  for (let k = 0; k * every < n; k += 1) {
+    const i = (start + Math.round(every / 2) + k * every) % n;
+    for (const side of k % 2 === 0 ? (["left", "right"] as const) : (["right", "left"] as const)) {
+      const post = beside(i, side, MARSHAL);
+      if (fits(post)) {
+        marshals.push(post);
+        placed.push(post);
+        break;
+      }
+    }
+  }
+
+  return {
+    grandstands,
+    buildings,
+    trees,
+    spans,
+    attachments: layoutAttachments(track, trackside, grandstands, buildings[0]),
+    marshals,
+  };
+}
+
+/** The start gantry over the line, and sponsor bridges over the middle of the longest straights. */
+function layoutSpans(track: TrackGeometry, trackside: Trackside, start: number, edge: number): Span[] {
+  const n = track.count;
+  const spanAt = (i: number, kind: Span["kind"]): Span | undefined => {
+    const reach = (side: typeof trackside.left) => {
+      const barrier = side.barrierM[i] ?? Number.NaN;
+      const leg = edge + SPAN_LEG_M;
+
+      return Number.isNaN(barrier) || barrier > leg ? leg : barrier + 1;
+    };
+
+    // Centred on the road: the wider side sets the width, so neither leg lands inside
+    // the barrier on the narrower side.
+    const half = Math.max(reach(trackside.left), reach(trackside.right));
+    const [x, z, tx, tz] = [track.x[i] ?? 0, track.z[i] ?? 0, track.tx[i] ?? 0, track.tz[i] ?? 1];
+    const legsClear = [-1, 1].every(
+      (sign) => trackside.distanceToTrack(x + tz * half * sign, z - tx * half * sign, 80) > edge + 0.5,
+    );
+
+    return legsClear
+      ? { kind, x, z, headingRad: Math.atan2(tx, tz), widthM: 2 * half, clearanceM: SPAN_CLEARANCE_M[kind] }
+      : undefined;
+  };
+
+  const spans: Span[] = [];
+  const gantry = spanAt(start, "gantry");
+  if (gantry) {
+    spans.push(gantry);
+  }
+
+  // Straight runs, longest first; a bridge goes over the middle of each.
+  const straight = (i: number) => Math.abs(track.curvature[((i % n) + n) % n] ?? 0) < STRAIGHT_CURVATURE;
+  const runs: { from: number; length: number }[] = [];
+  const first = [...Array(n).keys()].find((i) => !straight(i)) ?? 0;
+  let runStart: number | undefined;
+  for (let k = 1; k <= n; k += 1) {
+    const i = first + k;
+    if (straight(i) && runStart === undefined) {
+      runStart = i;
+    } else if (!straight(i) && runStart !== undefined) {
+      runs.push({ from: runStart, length: i - runStart });
+      runStart = undefined;
+    }
+  }
+
+  runs.sort((a, b) => b.length - a.length);
+  const apart = (i: number) =>
+    spans.every((s) => {
+      const d = Math.abs(track.locate(s.x, s.z).index - i);
+
+      return Math.min(d, n - d) * track.spacingM > 250;
+    });
+  for (const run of runs) {
+    const middle = (run.from + Math.floor(run.length / 2)) % n;
+    if (spans.filter((s) => s.kind === "bridge").length >= MAX_BRIDGES) {
+      break;
+    }
+
+    const bridge = apart(middle) ? spanAt(middle, "bridge") : undefined;
+    if (bridge) {
+      spans.push(bridge);
+    }
+  }
+
+  return spans;
+}
+
+/**
+ * Dresses each barrier segment by what is beside it: the pit wall along the pits, debris
+ * fencing by the stands, tyre walls where there is run-off (the corners), and sponsor
+ * hoardings on alternate stretches of the rest.
+ */
+function layoutAttachments(
+  track: TrackGeometry,
+  trackside: Trackside,
+  grandstands: Footprint[],
+  pits: Building | undefined,
+): Attachment[] {
+  const attachments: Attachment[] = [];
+  for (const run of trackside.barriers) {
+    const points = run.closed ? [...run.points, run.points[0] ?? { x: 0, z: 0 }] : run.points;
+    const runoff = (run.side === "left" ? trackside.left : trackside.right).runoff;
+    for (let k = 0; k + 1 < points.length; k += 1) {
+      const a = points[k] ?? { x: 0, z: 0 };
+      const b = points[k + 1] ?? a;
+      const mid = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 };
+      const i = (run.first + k) % track.count;
+      const near = (f: Footprint, reach: number) => f.side === run.side && Math.hypot(f.x - mid.x, f.z - mid.z) < reach;
+      let kind: Attachment["kind"] | undefined;
+      if (pits && near(pits, pits.lengthM / 2 + 12)) {
+        kind = "pitwall";
+      } else if (grandstands.some((f) => near(f, FENCE_REACH_M))) {
+        kind = "fence";
+      } else if ((runoff[i] ?? "grass") !== "grass") {
+        kind = "tyres";
+      } else if (Math.floor((i * track.spacingM) / HOARDING_STRETCH_M) % 2 === 0) {
+        kind = "hoarding";
+      }
+
+      if (kind) {
+        attachments.push({ kind, side: run.side, a, b });
+      }
+    }
+  }
+
+  return attachments;
 }

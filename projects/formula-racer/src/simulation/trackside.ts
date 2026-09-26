@@ -22,7 +22,8 @@ export interface Trackside {
   right: TracksideEdge;
 
   /** Barrier face lines as world points, each an unbroken run (closed when `closed`). */
-  barriers: { points: { x: number; z: number }[]; closed: boolean; side: "left" | "right" }[];
+  /** `first` is the centreline sample of the first point; each next point is the next sample. */
+  barriers: { points: { x: number; z: number }[]; closed: boolean; side: "left" | "right"; first: number }[];
   surfaceAt(location: TrackLocation): GroundSurface;
 
   /** Distance from (x, z) to the nearest centreline sample, or Infinity beyond `reachM`. */
@@ -206,25 +207,30 @@ function runsOf(track: TrackGeometry, barrierM: Float64Array, sign: 1 | -1, side
 
   const has = (i: number) => !Number.isNaN(barrierM[((i % n) + n) % n] ?? Number.NaN);
   if (Array.from({ length: n }, (_, i) => i).every(has)) {
-    return [{ points: Array.from({ length: n }, (_, i) => point(i)), closed: true, side }];
+    return [{ points: Array.from({ length: n }, (_, i) => point(i)), closed: true, side, first: 0 }];
   }
 
   // Start just after a gap so a run that wraps past sample 0 stays whole.
   const first = Array.from({ length: n }, (_, i) => i).find((i) => has(i) && !has(i - 1)) ?? 0;
-  const runs: { points: { x: number; z: number }[]; closed: boolean; side: "left" | "right" }[] = [];
+  const runs: { points: { x: number; z: number }[]; closed: boolean; side: "left" | "right"; first: number }[] = [];
   let current: { x: number; z: number }[] = [];
+  let runFirst = first;
   for (let k = 0; k < n; k += 1) {
     const i = (first + k) % n;
     if (has(i)) {
+      if (current.length === 0) {
+        runFirst = i;
+      }
+
       current.push(point(i));
     } else if (current.length > 0) {
-      runs.push({ points: current, closed: false, side });
+      runs.push({ points: current, closed: false, side, first: runFirst });
       current = [];
     }
   }
 
   if (current.length > 1) {
-    runs.push({ points: current, closed: false, side });
+    runs.push({ points: current, closed: false, side, first: runFirst });
   }
 
   return runs.filter((run) => run.points.length > 1);

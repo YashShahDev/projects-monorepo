@@ -82,8 +82,10 @@ test("run options accept the durations the page accepts, and a known preset", ()
     seconds: 120,
     warmup: 10,
     headed: false,
+    loaded: false,
     out: "docs/performance/runs",
   });
+  expect(parseRunOptions(["--loaded"])).toMatchObject({ loaded: true });
   expect(parseRunOptions(["--passes", "5", "--quality", "high", "--headed"])).toMatchObject({
     passes: 5,
     quality: "high",
