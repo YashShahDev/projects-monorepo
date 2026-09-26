@@ -140,6 +140,37 @@ describe("vehicle energy", () => {
     expect(harvest.kineticJ - balanced.kineticJ).toBeGreaterThan(harvest.gainedJ);
   });
 
+  test("braking harvests only the rear axle's braking, which the MGU-K drives", async () => {
+    const sim = await vehicle();
+    timeBetween(sim, 0, 150, { ...flatOut, deploy: true });
+    sim.step({ throttle: 0, brake: 0.3, steer: 0 });
+    const s = sim.snapshot();
+    const rearBrakingW = 0.3 * car.brakes.maxForceN * (1 - car.brakes.frontBias) * Math.abs(s.speedMps);
+    expect(s.energy?.regenW ?? 0).toBeCloseTo(rearBrakingW, -4);
+    sim.dispose();
+  });
+
+  test("ABS-limited braking on a slippery surface harvests less", async () => {
+    const harvest = async (grip: number) => {
+      const sim = await createVehicleSimulation(car, {
+        start: { position: { x: 0, y: 0, z: 0 }, headingRad: 0 },
+        energy: rules,
+        gripAt: () => grip,
+      });
+      run(sim, { throttle: 0, brake: 0, steer: 0 }, 1);
+      timeBetween(sim, 0, 100, { ...flatOut, deploy: true });
+
+      // One step, so both cars harvest at the same speed.
+      sim.step({ throttle: 0, brake: 1, steer: 0 });
+      const regen = sim.snapshot().energy?.regenW ?? 0;
+      sim.dispose();
+
+      return regen;
+    };
+
+    expect(await harvest(0.3)).toBeLessThan((await harvest(1)) * 0.5);
+  });
+
   test("a stationary car harvests nothing", async () => {
     const sim = await vehicle();
     run(sim, { ...flatOut, deploy: true }, 3);

@@ -299,30 +299,6 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
       };
       const speed = Math.abs(vehicle.currentVehicleSpeed());
       drivetrain = powertrain.update(applied.throttle, speed, stepSeconds);
-      let drive = drivetrain.driveForceN;
-      if (energy && rules) {
-        const brakingN = applied.brake * car.brakes.maxForceN;
-        const v = Math.max(speed, 1);
-        const result = energy.update({
-          speedMps: speed,
-
-          // Rapier drops engine force on a braking wheel, so braking also stops deployment.
-          throttle: brakingN > 0 ? 0 : applied.throttle,
-          brakePowerW: brakingN * speed,
-          mode: energyMode,
-          deployRequest,
-          dtS: stepSeconds,
-
-          // C5.2.11 caps MGU-K torque at the crankshaft, so its power at engine speed.
-          limitW: rules.mgukMaxTorqueNm * ((drivetrain.rpm * 2 * Math.PI) / 60),
-        });
-        flow = result;
-
-        // Lift-off harvesting brakes through the drivetrain: the energy it stores must
-        // leave the car's motion.
-        drive += (result.deployW - result.engineBrakeW) / v;
-      }
-
       if (options.gripAt) {
         for (let i = 0; i < 4; i += 1) {
           const p = wheelPoints[i] ?? { x: 0, y: 0, z: 0 };
@@ -330,6 +306,46 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
           surfaceGrip[i] = options.gripAt(at.x, at.z, i);
           vehicle.setWheelFrictionSlip(i, w.frictionCoefficient * (surfaceGrip[i] ?? 1));
         }
+      }
+
+      const b = car.brakes;
+      const brakeN = applied.brake * b.maxForceN;
+      const wheelBrakeN = [0, 1, 2, 3].map((i) => {
+        const share = i < 2 ? b.frontBias : 1 - b.frontBias;
+        const wanted = (brakeN * share) / 2;
+
+        return assists.abs ? Math.min(wanted, longitudinalBudgetN(i)) : wanted;
+      });
+      let drive = drivetrain.driveForceN;
+      if (energy && rules) {
+        const v = Math.max(speed, 1);
+
+        // The MGU-K drives the rear axle, so it can only take over braking the rear tyres
+        // are delivering: none from a wheel in the air, less when ABS holds it back.
+        const rearBrakingN = [2, 3].reduce(
+          (sum, i) => sum + (vehicle.wheelIsInContact(i) ? (wheelBrakeN[i] ?? 0) : 0),
+          0,
+        );
+
+        // C5.2.11 caps MGU-K torque at the crankshaft, so its power at engine speed.
+        const mgukLimitW = rules.mgukMaxTorqueNm * ((drivetrain.rpm * 2 * Math.PI) / 60);
+        const result = energy.update({
+          speedMps: speed,
+
+          // Rapier drops engine force on a braking wheel, so braking also stops deployment.
+          throttle: brakeN > 0 ? 0 : applied.throttle,
+          brakePowerW: rearBrakingN * speed,
+          mode: energyMode,
+          deployRequest,
+          dtS: stepSeconds,
+          limitW: mgukLimitW,
+          regenLimitW: mgukLimitW,
+        });
+        flow = result;
+
+        // Lift-off harvesting brakes through the drivetrain: the energy it stores must
+        // leave the car's motion.
+        drive += (result.deployW - result.engineBrakeW) / v;
       }
 
       const a = car.aero;
@@ -360,8 +376,6 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         steerRad = clamp(steerRad, -limitRad, limitRad);
       }
 
-      const b = car.brakes;
-      const brakeN = applied.brake * b.maxForceN;
       for (let i = 0; i < 4; i += 1) {
         const front = i < 2;
         vehicle.setWheelSteering(i, front ? steerRad : 0);
@@ -373,14 +387,11 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         }
 
         vehicle.setWheelEngineForce(i, engine);
-        const share = front ? b.frontBias : 1 - b.frontBias;
-        let wheelBrakeN = (brakeN * share) / 2;
-        if (assists.abs) {
-          wheelBrakeN = Math.min(wheelBrakeN, longitudinalBudgetN(i));
-        }
 
-        // Rapier treats `brake` as the maximum rolling-friction impulse for this step.
-        vehicle.setWheelBrake(i, wheelBrakeN * stepSeconds);
+        // Regeneration blends with the friction brakes (brake-by-wire), so the wheel's
+        // total braking is the same either way. Rapier treats `brake` as the maximum
+        // rolling-friction impulse for this step.
+        vehicle.setWheelBrake(i, (wheelBrakeN[i] ?? 0) * stepSeconds);
       }
 
       vehicle.updateVehicle(stepSeconds);

@@ -128,6 +128,28 @@ describe("energy system", () => {
     expect(light.frictionBrakeW).toBe(0);
   });
 
+  test("braking at crawling speed sends everything to friction", () => {
+    const energy = rolling();
+    for (let i = 0; i < 120; i += 1) {
+      energy.update(cruise({ deployRequest: true }));
+    }
+
+    const flow = energy.update(cruise({ throttle: 0, speedMps: 3, brakePowerW: 50_000 }));
+    expect(flow.regenW).toBe(0);
+    expect(flow.frictionBrakeW).toBe(50_000);
+  });
+
+  test("regeneration is capped by the MGU-K torque at the current engine speed", () => {
+    const energy = rolling();
+    for (let i = 0; i < 120; i += 1) {
+      energy.update(cruise({ deployRequest: true }));
+    }
+
+    const flow = energy.update(cruise({ throttle: 0, brakePowerW: 1_000_000, regenLimitW: 120_000 }));
+    expect(flow.regenW).toBeCloseTo(120_000, 6);
+    expect(flow.frictionBrakeW).toBeCloseTo(880_000, 6);
+  });
+
   test("a full battery sends all braking to friction", () => {
     const energy = createEnergySystem(rules);
     const flow = energy.update(cruise({ throttle: 0, brakePowerW: 500_000 }));

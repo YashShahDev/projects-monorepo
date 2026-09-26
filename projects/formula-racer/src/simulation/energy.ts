@@ -6,7 +6,10 @@ export interface EnergyInput {
   speedMps: number;
   throttle: number;
 
-  /** Braking power the driver asks for, W; regeneration takes what it can first. */
+  /**
+   * Braking power the MGU-K could take, W: the rear axle's braking, since it drives the
+   * rear wheels. Regeneration takes what it can first.
+   */
   brakePowerW: number;
   mode: EnergyMode;
 
@@ -16,6 +19,9 @@ export interface EnergyInput {
 
   /** Most deployment the drivetrain can turn into drive, e.g. below the traction cap. */
   limitW?: number;
+
+  /** Most power the MGU-K can harvest, e.g. its torque limit at the current engine speed. */
+  regenLimitW?: number;
 }
 
 export interface EnergyFlow {
@@ -77,7 +83,7 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
   let launched = false;
 
   return {
-    update({ speedMps, throttle, brakePowerW, mode, deployRequest, dtS, limitW }) {
+    update({ speedMps, throttle, brakePowerW, mode, deployRequest, dtS, limitW, regenLimitW }) {
       if (Math.abs(speedMps) * 3.6 >= rules.standingStartDeployKph) {
         launched = true;
       }
@@ -91,9 +97,13 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
         deployW = Math.min(deployW, (socJ * rules.deployEfficiency) / dtS);
       }
 
-      const liftOff =
-        mode === "harvest" && throttle === 0 && Math.abs(speedMps) >= MIN_HARVEST_SPEED_MPS ? rules.liftOffHarvestW : 0;
-      const wanted = Math.min(rules.ersMaxPowerW, brakePowerW + liftOff);
+      const turning = Math.abs(speedMps) >= MIN_HARVEST_SPEED_MPS;
+      const liftOff = mode === "harvest" && throttle === 0 && turning ? rules.liftOffHarvestW : 0;
+      const wanted = Math.min(
+        rules.ersMaxPowerW,
+        regenLimitW ?? Number.POSITIVE_INFINITY,
+        (turning ? brakePowerW : 0) + liftOff,
+      );
       const roomJ = Math.min(
         (rules.socWindowJ - (socJ - (deployW * dtS) / rules.deployEfficiency)) / rules.regenEfficiency,
         rules.rechargePerLapJ - lapRechargeJ,
