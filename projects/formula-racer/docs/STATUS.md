@@ -16,7 +16,7 @@ summary: P5-C1 done; Low, Medium and High hold a locked 60 Hz on the reference l
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)); P4 — content and presentation ([record](checkpoints/P4.md)).
 - Active phase: P5 — performance and release verification ([phase](phases/P5-release.md)).
-- Next checkpoint: P5-C2 optimization decision, then P5-C3 ([P5](checkpoints/P5.md)).
+- Next checkpoint: P5-C3 final verification ([P5](checkpoints/P5.md)).
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
@@ -37,9 +37,8 @@ P5-C1 is closed. On the reference laptop, every preset holds a locked 60 Hz: p95
 
 Next:
 
-1. P5-C2: the baseline justifies no optimization; record that decision.
-2. P5-C3: `make test-full` (the full browser matrix) and the final verification.
-3. P5 phase review (Codex `gpt-6-astra`).
+1. P5-C3: `make test-full` (the full browser matrix) and the final verification.
+2. P5 phase review (Codex `gpt-6-astra`).
 
 Cloud sessions: set `PW_CHROMIUM_PATH` (see [SETUP](SETUP.md)). LFS works through the
 root `.lfsconfig`, provided `YashShahDev/projects-monorepo` is in the session's
@@ -47,27 +46,28 @@ repository sources.
 
 ## Checkpoints
 
-| ID        | State   | Evidence                                                                      |
-| --------- | ------- | ----------------------------------------------------------------------------- |
-| P0-C1     | done    | `35d4059`; [P0 record](checkpoints/P0.md)                                     |
-| P0-C2     | done    | `1df7e26`; [tooling evidence](checkpoints/P0.md)                              |
-| P0-C3     | done    | `d8f8b38`; [verification](checkpoints/P0.md)                                  |
-| P1-C1     | done    | `2c619ed`; [P1 record](checkpoints/P1.md)                                     |
-| P1-C2     | done    | `c4768e0`; [P1 record](checkpoints/P1.md)                                     |
-| P1-C3     | done    | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md)               |
-| P2-C1     | done    | `aab4afa`; [P2 record](checkpoints/P2.md)                                     |
-| P2-C2     | done    | `f9cb3b1`… (`--grep=P2-C2`); [P2 record](checkpoints/P2.md)                   |
-| P2-C3     | done    | `ec511a5`… (`--grep=P2-C3`); [P2 record](checkpoints/P2.md)                   |
-| P2 review | done    | Codex `gpt-6-astra`, 4/4 fixed; [P2 record](checkpoints/P2.md#phase-review)   |
-| P3-C1–C3  | done    | `09c6ec9`… (`--grep=P3-C`); [P3 record](checkpoints/P3.md)                    |
-| P3 review | done    | Codex `gpt-6-astra`, 3/3 fixed; [P3 record](checkpoints/P3.md)                |
-| P4-C1     | done    | `--grep=P4-C1`; [P4 record](checkpoints/P4.md)                                |
-| P4-C2     | done    | `--grep=P4-C2`; [P4 record](checkpoints/P4.md)                                |
-| P4-C3     | active  | `--grep=P4-C3`; needs the real-model check; [P4](checkpoints/P4.md)           |
-| P4 review | done    | Fresh review agent, 9 fixed, 2 rejected; [P4](checkpoints/P4.md#phase-review) |
-| P4-C4     | done    | `--grep=P4-C4`; Codex reviewed, 2/2 fixed; [P4](checkpoints/P4.md)            |
-| P5-C1     | done    | `--grep=P5-C1`; all presets locked 60 Hz; [P5](checkpoints/P5.md)             |
-| P5-C2, C3 | planned | [P5](phases/P5-release.md)                                                    |
+| ID        | State  | Evidence                                                                      |
+| --------- | ------ | ----------------------------------------------------------------------------- |
+| P0-C1     | done   | `35d4059`; [P0 record](checkpoints/P0.md)                                     |
+| P0-C2     | done   | `1df7e26`; [tooling evidence](checkpoints/P0.md)                              |
+| P0-C3     | done   | `d8f8b38`; [verification](checkpoints/P0.md)                                  |
+| P1-C1     | done   | `2c619ed`; [P1 record](checkpoints/P1.md)                                     |
+| P1-C2     | done   | `c4768e0`; [P1 record](checkpoints/P1.md)                                     |
+| P1-C3     | done   | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md)               |
+| P2-C1     | done   | `aab4afa`; [P2 record](checkpoints/P2.md)                                     |
+| P2-C2     | done   | `f9cb3b1`… (`--grep=P2-C2`); [P2 record](checkpoints/P2.md)                   |
+| P2-C3     | done   | `ec511a5`… (`--grep=P2-C3`); [P2 record](checkpoints/P2.md)                   |
+| P2 review | done   | Codex `gpt-6-astra`, 4/4 fixed; [P2 record](checkpoints/P2.md#phase-review)   |
+| P3-C1–C3  | done   | `09c6ec9`… (`--grep=P3-C`); [P3 record](checkpoints/P3.md)                    |
+| P3 review | done   | Codex `gpt-6-astra`, 3/3 fixed; [P3 record](checkpoints/P3.md)                |
+| P4-C1     | done   | `--grep=P4-C1`; [P4 record](checkpoints/P4.md)                                |
+| P4-C2     | done   | `--grep=P4-C2`; [P4 record](checkpoints/P4.md)                                |
+| P4-C3     | active | `--grep=P4-C3`; needs the real-model check; [P4](checkpoints/P4.md)           |
+| P4 review | done   | Fresh review agent, 9 fixed, 2 rejected; [P4](checkpoints/P4.md#phase-review) |
+| P4-C4     | done   | `--grep=P4-C4`; Codex reviewed, 2/2 fixed; [P4](checkpoints/P4.md)            |
+| P5-C1     | done   | `--grep=P5-C1`; all presets locked 60 Hz; [P5](checkpoints/P5.md)             |
+| P5-C2     | done   | No bottleneck to optimize; [P5](checkpoints/P5.md)                            |
+| P5-C3     | active | [P5](checkpoints/P5.md)                                                       |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 

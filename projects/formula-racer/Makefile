@@ -8,7 +8,7 @@ help:
 	@echo "Formula Racer: setup doctor verify-prerequisites dev build preview test test-full test-unit test-browser test-browser-full lint clean"
 	@echo "test runs unit + Chromium dev checks; test-full adds the complete browser matrix."
 	@echo "preview serves dist/; pass BASE=/some/path/ to check subpath hosting."
-	@echo "bench runs the benchmark route in headed Chromium; QUALITY=low|medium|high (default medium)."
+	@echo "bench runs the benchmark route in GPU-backed headless Chromium; QUALITY=low|medium|high (default medium)."
 	@echo "assets rebuilds the car GLB in Blender; assets-verify checks the committed one is reproducible."
 setup: install browsers-install
 install:
