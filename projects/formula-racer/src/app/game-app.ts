@@ -217,9 +217,13 @@ export async function startGameApp(
     lateralAccelMps2: 0,
     kerbWheels: 0,
   });
+
+  // Starting the lookup from last frame's sample avoids a full centreline scan.
+  let soundHint: number | undefined;
   const listen = (car: VehicleSnapshot) => {
     const gearbox = session.car().powertrain.gearbox;
-    const location = session.geometry.locate(car.position.x, car.position.z);
+    const location = session.geometry.locate(car.position.x, car.position.z, soundHint);
+    soundHint = location.index;
     sound = soundMix({
       paused: session.state().paused,
       rpm: car.rpm,
