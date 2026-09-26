@@ -87,6 +87,29 @@ describe("driving session", () => {
     expect(drive(s, throttle, 0.5).paused).toBe(true);
   });
 
+  test("the countdown does not run down while paused", async () => {
+    const s = await start();
+    const before = s.state().countdownS;
+    s.action("pause");
+    drive(s, idle, 2);
+    expect(s.state().countdownS).toBe(before);
+    s.action("pause");
+    drive(s, idle, 0.5);
+    expect(s.state().countdownS).toBeCloseTo(before - 0.5, 1);
+  });
+
+  test("changing assists with a retune pending applies both on the restart", async () => {
+    const s = await start();
+    s.retune({ massKg: car.massKg + 50 });
+    expect(s.car().massKg).toBe(car.massKg);
+    s.setAssists({ steering: false, abs: false, traction: true });
+    const state = s.state();
+    expect(s.car().massKg).toBe(car.massKg + 50);
+    expect(state.tuned).toBe(true);
+    expect(state.assists).toEqual({ steering: false, abs: false, traction: true });
+    expect(state.countdownS).toBeGreaterThan(0);
+  });
+
   test("R puts the car back on the start line at rest", async () => {
     const s = await start();
     drive(s, { ...throttle, right: true }, 3);

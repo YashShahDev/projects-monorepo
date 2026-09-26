@@ -41,3 +41,18 @@ test("a yawed car with one rear tyre still on the kerb stays within limits", () 
   const tyres = [{ x: limit + 3.5, z: 1.5 }, { x: limit + 2.3, z: 2.5 }, { x: limit + 1.2, z: -2.6 }, rearInner];
   expect(tyresWithinLimits(geometry, tyres, TYRE_HALF)).toBe(true);
 });
+
+test("a stale hint from the far side of the lap does not misjudge a car on the road", () => {
+  // As after a reset: the hints still point half a lap away.
+  const far = Math.floor(geometry.count / 2);
+  const onRoad = [
+    { x: 0.8, z: 1.8 },
+    { x: -0.8, z: 1.8 },
+    { x: 0.8, z: -1.6 },
+    { x: -0.8, z: -1.6 },
+  ];
+  expect(tyresWithinLimits(geometry, onRoad, TYRE_HALF, [far, far, far, far])).toBe(true);
+
+  const offRoad = onRoad.map((tyre) => ({ ...tyre, x: tyre.x + limit + 5 }));
+  expect(tyresWithinLimits(geometry, offRoad, TYRE_HALF, [far, far, far, far])).toBe(false);
+});
