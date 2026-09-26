@@ -189,8 +189,15 @@ export async function startGameApp(
     view.setLivery(preferences.livery());
   };
 
-  // Audio is optional: a browser without Web Audio still gets a silent game.
-  const audio: CarAudio | undefined = typeof AudioContext === "function" ? createCarAudio() : undefined;
+  // Audio is optional: a browser without Web Audio, or one that refuses to create a
+  // context, still gets a silent game.
+  let audio: CarAudio | undefined;
+  try {
+    audio = typeof AudioContext === "function" ? createCarAudio() : undefined;
+  } catch (error) {
+    console.warn("Sound is off:", error);
+  }
+
   menu.sound.checked = preferences.sound();
   audio?.setEnabled(preferences.sound());
   const onSound = () => {

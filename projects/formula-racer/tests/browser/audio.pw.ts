@@ -37,3 +37,17 @@ test("@dev the Sound option mutes the car and is remembered", async ({ page }) =
   await expect(page.locator("#sound")).not.toBeChecked();
   expect((await hooks(page, 1, false)).sound.enabled).toBe(false);
 });
+
+test("@smoke the game still starts when audio cannot be created", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "AudioContext", {
+      value: class {
+        constructor() {
+          throw new Error("NotAllowedError: audio is blocked");
+        }
+      },
+    });
+  });
+  await openGame(page);
+  await expect(page.locator("#speed")).toHaveText("0");
+});
