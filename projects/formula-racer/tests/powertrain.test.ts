@@ -74,6 +74,50 @@ describe("powertrain", () => {
   });
 });
 
+describe("reverse and manual", () => {
+  test("in reverse, throttle drives backwards", () => {
+    const powertrain = createPowertrain(car.powertrain);
+    powertrain.request("down");
+    const state = powertrain.update(1, 0, DT);
+    expect(state.gear).toBe(-1);
+    expect(state.driveForceN).toBe(-car.powertrain.maxDriveForceN);
+  });
+
+  test("the limiter cuts reverse drive at 30 km/h and restores it a little below", () => {
+    const powertrain = createPowertrain(car.powertrain);
+    powertrain.request("down");
+    powertrain.update(1, 0, DT);
+    expect(powertrain.update(1, kmh(-30), DT).driveForceN).toBe(0);
+    expect(powertrain.update(1, kmh(-29.9), DT).driveForceN).toBe(0);
+    expect(powertrain.update(1, kmh(-28), DT).driveForceN).toBeLessThan(0);
+  });
+
+  test("in manual, the limiter cuts drive at the redline instead of shifting", () => {
+    const powertrain = createPowertrain(car.powertrain);
+    powertrain.setMode("manual");
+    const top1 = car.powertrain.gearbox.gearTopSpeedsKmh[0] ?? 0;
+    const atRedline = powertrain.update(1, kmh(top1), DT);
+    expect(atRedline.gear).toBe(1);
+    expect(atRedline.driveForceN).toBe(0);
+    expect(powertrain.update(1, kmh(top1 * 0.9), DT).driveForceN).toBeGreaterThan(0);
+  });
+
+  test("a manual downshift cuts drive for the shift time too", () => {
+    const powertrain = createPowertrain(car.powertrain);
+    powertrain.setMode("manual");
+    powertrain.request("up");
+    powertrain.update(1, kmh(80), DT);
+    for (let i = 0; i < 30; i += 1) {
+      powertrain.update(1, kmh(80), DT);
+    }
+
+    powertrain.request("down");
+    const cut = powertrain.update(1, kmh(80), DT);
+    expect(cut.gear).toBe(1);
+    expect(cut.driveForceN).toBe(0);
+  });
+});
+
 describe("powertrain content", () => {
   const withCurve = (powerCurve: unknown) => () => parseCar({ ...car, powertrain: { ...car.powertrain, powerCurve } });
 

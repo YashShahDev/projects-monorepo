@@ -1,17 +1,25 @@
 import type { PowertrainDefinition } from "../content/car.ts";
-import { createGearbox } from "./gearbox.ts";
+import { createGearbox, REVERSE } from "./gearbox.ts";
+import type { GearboxMode, ShiftRequest } from "./gearbox.ts";
 
 export interface PowertrainState {
-  /** Total drive force at the driven wheels, N. */
+  /** Total drive force at the driven wheels, N; negative in reverse. */
   driveForceN: number;
   gear: number;
   rpm: number;
 }
 
 export interface Powertrain {
+  /** `speedMps` is signed: negative while rolling backwards. */
   update(throttle: number, speedMps: number, dtSeconds: number): PowertrainState;
+  request(shift: ShiftRequest): void;
+  setMode(mode: GearboxMode): void;
   reset(): void;
 }
+
+// The limiter restores drive only once the engine drops this far below the redline, so
+// it cuts in and out like a real one rather than chattering every step.
+const LIMITER_RELEASE = 0.97;
 
 const EPSILON = 1e-9;
 
@@ -45,30 +53,47 @@ export function createPowertrain(def: PowertrainDefinition): Powertrain {
   const gearbox = createGearbox(def.gearbox);
   let cutSeconds = 0;
   let gear = 1;
+  let limited = false;
 
   return {
     update(throttle, speedMps, dtSeconds) {
       const state = gearbox.update(speedMps);
-      if (state.gear > gear) {
+
+      // Engaging or leaving reverse happens at a standstill, so only real shifts cut drive.
+      if (state.gear !== gear && state.gear !== REVERSE && gear !== REVERSE) {
         cutSeconds = def.shiftTimeS;
       }
 
       gear = state.gear;
+      const redline = def.gearbox.redlineRpm;
+      limited = limited ? state.rpm >= redline * LIMITER_RELEASE : state.rpm >= redline - EPSILON;
       if (cutSeconds > EPSILON) {
         cutSeconds -= dtSeconds;
 
         return { driveForceN: 0, ...state };
       }
 
+      if (limited) {
+        return { driveForceN: 0, ...state };
+      }
+
       const powerW = def.maxPowerW * share(def.powerCurve, state.rpm);
-      const driveForceN = throttle * Math.min(def.maxDriveForceN, powerW / Math.max(Math.abs(speedMps), 1));
+      const direction = gear === REVERSE ? -1 : 1;
+      const driveForceN = direction * throttle * Math.min(def.maxDriveForceN, powerW / Math.max(Math.abs(speedMps), 1));
 
       return { driveForceN, ...state };
+    },
+    request(shift) {
+      gearbox.request(shift);
+    },
+    setMode(mode) {
+      gearbox.setMode(mode);
     },
     reset() {
       gearbox.reset();
       cutSeconds = 0;
       gear = 1;
+      limited = false;
     },
   };
 }
