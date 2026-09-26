@@ -56,14 +56,17 @@ describe("car model validation", () => {
   test("requires each LOD to have fewer triangles than the one before", () => {
     const doc = validModel(car, contract);
     const lod0 = findNode(doc, "body_LOD0").getMesh();
-    if (lod0) findNode(doc, "body_LOD1").setMesh(lod0);
-    expect(problems(doc)).toContain("body_LOD1 has 2000 triangles, not fewer than body_LOD0");
+    if (lod0) {
+      findNode(doc, "body_LOD1").setMesh(lod0);
+    }
+
+    expect(problems(doc)).toContain("body_LOD1 has 2012 triangles, not fewer than body_LOD0");
   });
 
   test("keeps each LOD level within its triangle budget", () => {
     const tight = { ...contract, trianglesPerLod: [5000, 1000, 400] };
     expect(validateCarModel(validModel(car, contract), car, tight)).toContain(
-      "LOD0 has 14000 triangles, budget 5000",
+      "LOD0 has 14012 triangles, budget 5000",
     );
   });
 
@@ -89,8 +92,10 @@ describe("car model validation", () => {
 
   test("checks overall size against the 2026 envelope, so a wrong scale fails", () => {
     const doc = validModel(car, contract);
-    for (const node of doc.getRoot().getDefaultScene()?.listChildren() ?? [])
+    for (const node of doc.getRoot().getDefaultScene()?.listChildren() ?? []) {
       node.setScale([100, 100, 100]);
+    }
+
     const found = problems(doc);
     expect(found).toContain("node body has scale (100, 100, 100); named nodes must be unscaled");
     const envelope = validateCarModel(validModel(car, contract), car, {
@@ -110,8 +115,10 @@ describe("car model validation", () => {
 
   test("requires a material on every visible primitive", () => {
     const doc = validModel(car, contract);
-    for (const p of findNode(doc, "body_LOD1").getMesh()?.listPrimitives() ?? [])
+    for (const p of findNode(doc, "body_LOD1").getMesh()?.listPrimitives() ?? []) {
       p.setMaterial(null);
+    }
+
     expect(problems(doc)).toContain("body_LOD1 has a primitive without a material");
   });
 
@@ -126,6 +133,17 @@ describe("car model validation", () => {
         "material paint occlusion texture has unsupported type image/gif",
       ]),
     );
+  });
+
+  test("requires the materials liveries repaint on the body", () => {
+    expect(contract.liveryMaterials).toEqual(["paint", "accent"]);
+    const doc = validModel(car, contract);
+    doc
+      .getRoot()
+      .listMaterials()
+      .find((m) => m.getName() === "accent")
+      ?.setName("trim");
+    expect(problems(doc)).toContain("body_LOD0 has no material accent for liveries");
   });
 
   test("requires baked normal and ambient occlusion maps on the body", () => {

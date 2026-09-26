@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { lapKey } from "../../src/app/lap-store.ts";
 import { PHYSICS_VERSION } from "../../src/simulation/version.ts";
-import { collectErrors, freezeFrames, openGame, readSpeed } from "./helpers.ts";
+import { collectErrors, freezeFrames, openGame, readSpeed, scenePixels } from "./helpers.ts";
 
 const allAssists = { steering: true, abs: true, traction: true };
 const key = lapKey({ trackId: "harbour", physicsVersion: PHYSICS_VERSION, assists: allAssists });
@@ -26,6 +26,7 @@ test("@smoke switching an assist off restarts on the grid", async ({ page }) => 
   await page.keyboard.press("Escape");
   const menu = page.getByRole("dialog", { name: "Paused" });
   await menu.getByLabel("Traction control").uncheck();
+
   // Escape still resumes with focus on the checkbox.
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
@@ -67,4 +68,22 @@ test("@smoke blocked storage keeps playing and says bests are not saved", async 
   });
   await openGame(page);
   await expect(page.locator("#storage-note")).toContainText("not saved");
+});
+
+test("@smoke the chosen livery repaints the car and is remembered", async ({ page }) => {
+  await openGame(page);
+  const red = (await scenePixels(page)).car;
+  expect(red).toBeGreaterThan(500);
+  await page.keyboard.press("Escape");
+  const livery = page.getByRole("dialog", { name: "Paused" }).getByLabel("Livery");
+  await expect(livery).toHaveValue("vermilion");
+  await livery.selectOption({ label: "Tidewater #12" });
+  await page.keyboard.press("Escape");
+
+  // The red-car pixel class stops matching the body once the paint is teal; a few
+  // red-kerb edge pixels still count.
+  await expect.poll(async () => (await scenePixels(page)).car).toBeLessThan(red / 10);
+  await page.reload();
+  await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });
+  await expect(page.locator("#livery")).toHaveValue("tidewater");
 });

@@ -242,6 +242,8 @@ def build(car, spec, textures):
     G = lambda h: ground + h  # height above the ground
 
     paint = material("paint", (0.70, 0.05, 0.03), 0.3, 0.35)
+    # Liveries recolour `paint` and `accent` (content/cars/liveries.json).
+    accent = material("accent", (0.89, 0.89, 0.89), 0.2, 0.35)
     carbon = material("carbon", (0.025, 0.025, 0.028), 0.1, 0.45)
     halo_metal = material("titanium", (0.55, 0.56, 0.58), 0.8, 0.35)
     helmet = material("helmet", (0.95, 0.78, 0.10), 0.0, 0.3)
@@ -249,6 +251,7 @@ def build(car, spec, textures):
     rim = material("rim", (0.12, 0.12, 0.13), 0.9, 0.3)
     add_bump(paint, "panels", 0.15)
     add_bump(carbon, "noise", 0.08)
+    add_bump(accent, "panels", 0.15)
     add_bump(halo_metal, "noise", 0.05)
     add_bump(helmet, "noise", 0.02)
 
@@ -306,7 +309,7 @@ def build(car, spec, textures):
             )
         )
         # Mirrors on short stalks.
-        parts.append(box(f"mirror_{side}", (side * 0.46, G(0.56), 0.62), (0.07, 0.03, 0.02), paint))
+        parts.append(box(f"mirror_{side}", (side * 0.46, G(0.56), 0.62), (0.07, 0.03, 0.02), accent))
         parts.append(tube(f"mirror_stalk_{side}", [(side * 0.36, G(0.44), 0.62), (side * 0.44, G(0.55), 0.62)], 0.01, carbon, 6))
 
     # Floor with a tapered diffuser section.
@@ -321,14 +324,14 @@ def build(car, spec, textures):
     # Front wing: main plane, nose pylons and endplates; the flap is its own pivot.
     parts.append(airfoil("front_main", 0.90, 0.30, 0.08, -0.03, 0.02, carbon, origin=(0, G(0.10), 2.74)))
     for side in (1, -1):
-        parts.append(box(f"front_endplate_{side}", (side * 0.90, G(0.17), 2.54), (0.01, 0.11, 0.24), carbon))
+        parts.append(box(f"front_endplate_{side}", (side * 0.90, G(0.17), 2.54), (0.01, 0.11, 0.24), accent))
         parts.append(box(f"front_pylon_{side}", (side * 0.08, G(0.18), 2.50), (0.01, 0.07, 0.06), carbon))
 
     # Rear wing: main plane, beam wing, endplates and a swan-neck pylon.
     parts.append(airfoil("rear_main", 0.50, 0.30, 0.10, -0.04, 0.05, carbon, origin=(0, G(0.73), -2.05)))
     parts.append(airfoil("beam_wing", 0.45, 0.22, 0.10, -0.02, 0.1, carbon, origin=(0, G(0.36), -1.98)))
     for side in (1, -1):
-        parts.append(box(f"rear_endplate_{side}", (side * 0.50, G(0.70), -2.22), (0.01, 0.25, 0.22), paint))
+        parts.append(box(f"rear_endplate_{side}", (side * 0.50, G(0.70), -2.22), (0.01, 0.25, 0.22), accent))
     parts.append(tube("swan_neck", [(0, G(0.40), -1.60), (0, G(0.62), -1.90), (0, G(0.80), -2.12)], 0.02, carbon, 8))
 
     # Wishbones from the chassis to each hub.
@@ -391,7 +394,7 @@ def build(car, spec, textures):
     h = car["chassisHalfExtents"]
     box(spec["collision"], (0, 0, 0), (h["x"], h["y"], h["z"]), None)
 
-    return body, lod0, [paint, carbon, halo_metal, helmet]
+    return body, lod0, [paint, accent, carbon, halo_metal, helmet]
 
 
 def wheel(name, pivot, radius, width, outward, segments, level, rubber, rim):

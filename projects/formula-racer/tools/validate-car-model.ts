@@ -24,22 +24,28 @@ const centre = (b: Box, i: number) => (at(b.max, i) + at(b.min, i)) / 2;
 function triangles(node: Node): number {
   let total = 0;
   for (const primitive of node.getMesh()?.listPrimitives() ?? []) {
-    if (primitive.getMode() !== Primitive.Mode.TRIANGLES) continue;
+    if (primitive.getMode() !== Primitive.Mode.TRIANGLES) {
+      continue;
+    }
+
     const count =
       primitive.getIndices()?.getCount() ?? primitive.getAttribute("POSITION")?.getCount();
     total += Math.floor((count ?? 0) / 3);
   }
+
   return total;
 }
 
 function union(boxes: Box[]): Box {
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
-  for (const b of boxes)
+  for (const b of boxes) {
     for (let i = 0; i < 3; i += 1) {
       min[i] = Math.min(at(min, i), at(b.min, i));
       max[i] = Math.max(at(max, i), at(b.max, i));
     }
+  }
+
   return { min, max };
 }
 
@@ -63,16 +69,22 @@ export function validateCarModel(
   const problems: string[] = [];
   const nodes = doc.getRoot().listNodes();
   const byName = new Map<string, Node[]>();
-  for (const node of nodes)
+  for (const node of nodes) {
     byName.set(node.getName(), [...(byName.get(node.getName()) ?? []), node]);
+  }
 
   const named = new Map<string, Node>();
   for (const name of requiredNodes(spec)) {
     const found = byName.get(name) ?? [];
-    if (found.length === 0) problems.push(`missing node ${name}`);
-    else if (found.length > 1) problems.push(`node ${name} appears ${String(found.length)} times`);
-    else if (found[0]) named.set(name, found[0]);
+    if (found.length === 0) {
+      problems.push(`missing node ${name}`);
+    } else if (found.length > 1) {
+      problems.push(`node ${name} appears ${String(found.length)} times`);
+    } else if (found[0]) {
+      named.set(name, found[0]);
+    }
   }
+
   for (const [name, node] of named) {
     const scale = node.getScale();
     if (scale.some((s) => Math.abs(s - 1) > 1e-6)) {
@@ -98,7 +110,10 @@ export function validateCarModel(
   const materials = new Set<Material>();
   for (const name of lodNodes(spec)) {
     const parent = named.get(name);
-    if (!parent) continue;
+    if (!parent) {
+      continue;
+    }
+
     let previous: number | undefined;
     for (let level = 0; level < spec.lodCount; level += 1) {
       const child = parent.listChildren().find((c) => c.getName() === lodName(name, level));
@@ -106,7 +121,11 @@ export function validateCarModel(
         problems.push(`${name} has no mesh ${lodName(name, level)}`);
         continue;
       }
-      if (level === 0) lod0.push(child);
+
+      if (level === 0) {
+        lod0.push(child);
+      }
+
       const count = triangles(child);
       perLevel[level] = at(perLevel, level) + count;
       if (previous !== undefined && count >= previous) {
@@ -114,14 +133,19 @@ export function validateCarModel(
           `${lodName(name, level)} has ${String(count)} triangles, not fewer than ${lodName(name, level - 1)}`,
         );
       }
+
       previous = count;
       for (const primitive of child.getMesh()?.listPrimitives() ?? []) {
         const material = primitive.getMaterial();
-        if (material) materials.add(material);
-        else problems.push(`${lodName(name, level)} has a primitive without a material`);
+        if (material) {
+          materials.add(material);
+        } else {
+          problems.push(`${lodName(name, level)} has a primitive without a material`);
+        }
       }
     }
   }
+
   perLevel.forEach((count, level) => {
     const budget = spec.trianglesPerLod[level] ?? 0;
     if (count > budget) {
@@ -132,18 +156,26 @@ export function validateCarModel(
   for (const material of materials) {
     for (const [slot, get] of TEXTURE_SLOTS) {
       const texture = get(material);
-      if (!texture) continue;
+      if (!texture) {
+        continue;
+      }
+
       const label = `material ${material.getName()} ${slot} texture`;
-      if (!texture.getImage()?.byteLength) problems.push(`${label} has no image`);
-      else if (!IMAGE_TYPES.has(texture.getMimeType())) {
+      if (!texture.getImage()?.byteLength) {
+        problems.push(`${label} has no image`);
+      } else if (!IMAGE_TYPES.has(texture.getMimeType())) {
         problems.push(`${label} has unsupported type ${texture.getMimeType()}`);
       }
     }
   }
+
   const bodyLod0 = lod0.find((n) => n.getName() === lodName(spec.body, 0));
   for (const primitive of bodyLod0?.getMesh()?.listPrimitives() ?? []) {
     const material = primitive.getMaterial();
-    if (!material) continue;
+    if (!material) {
+      continue;
+    }
+
     for (const [slot, texture] of [
       ["normal", material.getNormalTexture()],
       ["occlusion", material.getOcclusionTexture()],
@@ -152,6 +184,20 @@ export function validateCarModel(
         problems.push(
           `${bodyLod0?.getName() ?? ""} material ${material.getName()} has no ${slot} texture`,
         );
+      }
+    }
+  }
+
+  const bodyMaterials = new Set(
+    bodyLod0
+      ?.getMesh()
+      ?.listPrimitives()
+      .map((p) => p.getMaterial()?.getName()) ?? [],
+  );
+  if (bodyLod0) {
+    for (const name of spec.liveryMaterials) {
+      if (!bodyMaterials.has(name)) {
+        problems.push(`${bodyLod0.getName()} has no material ${name} for liveries`);
       }
     }
   }
@@ -166,7 +212,10 @@ export function validateCarModel(
   ];
   spec.wheels.forEach((name, i) => {
     const pivot = named.get(name);
-    if (!pivot) return;
+    if (!pivot) {
+      return;
+    }
+
     const expected = [
       at(hubs[i] ?? [], 0),
       w.connectionY - w.suspensionRestLength,
@@ -176,12 +225,17 @@ export function validateCarModel(
     if (expected.some((e, k) => Math.abs(e - at(actual, k)) > POSITION_TOLERANCE_M)) {
       problems.push(`${name} pivot is at ${f3(actual)}, expected ${f3(expected)}`);
     }
+
     const mesh = pivot.listChildren().find((c) => c.getName() === lodName(name, 0));
-    if (!mesh) return;
+    if (!mesh) {
+      return;
+    }
+
     const bounds = getBounds(mesh);
     if ([0, 1, 2].some((k) => Math.abs(centre(bounds, k) - at(actual, k)) > POSITION_TOLERANCE_M)) {
       problems.push(`${lodName(name, 0)} is not centred on its pivot`);
     }
+
     const radius = Math.max(size(bounds, 1), size(bounds, 2)) / 2;
     if (Math.abs(radius - w.radius) > POSITION_TOLERANCE_M) {
       problems.push(
@@ -210,8 +264,9 @@ export function validateCarModel(
 
   const collision = named.get(spec.collision);
   if (collision) {
-    if (!collision.getMesh()) problems.push(`${spec.collision} has no mesh`);
-    else {
+    if (!collision.getMesh()) {
+      problems.push(`${spec.collision} has no mesh`);
+    } else {
       const b = getBounds(collision);
       const half = [0, 1, 2].map((k) => size(b, k) / 2);
       const h = car.chassisHalfExtents;
@@ -224,6 +279,7 @@ export function validateCarModel(
           `${spec.collision} bounds ${f3(half)} differ from chassisHalfExtents ${f3(expected)}`,
         );
       }
+
       const count = triangles(collision);
       if (count > spec.collisionMaxTriangles) {
         problems.push(
@@ -232,6 +288,7 @@ export function validateCarModel(
       }
     }
   }
+
   return problems;
 }
 
@@ -247,6 +304,7 @@ export async function validateCarModelFile(
   } catch (error) {
     return [`cannot read ${path}: ${error instanceof Error ? error.message : String(error)}`];
   }
+
   return validateCarModel(doc, car, spec);
 }
 
@@ -256,7 +314,13 @@ if (import.meta.main) {
   const car = parseCar(await Bun.file(carPath).json(), carPath);
   const spec = parseCarModelInterface(await Bun.file("content/cars/model-interface.json").json());
   const problems = await validateCarModelFile(model, car, spec);
-  for (const problem of problems) console.error(`${model}: ${problem}`);
-  if (problems.length > 0) process.exit(1);
+  for (const problem of problems) {
+    console.error(`${model}: ${problem}`);
+  }
+
+  if (problems.length > 0) {
+    process.exit(1);
+  }
+
   console.log(`${model}: valid`);
 }

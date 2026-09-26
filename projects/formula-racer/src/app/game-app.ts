@@ -1,6 +1,7 @@
 import { fetchCar } from "../content/car.ts";
 import type { CarDefinition } from "../content/car.ts";
 import { fetchEnergyRules } from "../content/energy-rules.ts";
+import { fetchLiveries } from "../content/livery.ts";
 import { fetchTrack } from "../content/track.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import { createTrackView } from "../rendering/track-view.ts";
@@ -9,6 +10,7 @@ import type { HeldKeys } from "./keyboard.ts";
 import { formatLapTime } from "./format.ts";
 import { createLapStore, lapKey, storageNotice } from "./lap-store.ts";
 import type { StorageLike } from "./lap-store.ts";
+import { createPreferences } from "./preferences.ts";
 import { createDrivingSession } from "./session.ts";
 import type { SessionState } from "./session.ts";
 
@@ -25,6 +27,7 @@ export interface GameApp {
   /** See `DrivingSession.retune`. */
   retune(patch: Partial<CarDefinition>): void;
   car(): CarDefinition;
+
   /** Advances whole simulation steps with fixed input and renders once. */
   step(count: number, throttle: boolean): GameAppState;
   state(): GameAppState;
@@ -52,6 +55,7 @@ export interface Menu {
   steering: HTMLInputElement;
   abs: HTMLInputElement;
   traction: HTMLInputElement;
+  livery: HTMLSelectElement;
 }
 
 async function stage<T>(label: string, work: () => T | Promise<T>): Promise<T> {
@@ -79,14 +83,18 @@ export async function startGameApp(
   onFatal: (message: string) => void,
 ): Promise<GameApp> {
   const context = canvas.getContext("webgl2", { antialias: true });
-  if (!context) throw new StartupError("WebGL2 is not available in this browser");
+  if (!context) {
+    throw new StartupError("WebGL2 is not available in this browser");
+  }
+
   // Resolve against the document so the build works from any URL subpath.
   const asset = (path: string) => new URL(path, document.baseURI);
-  const [car, track, energy] = await stage("Could not load game content", () =>
+  const [car, track, energy, liveries] = await stage("Could not load game content", () =>
     Promise.all([
       fetchCar(asset("assets/cars/fr26.json")),
       fetchTrack(asset("assets/tracks/harbour.json")),
       fetchEnergyRules(asset("assets/rules/energy-2026-c18.json")),
+      fetchLiveries(asset("assets/cars/liveries.json")),
     ]),
   );
   await stage("Physics engine (WebAssembly) failed to start", initPhysics);
@@ -100,6 +108,12 @@ export async function startGameApp(
     throw error;
   });
   const store = createLapStore(browserStorage());
+  const preferences = createPreferences(browserStorage(), liveries);
+  menu.livery.replaceChildren(
+    ...liveries.map((livery) => new Option(`${livery.name} #${String(livery.number)}`, livery.id)),
+  );
+  menu.livery.value = preferences.livery().id;
+  view.setLivery(preferences.livery());
   let storedLaps = 0;
   const keyOf = (assists: SessionState["assists"], physicsVersion: string) =>
     lapKey({ trackId: track.id, physicsVersion, assists });
@@ -107,6 +121,7 @@ export async function startGameApp(
   const keyboard = createKeyboard(window, document);
   keyboard.onAction((action) => {
     session.action(action);
+
     // Show pause and reset at once rather than on the next frame.
     show();
   });
@@ -114,17 +129,26 @@ export async function startGameApp(
     session.focusLost();
     show();
   };
+
   const onVisibility = () => {
-    if (document.visibilityState === "hidden") onBlur();
+    if (document.visibilityState === "hidden") {
+      onBlur();
+    }
   };
+
   const onResume = () => {
-    if (session.state().paused) session.action("pause");
+    if (session.state().paused) {
+      session.action("pause");
+    }
+
     show();
   };
+
   const onRestart = () => {
     session.action("reset");
     onResume();
   };
+
   const onAssists = () => {
     session.setAssists({
       steering: menu.steering.checked,
@@ -133,10 +157,20 @@ export async function startGameApp(
     });
     show();
   };
+
+  // A livery is only paint, so changing it keeps the lap running.
+  const onLivery = () => {
+    preferences.setLivery(menu.livery.value);
+    view.setLivery(preferences.livery());
+  };
+
+  menu.livery.addEventListener("change", onLivery);
   menu.resume.addEventListener("click", onResume);
   menu.restart.addEventListener("click", onRestart);
-  for (const box of [menu.steering, menu.abs, menu.traction])
+  for (const box of [menu.steering, menu.abs, menu.traction]) {
     box.addEventListener("change", onAssists);
+  }
+
   addEventListener("blur", onBlur);
   document.addEventListener("visibilitychange", onVisibility);
 
@@ -151,6 +185,7 @@ export async function startGameApp(
     hud.speed.textContent = String(Math.round(Math.abs(s.speedKmh)));
     hud.gear.textContent = String(s.gear);
     hud.paused.hidden = !s.paused;
+
     // Nudged below whole seconds so 2.0 s left reads "2", not "3".
     const count = Math.ceil(s.countdownS - 1e-9);
     hud.countdown.hidden = count <= 0;
@@ -163,10 +198,14 @@ export async function startGameApp(
       const netKw = Math.round((s.energy.deployW - s.energy.regenW) / 1000);
       hud.ers.textContent = `${netKw > 0 ? "+" : ""}${String(netKw)} kW`;
     }
+
     hud.wing.textContent = s.wing.mode === "straight" ? "Straight" : "Corner";
-    for (const lap of s.laps.slice(storedLaps))
+    for (const lap of s.laps.slice(storedLaps)) {
       store.record(keyOf(lap.assists, lap.physicsVersion), lap);
+    }
+
     storedLaps = s.laps.length;
+
     // Recomputed every frame: a save can fail long after startup (quota).
     const note = storageNotice(store.status);
     hud.storageNote.textContent = note;
@@ -179,6 +218,7 @@ export async function startGameApp(
     const last = s.laps.at(-1);
     hud.lastLap.textContent = last ? `${formatLapTime(last.timeS)}${last.valid ? "" : " ✕"}` : "–";
   };
+
   const draw = (frameSeconds: number, held: HeldKeys): void => {
     const { car, camera } = session.frame(frameSeconds, held);
     view.render(car, camera);
@@ -189,10 +229,12 @@ export async function startGameApp(
       performance.measure("formula-racer:startup", { end: "formula-racer:first-frame" });
     }
   };
+
   const fail = (message: string): void => {
     dispose();
     onFatal(message);
   };
+
   const frame = (time: number): void => {
     frameRequest = requestAnimationFrame(frame);
     try {
@@ -203,21 +245,28 @@ export async function startGameApp(
       fail(`Frame failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
+
   const onContextLost = (event: Event): void => {
     event.preventDefault();
     fail("The graphics context was lost");
   };
+
   function dispose(): void {
-    if (disposed) return;
+    if (disposed) {
+      return;
+    }
+
     disposed = true;
     cancelAnimationFrame(frameRequest);
     canvas.removeEventListener("webglcontextlost", onContextLost);
     removeEventListener("blur", onBlur);
     menu.resume.removeEventListener("click", onResume);
     menu.restart.removeEventListener("click", onRestart);
+    menu.livery.removeEventListener("change", onLivery);
     for (const box of [menu.steering, menu.abs, menu.traction]) {
       box.removeEventListener("change", onAssists);
     }
+
     document.removeEventListener("visibilitychange", onVisibility);
     keyboard.dispose();
     view.dispose();
@@ -226,12 +275,18 @@ export async function startGameApp(
 
   canvas.addEventListener("webglcontextlost", onContextLost);
   frameRequest = requestAnimationFrame(frame);
+
   return {
     step(count, throttle) {
       const held = { throttle, brake: false, left: false, right: false, deploy: false };
+
       // One step's worth of time always yields exactly one fixed step.
-      for (let i = 0; i < count; i += 1) session.frame(session.stepSeconds, held);
+      for (let i = 0; i < count; i += 1) {
+        session.frame(session.stepSeconds, held);
+      }
+
       draw(0, held);
+
       return state();
     },
     retune(patch) {

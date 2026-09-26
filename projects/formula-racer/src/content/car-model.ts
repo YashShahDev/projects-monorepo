@@ -15,6 +15,10 @@ export interface CarModelInterface {
   collision: string;
   trianglesPerLod: number[];
   collisionMaxTriangles: number;
+
+  /** Body materials a livery recolours: main paint first, then accent. */
+  liveryMaterials: string[];
+
   /** Allowed overall size, height measured from the bottom of the wheels. */
   envelopeM: { length: [number, number]; width: [number, number]; height: [number, number] };
 }
@@ -24,6 +28,7 @@ const names = (value: unknown, path: string, count?: number) => {
   if (count !== undefined && list.length !== count) {
     throw new ContentError(`${path} must list exactly ${String(count)} names`);
   }
+
   return list;
 };
 
@@ -32,12 +37,16 @@ const range = (value: unknown, path: string): [number, number] => {
   if (min === undefined || max === undefined || min > max) {
     throw new ContentError(`${path} must be [min, max]`);
   }
+
   return [min, max];
 };
 
 export function parseCarModelInterface(value: unknown, source = "model"): CarModelInterface {
   const v = object(value, source);
-  if (v.version !== 1) throw new ContentError(`${source}.version must be 1`);
+  if (v.version !== 1) {
+    throw new ContentError(`${source}.version must be 1`);
+  }
+
   const lodCount = inRange(v.lodCount, `${source}.lodCount`, 1, 5);
   const trianglesPerLod = array(v.trianglesPerLod, `${source}.trianglesPerLod`, lodCount).map(
     (t, i) => positive(t, `${source}.trianglesPerLod[${String(i)}]`),
@@ -45,10 +54,12 @@ export function parseCarModelInterface(value: unknown, source = "model"): CarMod
   if (trianglesPerLod.some((t, i) => i > 0 && t >= (trianglesPerLod[i - 1] ?? 0))) {
     throw new ContentError(`${source}.trianglesPerLod must shrink with each level`);
   }
+
   const envelope = object(v.envelopeM, `${source}.envelopeM`);
   const spec: CarModelInterface = {
     version: 1,
     lodCount,
+
     // Physics wheel order: front-left, front-right, rear-left, rear-right.
     wheels: names(v.wheels, `${source}.wheels`, 4),
     flaps: names(v.flaps, `${source}.flaps`, 2),
@@ -57,6 +68,7 @@ export function parseCarModelInterface(value: unknown, source = "model"): CarMod
     collision: text(v.collision, `${source}.collision`),
     trianglesPerLod,
     collisionMaxTriangles: positive(v.collisionMaxTriangles, `${source}.collisionMaxTriangles`),
+    liveryMaterials: names(v.liveryMaterials, `${source}.liveryMaterials`, 2),
     envelopeM: {
       length: range(envelope.length, `${source}.envelopeM.length`),
       width: range(envelope.width, `${source}.envelopeM.width`),
@@ -65,7 +77,10 @@ export function parseCarModelInterface(value: unknown, source = "model"): CarMod
   };
   const all = requiredNodes(spec);
   const duplicate = all.find((name, i) => all.indexOf(name) !== i);
-  if (duplicate) throw new ContentError(`${source} names ${duplicate} twice (duplicate)`);
+  if (duplicate) {
+    throw new ContentError(`${source} names ${duplicate} twice (duplicate)`);
+  }
+
   return spec;
 }
 

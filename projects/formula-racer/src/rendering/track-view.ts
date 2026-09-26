@@ -1,11 +1,13 @@
 import * as THREE from "three";
 import type { CarDefinition } from "../content/car.ts";
+import type { Livery } from "../content/livery.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
 import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import type { CameraView } from "./camera-rig.ts";
 
 export interface TrackView {
   render(car: VehicleSnapshot, view: CameraView): void;
+  setLivery(livery: Livery): void;
   dispose(): void;
 }
 
@@ -38,6 +40,7 @@ function ribbon(
     const i = k % n;
     const x = track.x[i] ?? 0;
     const z = track.z[i] ?? 0;
+
     // Left of travel when facing the tangent (tx, tz).
     const lx = track.tz[i] ?? 0;
     const lz = -(track.tx[i] ?? 0);
@@ -45,17 +48,21 @@ function ribbon(
     const c = colourAt(i);
     colours.set([c.r, c.g, c.b, c.r, c.g, c.b], k * 6);
   }
+
   const index: number[] = [];
   for (let k = 0; k < n; k += 1) {
     const a = k * 2;
+
     // Outer lies to the left of inner, so this winding faces up (+y).
     index.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
   }
+
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.BufferAttribute(colours, 3));
   geometry.setIndex(index);
   geometry.computeVertexNormals();
+
   return geometry;
 }
 
@@ -72,6 +79,7 @@ export function createTrackView(
   const disposables: { dispose(): void }[] = [];
   const own = <T extends { dispose(): void }>(resource: T): T => {
     disposables.push(resource);
+
     return resource;
   };
 
@@ -121,7 +129,8 @@ export function createTrackView(
 
   const body = new THREE.Group();
   const h = car.chassisHalfExtents;
-  body.add(new THREE.Mesh(own(new THREE.BoxGeometry(h.x * 2, h.y * 2, h.z * 2)), flat(CAR)));
+  const paint = flat(CAR);
+  body.add(new THREE.Mesh(own(new THREE.BoxGeometry(h.x * 2, h.y * 2, h.z * 2)), paint));
   const w = car.wheels;
   const tyre = own(new THREE.CylinderGeometry(w.radius, w.radius, 0.4, 20));
   tyre.rotateZ(Math.PI / 2);
@@ -135,12 +144,14 @@ export function createTrackView(
     const wheel = new THREE.Mesh(tyre, tyreMaterial);
     wheel.position.set(x ?? 0, 0, z ?? 0);
     body.add(wheel);
+
     return wheel;
   });
   scene.add(body);
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 4000);
   const size = new THREE.Vector2();
+
   return {
     render(snapshot, view) {
       const { clientWidth: width, clientHeight: height } = canvas;
@@ -149,12 +160,16 @@ export function createTrackView(
         camera.aspect = width / Math.max(height, 1);
         camera.updateProjectionMatrix();
       }
+
       const { position: p, rotation: r } = snapshot;
       body.position.set(p.x, p.y, p.z);
       body.quaternion.set(r.x, r.y, r.z, r.w);
       snapshot.wheels.forEach((state, i) => {
         const wheel = wheels[i];
-        if (!wheel) return;
+        if (!wheel) {
+          return;
+        }
+
         wheel.position.y = w.connectionY - state.suspensionLength;
         wheel.rotation.set(state.spinRad, state.steerRad, 0, "YXZ");
       });
@@ -162,8 +177,14 @@ export function createTrackView(
       camera.lookAt(view.target.x, view.target.y, view.target.z);
       renderer.render(scene, camera);
     },
+    setLivery(livery) {
+      paint.color.set(livery.paint);
+    },
     dispose() {
-      for (const resource of disposables) resource.dispose();
+      for (const resource of disposables) {
+        resource.dispose();
+      }
+
       renderer.dispose();
     },
   };

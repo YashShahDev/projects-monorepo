@@ -6,6 +6,7 @@
   "body": "body",
   "anchors": ["camera_chase", "camera_cockpit"],
   "collision": "collision",
+  "liveryMaterials": ["paint", "accent"],
   "trianglesPerLod": [60000, 16000, 4000],
   "collisionMaxTriangles": 200,
   "envelopeM": {

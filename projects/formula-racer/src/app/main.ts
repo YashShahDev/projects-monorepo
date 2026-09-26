@@ -4,7 +4,10 @@ import { installTuningPanel } from "./tuning-panel.ts";
 
 function element<T extends HTMLElement>(selector: string): T {
   const found = document.querySelector<T>(selector);
-  if (!found) throw new Error(`index.html is missing ${selector}`);
+  if (!found) {
+    throw new Error(`index.html is missing ${selector}`);
+  }
+
   return found;
 }
 
@@ -30,6 +33,7 @@ const menu = {
   steering: element<HTMLInputElement>("#assist-steering"),
   abs: element<HTMLInputElement>("#assist-abs"),
   traction: element<HTMLInputElement>("#assist-traction"),
+  livery: element<HTMLSelectElement>("#livery"),
 };
 
 function showFatal(message: string): void {
@@ -48,9 +52,12 @@ function showFatal(message: string): void {
 try {
   const app = await startGameApp(canvas, hud, menu, showFatal);
   status.hidden = true;
+
   // A persisted page may be restored from the back/forward cache and keep running.
   addEventListener("pagehide", (event) => {
-    if (!event.persisted) app.dispose();
+    if (!event.persisted) {
+      app.dispose();
+    }
   });
   if (process.env.NODE_ENV !== "production") {
     installTestHooks(app);
