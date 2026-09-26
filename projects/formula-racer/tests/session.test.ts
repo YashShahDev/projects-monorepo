@@ -99,4 +99,37 @@ describe("driving session", () => {
     };
     expect(await at(30)).toBe(await at(144));
   });
+
+  // Codex P2 review: the car was drawn from the pre-step snapshot with the post-step
+  // camera, and whole 60 Hz steps judder at 144 Hz.
+  async function atSpeed() {
+    const s = await start();
+    drive(s, throttle, 8);
+    return s;
+  }
+
+  test("each frame's camera follows the car pose drawn in that frame", async () => {
+    const s = await atSpeed();
+    for (let i = 0; i < 30; i += 1) {
+      const { car, camera } = s.frame(1 / 144, throttle);
+      const gap = Math.hypot(
+        camera.position.x - car.position.x,
+        camera.position.z - car.position.z,
+      );
+      expect(gap).toBeCloseTo(6, 1);
+    }
+  });
+
+  test("the drawn car moves smoothly at 144 Hz between 60 Hz simulation steps", async () => {
+    const s = await atSpeed();
+    let last = s.frame(1 / 144, throttle).car.position;
+    const moves: number[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      const { position } = s.frame(1 / 144, throttle).car;
+      moves.push(Math.hypot(position.x - last.x, position.z - last.z));
+      last = position;
+    }
+    expect(Math.min(...moves)).toBeGreaterThan(0);
+    expect(Math.max(...moves) / Math.min(...moves)).toBeLessThan(1.3);
+  });
 });

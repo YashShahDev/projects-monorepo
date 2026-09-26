@@ -5,7 +5,7 @@ type: status
 status: active
 date: 2026-09-26
 updated: 2026-09-26
-summary: P2 checkpoints done; phase review next, then P3.
+summary: P2 done and reviewed; P3 time trial and energy in progress.
 ---
 
 # Current delivery status
@@ -13,34 +13,38 @@ summary: P2 checkpoints done; phase review next, then P3.
 - Branch: `feat/formula-racer`, main checkout (user preference).
 - Base: `origin/main`, `ef7ad88` at creation.
 - Completed phases: P0 — documentation and prerequisites; P1 — browser technical
-  foundation ([record](checkpoints/P1.md)).
-- Active phase: P2 — driving prototype ([record](checkpoints/P2.md)).
-- Next: P2 phase review, then P3.
+  foundation ([record](checkpoints/P1.md)); P2 — driving prototype
+  ([record](checkpoints/P2.md)).
+- Active phase: P3 — time trial and energy ([phase](phases/P3-time-trial.md)).
+- Next checkpoint: P3-C1 laps, checkpoints and timing.
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
 ## Next action
 
-P2-C1–C3 are done and the gate evidence is in the [P2 record](checkpoints/P2.md). Next:
-the P2 phase review of `aab4afa^..HEAD` (Codex `gpt-6-astra`; if Codex is out of usage,
-`/antigravity:review`; see AGENTS.md). Reproduce each finding, fix with a failing test
-first, record accepted and rejected findings, then mark P2 done and start P3 from its
-phase document.
+P2 is done: all four Codex (`gpt-6-astra`) findings reproduced and fixed. Next, P3-C1,
+test-first: ordered checkpoints along `TrackGeometry`, lap countdown/validity/timing,
+reverse crossing and shortcut prevention, reset invalidating the current lap, and lap
+records tagged with physics version, assists and tuning. Before P3-C2, read RES-002,
+show the selected regulatory revision and document gameplay deviations.
 
 ## Checkpoints
 
-| ID    | State   | Evidence                                                        |
-| ----- | ------- | --------------------------------------------------------------- |
-| P0-C1 | done    | `35d4059`; [P0 record](checkpoints/P0.md)                       |
-| P0-C2 | done    | `1df7e26`; [tooling evidence](checkpoints/P0.md)                |
-| P0-C3 | done    | `d8f8b38`; [verification](checkpoints/P0.md)                    |
-| P1-C1 | done    | `2c619ed`; [P1 record](checkpoints/P1.md)                       |
-| P1-C2 | done    | `c4768e0`; [P1 record](checkpoints/P1.md)                       |
-| P1-C3 | done    | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md) |
-| P2-C1 | done    | `aab4afa`; [P2 record](checkpoints/P2.md)                       |
-| P2-C2 | done    | `f9cb3b1`… (`--grep=P2-C2`); [P2 record](checkpoints/P2.md)     |
-| P2-C3 | done    | `ec511a5`… (`--grep=P2-C3`); [P2 record](checkpoints/P2.md)     |
-| P3–P5 | planned | [Roadmap](ROADMAP.md)                                           |
+| ID        | State   | Evidence                                                                    |
+| --------- | ------- | --------------------------------------------------------------------------- |
+| P0-C1     | done    | `35d4059`; [P0 record](checkpoints/P0.md)                                   |
+| P0-C2     | done    | `1df7e26`; [tooling evidence](checkpoints/P0.md)                            |
+| P0-C3     | done    | `d8f8b38`; [verification](checkpoints/P0.md)                                |
+| P1-C1     | done    | `2c619ed`; [P1 record](checkpoints/P1.md)                                   |
+| P1-C2     | done    | `c4768e0`; [P1 record](checkpoints/P1.md)                                   |
+| P1-C3     | done    | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md)             |
+| P2-C1     | done    | `aab4afa`; [P2 record](checkpoints/P2.md)                                   |
+| P2-C2     | done    | `f9cb3b1`… (`--grep=P2-C2`); [P2 record](checkpoints/P2.md)                 |
+| P2-C3     | done    | `ec511a5`… (`--grep=P2-C3`); [P2 record](checkpoints/P2.md)                 |
+| P2 review | done    | Codex `gpt-6-astra`, 4/4 fixed; [P2 record](checkpoints/P2.md#phase-review) |
+| P3-C1     | next    | [P3](phases/P3-time-trial.md)                                               |
+| P3-C2–C3  | planned | [P3](phases/P3-time-trial.md)                                               |
+| P4–P5     | planned | [Roadmap](ROADMAP.md)                                                       |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 

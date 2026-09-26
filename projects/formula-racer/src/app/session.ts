@@ -11,6 +11,7 @@ import type { Surface, TrackGeometry } from "../simulation/track-geometry.ts";
 import { buildVehicleSimulation, createVehicleSimulation } from "../simulation/vehicle.ts";
 import type { VehicleOptions } from "../simulation/vehicle.ts";
 import type { DriverAssists, VehicleSnapshot } from "../simulation/vehicle.ts";
+import type { Pose } from "../simulation/physics.ts";
 import type { KeyAction } from "./keyboard.ts";
 
 export interface SessionState {
@@ -30,11 +31,19 @@ export interface SessionState {
   pendingTuning: boolean;
 }
 
+export interface FrameView {
+  car: VehicleSnapshot;
+  camera: CameraView;
+}
+
 export interface DrivingSession {
   readonly geometry: TrackGeometry;
   readonly stepSeconds: number;
-  /** Advances by one displayed frame and returns the camera for it. */
-  frame(frameSeconds: number, held: DigitalInput): CameraView;
+  /**
+   * Advances by one displayed frame and returns what to draw: the car interpolated
+   * between the last two simulation steps, and the camera following that same pose.
+   */
+  frame(frameSeconds: number, held: DigitalInput): FrameView;
   action(action: KeyAction): void;
   focusLost(): void;
   setAssists(assists: DriverAssists): void;
@@ -51,6 +60,37 @@ export interface DrivingSession {
 }
 
 const MAX_STEPS_PER_FRAME = 8;
+
+const poseOf = (s: VehicleSnapshot): Pose => ({ position: s.position, rotation: s.rotation });
+
+/** Linear position and normalized-lerp rotation; steps are too short for nlerp to drift. */
+function blend(a: Pose, b: Pose, t: number): Pose {
+  const lerp = (x: number, y: number) => x + (y - x) * t;
+  // Take the short way round: q and -q are the same rotation.
+  const sign =
+    a.rotation.x * b.rotation.x +
+      a.rotation.y * b.rotation.y +
+      a.rotation.z * b.rotation.z +
+      a.rotation.w * b.rotation.w <
+    0
+      ? -1
+      : 1;
+  const q = {
+    x: lerp(a.rotation.x, sign * b.rotation.x),
+    y: lerp(a.rotation.y, sign * b.rotation.y),
+    z: lerp(a.rotation.z, sign * b.rotation.z),
+    w: lerp(a.rotation.w, sign * b.rotation.w),
+  };
+  const n = Math.hypot(q.x, q.y, q.z, q.w) || 1;
+  return {
+    position: {
+      x: lerp(a.position.x, b.position.x),
+      y: lerp(a.position.y, b.position.y),
+      z: lerp(a.position.z, b.position.z),
+    },
+    rotation: { x: q.x / n, y: q.y / n, z: q.z / n, w: q.w / n },
+  };
+}
 
 export async function createDrivingSession(
   car: CarDefinition,
@@ -79,6 +119,9 @@ export async function createDrivingSession(
   const smoother = createInputSmoother();
   const camera = createCameraRig();
   let paused = false;
+  // Pose before the latest step and how far the display is between the two.
+  let previous = poseOf(sim.snapshot());
+  let alpha = 1;
   // The first frame after a pause reports the whole paused gap; it must not be simulated.
   let skipNextFrame = false;
   let cameraMode: CameraMode = "chase";
@@ -98,15 +141,19 @@ export async function createDrivingSession(
       if (skipNextFrame) {
         skipNextFrame = false;
       } else if (!paused) {
-        const { steps } = stepper.advance(frameSeconds);
+        const plan = stepper.advance(frameSeconds);
         // Input is smoothed per simulation step, not per frame, so the render rate
         // cannot change what the car does.
-        for (let i = 0; i < steps; i += 1) {
+        for (let i = 0; i < plan.steps; i += 1) {
+          previous = poseOf(sim.snapshot());
           const speed = sim.snapshot().speedMps;
           sim.step(smoother.update(held, speed, sim.stepSeconds));
         }
+        alpha = plan.alpha;
       }
-      return camera.update(sim.snapshot(), frameSeconds);
+      const latest = sim.snapshot();
+      const car = { ...latest, ...blend(previous, poseOf(latest), alpha) };
+      return { car, camera: camera.update(car, frameSeconds) };
     },
     action(action) {
       if (action === "pause") {
@@ -124,6 +171,8 @@ export async function createDrivingSession(
           sim.reset();
         }
         smoother.reset();
+        previous = poseOf(sim.snapshot());
+        alpha = 1;
         camera.reset();
         stepper.reset();
         hint = undefined;

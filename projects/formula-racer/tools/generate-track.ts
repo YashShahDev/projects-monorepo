@@ -5,9 +5,9 @@
 //   bun run tools/generate-track.ts <layout.json> <out.json> [preview.svg]
 import { readFileSync, writeFileSync } from "node:fs";
 
-type Segment = { straight: number; solve?: boolean } | { arc: number; radius: number }; // degrees, positive turns left
+export type Segment = { straight: number; solve?: boolean } | { arc: number; radius: number }; // degrees, positive turns left
 
-interface Layout {
+export interface Layout {
   id: string;
   name: string;
   widthM: number;
@@ -17,13 +17,16 @@ interface Layout {
   segments: Segment[];
 }
 
-const [layoutPath, outPath, svgPath] = process.argv.slice(2);
-if (!layoutPath || !outPath)
-  throw new Error("usage: generate-track <layout.json> <out.json> [preview.svg]");
-const layout = JSON.parse(readFileSync(layoutPath, "utf8")) as Layout;
+export interface GeneratedTrack {
+  /** Track content in the shipped JSON shape. */
+  track: Record<string, unknown>;
+  /** The solved straight lengths, in layout order. */
+  solvedM: [number, number];
+  points: { x: number; z: number }[];
+}
 
 // Heading 0 faces +z; a left turn (toward +x) increases it.
-function trace(lengths: number[]) {
+function trace(layout: Layout, lengths: number[]) {
   const points: { x: number; z: number }[] = [];
   let x = 0;
   let z = 0;
@@ -32,7 +35,7 @@ function trace(lengths: number[]) {
   for (const segment of layout.segments) {
     if ("straight" in segment) {
       const length = segment.solve ? (lengths[solved++] ?? 0) : segment.straight;
-      const pieces = Math.max(1, Math.ceil(length / 60));
+      const pieces = Math.max(1, Math.ceil(Math.abs(length) / 60));
       for (let i = 0; i < pieces; i += 1) {
         points.push({ x, z });
         x += (Math.sin(heading) * length) / pieces;
@@ -56,57 +59,81 @@ function trace(lengths: number[]) {
   return { points, end: { x, z }, heading };
 }
 
-const solvable = layout.segments.filter((s) => "straight" in s && s.solve);
-if (solvable.length !== 2) throw new Error("mark exactly two straights with solve: true");
-// The end position is affine in the two solved lengths, so two probes give the system.
-const origin = trace([0, 0]).end;
-const a = trace([1, 0]).end;
-const b = trace([0, 1]).end;
-const ax = a.x - origin.x;
-const az = a.z - origin.z;
-const bx = b.x - origin.x;
-const bz = b.z - origin.z;
-const det = ax * bz - az * bx;
-const l1 = (-origin.x * bz + origin.z * bx) / det;
-const l2 = (-ax * origin.z + az * origin.x) / det;
-if (!(l1 > 0 && l2 > 0)) throw new Error(`no closing lengths: ${l1.toFixed(1)}, ${l2.toFixed(1)}`);
-const result = trace([l1, l2]);
-const turns = result.heading / (2 * Math.PI);
-if (Math.abs(Math.abs(turns) - 1) > 1e-9) throw new Error(`heading sums to ${String(turns)} turns`);
-
 const round = (v: number) => Math.round(v * 10) / 10;
-const track = {
-  version: 1,
-  id: layout.id,
-  name: layout.name,
-  widthM: layout.widthM,
-  kerbWidthM: layout.kerbWidthM,
-  controlPoints: result.points.map((p) => [round(p.x), round(p.z)]),
-  startDistanceM: layout.startDistanceM,
-  surfaceGrip: layout.surfaceGrip,
-};
-writeFileSync(outPath, `${JSON.stringify(track)}\n`);
-console.log(
-  `solved straights ${l1.toFixed(1)} m and ${l2.toFixed(1)} m; ${String(result.points.length)} points`,
-);
 
-if (svgPath) {
-  const xs = result.points.map((p) => p.x);
-  const zs = result.points.map((p) => p.z);
+export function generateTrack(layout: Layout): GeneratedTrack {
+  const solvable = layout.segments.filter((s) => "straight" in s && s.solve);
+  if (solvable.length !== 2) throw new Error("mark exactly two straights with solve: true");
+  const turns = trace(layout, [0, 0]).heading / (2 * Math.PI);
+  if (Math.abs(Math.abs(turns) - 1) > 1e-9) {
+    throw new Error(`heading sums to ${String(turns)} turns, not one`);
+  }
+  // The end position is affine in the two solved lengths, so two probes give the system.
+  const origin = trace(layout, [0, 0]).end;
+  const a = trace(layout, [1, 0]).end;
+  const b = trace(layout, [0, 1]).end;
+  const ax = a.x - origin.x;
+  const az = a.z - origin.z;
+  const bx = b.x - origin.x;
+  const bz = b.z - origin.z;
+  const det = ax * bz - az * bx;
+  if (Math.abs(det) < 1e-9) throw new Error("solved straights are parallel; no closing lengths");
+  const l1 = (-origin.x * bz + origin.z * bx) / det;
+  const l2 = (-ax * origin.z + az * origin.x) / det;
+  if (!(l1 > 0 && l2 > 0)) {
+    throw new Error(`no closing lengths: ${l1.toFixed(1)}, ${l2.toFixed(1)}`);
+  }
+  const { points } = trace(layout, [l1, l2]);
+  return {
+    track: {
+      version: 1,
+      id: layout.id,
+      name: layout.name,
+      widthM: layout.widthM,
+      kerbWidthM: layout.kerbWidthM,
+      controlPoints: points.map((p) => [round(p.x), round(p.z)]),
+      startDistanceM: layout.startDistanceM,
+      surfaceGrip: layout.surfaceGrip,
+    },
+    solvedM: [l1, l2],
+    points,
+  };
+}
+
+export function previewSvg(layout: Layout, points: { x: number; z: number }[]): string {
+  const xs = points.map((p) => p.x);
+  const zs = points.map((p) => p.z);
   const pad = 60;
   const minX = Math.min(...xs) - pad;
   const minZ = Math.min(...zs) - pad;
   const w = Math.max(...xs) + pad - minX;
   const h = Math.max(...zs) + pad - minZ;
   // Mirror x so the map reads as seen from above with +z up the page.
-  const path = result.points
-    .map(
-      (p, i) =>
-        `${i ? "L" : "M"}${String(round(minX + w - (p.x - minX)))},${String(round(minZ + h - (p.z - minZ)))}`,
-    )
+  const px = (x: number) => round(minX + w - (x - minX));
+  const pz = (z: number) => round(minZ + h - (z - minZ));
+  const path = points
+    .map((p, i) => `${i ? "L" : "M"}${String(px(p.x))},${String(pz(p.z))}`)
     .join(" ");
-  writeFileSync(
-    svgPath,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${String(minX)} ${String(minZ)} ${String(w)} ${String(h)}" width="900"><rect x="${String(minX)}" y="${String(minZ)}" width="${String(w)}" height="${String(h)}" fill="#1b2b1b"/><path d="${path} Z" fill="none" stroke="#888" stroke-width="${String(layout.widthM)}" stroke-linejoin="round"/><circle cx="${String(minX + w - (0 - minX))}" cy="${String(minZ + h - (0 - minZ))}" r="15" fill="#e33"/></svg>\n`,
+  const box = `${String(minX)} ${String(minZ)} ${String(w)} ${String(h)}`;
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box}" width="900">` +
+    `<rect x="${String(minX)}" y="${String(minZ)}" width="${String(w)}" height="${String(h)}" fill="#1b2b1b"/>` +
+    `<path d="${path} Z" fill="none" stroke="#888" stroke-width="${String(layout.widthM)}" stroke-linejoin="round"/>` +
+    `<circle cx="${String(px(0))}" cy="${String(pz(0))}" r="15" fill="#e33"/></svg>\n`
   );
+}
+
+if (import.meta.main) {
+  const [layoutPath, outPath, svgPath] = process.argv.slice(2);
+  if (!layoutPath || !outPath) {
+    throw new Error("usage: generate-track <layout.json> <out.json> [preview.svg]");
+  }
+  const layout = JSON.parse(readFileSync(layoutPath, "utf8")) as Layout;
+  const result = generateTrack(layout);
+  writeFileSync(outPath, `${JSON.stringify(result.track)}\n`);
+  const [l1, l2] = result.solvedM;
+  console.log(
+    `solved straights ${l1.toFixed(1)} m and ${l2.toFixed(1)} m; ${String(result.points.length)} points`,
+  );
+  if (svgPath) writeFileSync(svgPath, previewSvg(layout, result.points));
 }

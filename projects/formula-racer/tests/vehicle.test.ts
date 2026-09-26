@@ -80,6 +80,19 @@ describe("vehicle simulation", () => {
     sim.dispose();
   });
 
+  test("reset clears the vehicle controller's cached speed and gear", async () => {
+    // Codex P2 review: Rapier's controller kept ~86 m/s after a reset.
+    const sim = await settledVehicle();
+    run(sim, { throttle: 1, brake: 0, steer: 0 }, 10);
+    sim.reset();
+    expect(Math.abs(sim.snapshot().speedMps)).toBeLessThan(0.01);
+    sim.step(NO_CONTROLS);
+    const after = sim.snapshot();
+    expect(Math.abs(after.speedMps)).toBeLessThan(0.5);
+    expect(after.gear).toBe(1);
+    sim.dispose();
+  });
+
   test("identical input produces identical trajectories", async () => {
     const drive = async () => {
       const sim = await settledVehicle();

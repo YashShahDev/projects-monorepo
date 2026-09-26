@@ -138,32 +138,36 @@ export function buildVehicleSimulation(
   // Mass comes from the body's explicit properties so the collider shape can change freely.
   world.createCollider(RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setDensity(0), body);
 
-  const vehicle = world.createVehicleController(body);
-  vehicle.indexUpAxis = 1;
-  // Rapier 0.21 names this setter `setIndexForwardAxis` (a property, not a method).
-  vehicle.setIndexForwardAxis = 2;
   const wheelPoints: Vec3[] = [
     { x: w.halfTrack, y: w.connectionY, z: w.frontAxleZ },
     { x: -w.halfTrack, y: w.connectionY, z: w.frontAxleZ },
     { x: w.halfTrack, y: w.connectionY, z: w.rearAxleZ },
     { x: -w.halfTrack, y: w.connectionY, z: w.rearAxleZ },
   ];
-  wheelPoints.forEach((point, i) => {
-    vehicle.addWheel(
-      point,
-      { x: 0, y: -1, z: 0 },
-      { x: -1, y: 0, z: 0 },
-      w.suspensionRestLength,
-      w.radius,
-    );
-    vehicle.setWheelMaxSuspensionTravel(i, w.maxSuspensionTravel);
-    vehicle.setWheelSuspensionStiffness(i, w.suspensionStiffness);
-    vehicle.setWheelSuspensionCompression(i, w.suspensionCompression);
-    vehicle.setWheelSuspensionRelaxation(i, w.suspensionRelaxation);
-    vehicle.setWheelMaxSuspensionForce(i, w.maxSuspensionForceN);
-    vehicle.setWheelFrictionSlip(i, w.frictionCoefficient);
-    vehicle.setWheelSideFrictionStiffness(i, w.sideFrictionStiffness);
-  });
+  const createController = () => {
+    const controller = world.createVehicleController(body);
+    controller.indexUpAxis = 1;
+    // Rapier 0.21 names this setter `setIndexForwardAxis` (a property, not a method).
+    controller.setIndexForwardAxis = 2;
+    wheelPoints.forEach((point, i) => {
+      controller.addWheel(
+        point,
+        { x: 0, y: -1, z: 0 },
+        { x: -1, y: 0, z: 0 },
+        w.suspensionRestLength,
+        w.radius,
+      );
+      controller.setWheelMaxSuspensionTravel(i, w.maxSuspensionTravel);
+      controller.setWheelSuspensionStiffness(i, w.suspensionStiffness);
+      controller.setWheelSuspensionCompression(i, w.suspensionCompression);
+      controller.setWheelSuspensionRelaxation(i, w.suspensionRelaxation);
+      controller.setWheelMaxSuspensionForce(i, w.maxSuspensionForceN);
+      controller.setWheelFrictionSlip(i, w.frictionCoefficient);
+      controller.setWheelSideFrictionStiffness(i, w.sideFrictionStiffness);
+    });
+    return controller;
+  };
+  let vehicle = createController();
 
   let simSeconds = 0;
   let applied: DriverControls = { ...NO_CONTROLS };
@@ -291,6 +295,11 @@ export function buildVehicleSimulation(
       body.resetForces(true);
       body.resetTorques(true);
       applied = { ...NO_CONTROLS };
+      // The controller caches speed, suspension and wheel spin from its last update;
+      // a fresh one makes a reset behave like a new start.
+      world.removeVehicleController(vehicle);
+      vehicle = createController();
+      surfaceGrip.fill(1);
       powertrain.reset();
       drivetrain = powertrain.update(0, 0, stepSeconds);
     },

@@ -96,7 +96,8 @@ export async function startGameApp(
     hud.paused.hidden = !s.paused;
   };
   const draw = (frameSeconds: number, held: HeldKeys): void => {
-    view.render(session.snapshot(), session.frame(frameSeconds, held));
+    const { car, camera } = session.frame(frameSeconds, held);
+    view.render(car, camera);
     show();
     frames += 1;
     if (frames === 1) {
