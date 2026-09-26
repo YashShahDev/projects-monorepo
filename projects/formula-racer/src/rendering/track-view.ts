@@ -6,7 +6,18 @@ import type { CameraView } from "./camera-rig.ts";
 import type { BoundCarModel } from "./car-model-view.ts";
 import type { QualitySettings } from "./quality.ts";
 
+export interface RenderStats {
+  drawCalls: number;
+  triangles: number;
+  width: number;
+  height: number;
+  glVendor: string;
+  glRenderer: string;
+}
+
 export interface TrackView {
+  /** Counts from the last rendered frame, plus the drawing buffer and GPU identity. */
+  stats(): RenderStats;
   render(car: VehicleSnapshot, view: CameraView): void;
   setLivery(livery: Livery): void;
   setQuality(settings: QualitySettings): void;
@@ -128,7 +139,20 @@ export function createTrackView(
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 4000);
   const size = new THREE.Vector2();
 
+  // The unmasked names identify the real GPU, which a benchmark report needs.
+  const debugInfo = context.getExtension("WEBGL_debug_renderer_info");
+  const glVendor = String(context.getParameter(debugInfo ? debugInfo.UNMASKED_VENDOR_WEBGL : context.VENDOR));
+  const glRenderer = String(context.getParameter(debugInfo ? debugInfo.UNMASKED_RENDERER_WEBGL : context.RENDERER));
+
   return {
+    stats: () => ({
+      drawCalls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      width: context.drawingBufferWidth,
+      height: context.drawingBufferHeight,
+      glVendor,
+      glRenderer,
+    }),
     render(snapshot, view) {
       const { clientWidth: width, clientHeight: height } = canvas;
       if (renderer.getSize(size).x !== width || size.y !== height) {

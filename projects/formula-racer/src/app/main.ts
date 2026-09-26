@@ -1,3 +1,5 @@
+import { parseBenchOptions } from "./bench.ts";
+import type { BenchReport } from "./bench.ts";
 import { startGameApp } from "./game-app.ts";
 import { installTestHooks } from "./test-hooks.ts";
 import { installTuningPanel } from "./tuning-panel.ts";
@@ -53,8 +55,35 @@ function showFatal(message: string): void {
   status.append(text, reload);
 }
 
+/** `?bench` runs the benchmark route and prints its report on the page and the console. */
+function bench() {
+  const options = parseBenchOptions(location.search);
+  if (!options) {
+    return undefined;
+  }
+
+  return {
+    options,
+    onDone(report: BenchReport) {
+      const json = JSON.stringify(report, null, 2);
+      const pre = document.createElement("pre");
+      pre.id = "bench-report";
+      pre.textContent = json;
+      document.body.append(pre);
+      console.info("formula-racer:bench", json);
+    },
+  };
+}
+
 try {
-  const app = await startGameApp(canvas, hud, menu, showFatal, new URLSearchParams(location.search).get("track"));
+  const app = await startGameApp(
+    canvas,
+    hud,
+    menu,
+    showFatal,
+    new URLSearchParams(location.search).get("track"),
+    bench(),
+  );
   status.hidden = true;
 
   // A persisted page may be restored from the back/forward cache and keep running.

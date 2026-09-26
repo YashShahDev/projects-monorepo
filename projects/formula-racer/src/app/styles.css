@@ -169,6 +169,18 @@ body {
   opacity: 0.9;
 }
 
+#bench-report {
+  position: fixed;
+  inset: 16px auto auto 16px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  background: rgb(0 0 0 / 80%);
+  color: #fff;
+  font-size: 12px;
+}
+
 #charge-meter {
   width: 64px;
   vertical-align: middle;

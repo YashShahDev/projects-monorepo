@@ -21,6 +21,9 @@ import { createLapStore, lapKey, storageNotice } from "./lap-store.ts";
 import type { StorageLike } from "./lap-store.ts";
 import { createPreferences } from "./preferences.ts";
 import { createDrivingSession, TYRE_HALF_WIDTH_M } from "./session.ts";
+import { autopilot } from "./autopilot.ts";
+import { createBenchRecorder } from "./bench.ts";
+import type { BenchOptions, BenchReport } from "./bench.ts";
 import type { SessionState } from "./session.ts";
 
 export class StartupError extends Error {
@@ -98,6 +101,7 @@ export async function startGameApp(
   menu: Menu,
   onFatal: (message: string) => void,
   requestedTrack: string | null = null,
+  bench?: { options: BenchOptions; onDone: (report: BenchReport) => void },
 ): Promise<GameApp> {
   const context = canvas.getContext("webgl2", { antialias: true });
   if (!context) {
@@ -323,9 +327,40 @@ export async function startGameApp(
     hud.lastLap.textContent = last ? `${formatLapTime(last.timeS)}${last.valid ? "" : " ✕"}` : "–";
   };
 
+  const recorder = bench ? createBenchRecorder(bench.options) : undefined;
+  let benchReported = false;
   const draw = (frameSeconds: number, held: HeldKeys): void => {
+    const t0 = performance.now();
     const { car, camera } = session.frame(frameSeconds, held);
+    const t1 = performance.now();
     view.render(car, camera);
+    if (recorder && bench && !benchReported) {
+      const stats = view.stats();
+      const phase = recorder.record({
+        frameMs: frameSeconds * 1000,
+        simMs: t1 - t0,
+        renderMs: performance.now() - t1,
+        drawCalls: stats.drawCalls,
+        triangles: stats.triangles,
+        metres: Math.abs(car.speedMps) * frameSeconds,
+      });
+      if (phase === "done") {
+        benchReported = true;
+        const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+        const navigation = performance.getEntriesByType("navigation") as PerformanceNavigationTiming[];
+        bench.onDone({
+          ...recorder.result(),
+          route: `${track.id}-autopilot-v1`,
+          quality: preferences.quality(),
+          pixelRatio: qualitySettings(preferences.quality(), window.devicePixelRatio).pixelRatio,
+          drawingBuffer: { width: stats.width, height: stats.height },
+          gl: { vendor: stats.glVendor, renderer: stats.glRenderer },
+          userAgent: navigator.userAgent,
+          transferBytes: [...navigation, ...resources].reduce((sum, entry) => sum + entry.transferSize, 0),
+        });
+      }
+    }
+
     listen(car);
     show();
     frames += 1;
@@ -345,7 +380,9 @@ export async function startGameApp(
     try {
       const frameSeconds = lastTime === undefined ? 0 : (time - lastTime) / 1000;
       lastTime = time;
-      draw(frameSeconds, keyboard.held());
+
+      // The benchmark route drives itself so every run sees the same inputs.
+      draw(frameSeconds, recorder && !benchReported ? autopilot(session) : keyboard.held());
     } catch (error) {
       fail(`Frame failed: ${error instanceof Error ? error.message : String(error)}`);
     }
