@@ -8,9 +8,11 @@ import {
   MAX_GHOST_SAMPLES,
 } from "../src/simulation/ghost.ts";
 import type { Ghost } from "../src/simulation/ghost.ts";
+import { MAX_LAP_MARKS } from "../src/simulation/tyre-marks.ts";
+import type { TyreMark } from "../src/simulation/tyre-marks.ts";
 
 /** A car driving along +z at `speed`, sampled every `dt`, for a lap of `length` metres. */
-function straightLap(speed: number, dt: number, length = 300): Ghost {
+function straightLap(speed: number, dt: number, length = 300, marks: TyreMark[] = []): Ghost {
   const recorder = createGhostRecorder();
   recorder.begin({ timeS: 0, x: 0, z: 0, heading: 0, progressM: 0 });
   let t = 0;
@@ -20,7 +22,7 @@ function straightLap(speed: number, dt: number, length = 300): Ghost {
 
   const lapTime = length / speed;
 
-  return recorder.finish({ timeS: lapTime, x: 0, z: length, heading: 0, progressM: length });
+  return recorder.finish({ timeS: lapTime, x: 0, z: length, heading: 0, progressM: length }, marks);
 }
 
 describe("recording", () => {
@@ -122,5 +124,41 @@ describe("storage format", () => {
     expect(
       decodeGhost(encodeGhost(huge.finish({ timeS: 160, x: 0, z: 1400, heading: 0, progressM: 1400 }))),
     ).toBeUndefined();
+  });
+
+  test("carries the lap's tyre marks, to float and centisecond precision", () => {
+    const marks = [
+      { ax: 1.1, az: 20.2, bx: 1.3, bz: 20.9, timeS: 0.67 },
+      { ax: -4, az: 100, bx: -4.2, bz: 100.6, timeS: 3.334 },
+    ];
+    const ghost = straightLap(30, 1 / 60, 300, marks);
+    expect(ghost.marks).toEqual(marks);
+    const back = decodeGhost(encodeGhost(ghost));
+    expect(back?.marks).toHaveLength(2);
+    expect(back?.marks[1]?.bz).toBeCloseTo(100.6, 4);
+    expect(back?.marks[1]?.timeS).toBe(3.33);
+  });
+
+  test("still reads ghosts saved before marks were kept", () => {
+    const text = encodeGhost(straightLap(30, 1 / 60));
+
+    // The older format is the same without the trailing mark count.
+    const legacy = `1${btoa(atob(text.slice(1)).slice(0, -2))}`;
+    const back = decodeGhost(legacy);
+    expect(back?.timeS.length).toBe(straightLap(30, 1 / 60).timeS.length);
+    expect(back?.marks).toEqual([]);
+  });
+
+  test("rejects a lap with more marks than a lap keeps", () => {
+    const mark = { ax: 0, az: 0, bx: 0, bz: 1, timeS: 1 };
+    const text = encodeGhost(
+      straightLap(
+        30,
+        1 / 60,
+        300,
+        Array.from({ length: MAX_LAP_MARKS + 1 }, () => mark),
+      ),
+    );
+    expect(decodeGhost(text)).toBeUndefined();
   });
 });

@@ -13,6 +13,8 @@ import { createTrackView } from "../rendering/track-view.ts";
 import { createGhostView } from "../rendering/ghost-view.ts";
 import type { GhostMode } from "../rendering/ghost-view.ts";
 import { createGuideView } from "../rendering/guide-view.ts";
+import { createTyreMarksView } from "../rendering/tyre-marks-view.ts";
+import type { TyreMarksState } from "../rendering/tyre-marks-view.ts";
 import { ghostDelta, ghostPoseAt } from "../simulation/ghost.ts";
 import type { Ghost } from "../simulation/ghost.ts";
 import { createGhostStore } from "./ghost-store.ts";
@@ -49,6 +51,7 @@ export interface GameAppState extends SessionState {
   /** Undefined until the racing line is built, shortly after the first frame. */
   guide: GuideState | undefined;
   ghost: { mode: GhostMode; visible: boolean; deltaS: number | undefined };
+  marks: TyreMarksState;
 }
 
 export interface GameApp {
@@ -181,6 +184,10 @@ export async function startGameApp(
   const ghosts = createGhostStore(browserStorage());
   const ghostView = createGhostView(model);
   view.add(ghostView);
+  const marksView = createTyreMarksView();
+  view.add(marksView);
+  let markSerial = 0;
+  let marksState: TyreMarksState = { live: 0, ghost: 0 };
 
   // Decoded once per key; a new best replaces its entry.
   const bestGhosts = new Map<string, Ghost | undefined>();
@@ -432,6 +439,7 @@ export async function startGameApp(
     sound: { ...sound, enabled: preferences.sound(), output: audio?.state() ?? "none" },
     guide: guideState,
     ghost: { mode: preferences.ghost(), visible: ghostView.object.visible, deltaS },
+    marks: marksState,
   });
   let racing: Ghost | undefined;
   let deltaS: number | undefined;
@@ -520,6 +528,13 @@ export async function startGameApp(
     const t1 = performance.now();
     guideState = guide?.update(car.position, car.speedMps, preferences.racingLine());
     ghostView.update(racing && lapTimeS !== undefined ? ghostPoseAt(racing, lapTimeS) : undefined, car.position.y);
+    const laid = session.marks(markSerial);
+    markSerial = laid.serial;
+    marksView.add(laid.marks);
+    marksState = marksView.update(
+      car.simSeconds,
+      racing && lapTimeS !== undefined ? { marks: racing.marks, lapTimeS } : undefined,
+    );
     view.render(car, camera);
     if (recorder && bench && !benchReported) {
       const stats = view.stats();

@@ -43,12 +43,22 @@ export const ALL_ASSISTS: Readonly<DriverAssists> = Object.freeze({
   traction: true,
 });
 
+/**
+ * What a tyre is doing on the surface: locked under braking, spinning under drive, or
+ * sliding sideways past its grip. Each leaves a mark.
+ */
+export type WheelSlip = "none" | "locked" | "spinning" | "sliding";
+
 export interface WheelState {
   /** Metres from the chassis connection point along the suspension direction. */
   suspensionLength: number;
   steerRad: number;
   spinRad: number;
   inContact: boolean;
+  slip: WheelSlip;
+
+  /** Where the tyre touches the ground; absent while it is in the air. */
+  contact: Vec3 | undefined;
 }
 
 export interface VehicleSnapshot {
@@ -155,6 +165,12 @@ const ASSIST_GRIP_MARGIN = 0.9;
 const ABS_REAR_GRIP_SHARE = 0.7;
 // A locked or spinning slick carries about three quarters of its peak grip.
 const SLIDING_GRIP = 0.75;
+
+// A tyre sliding sideways enough to mark. Assisted cornering at the limit peaks near 6°
+// at the front (100 km/h) and 2° at the rear; full lock at 150 km/h without the assist
+// reaches 20°.
+const SLIDE_ANGLE_RAD = 0.14;
+const SLIDE_MIN_SPEED_MPS = 3;
 // Front slip angle at peak cornering force, measured from fixed-lock sweeps at
 // 100–250 km/h with the shipped tyre settings.
 const PEAK_SLIP_RAD = 0.015;
@@ -310,6 +326,7 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
   // overloaded friction circle by the forces asked of it, either of which would let a
   // locked, steered wheel steer; so a locked wheel's friction is applied here instead.
   const locked = [false, false, false, false];
+  const spinning = [false, false, false, false];
   const LOCK_MIN_SPEED_MPS = 0.5;
   const applyLockedFriction = (i: number, mu: number): void => {
     const contact = vehicle.wheelContactPoint(i);
@@ -522,6 +539,7 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         const loadN = Math.max(vehicle.wheelSuspensionForce(i) ?? 0, 1);
         const lengthwaysN = Math.min(wanted, mu * loadN);
         locked[i] = braking && sliding[i] === true && speed > LOCK_MIN_SPEED_MPS;
+        spinning[i] = !braking && engine !== 0 && sliding[i] === true;
         vehicle.setWheelFrictionSlip(i, locked[i] === true ? 0 : frictionSlipFor(mu, lengthwaysN, loadN));
         vehicle.setWheelEngineForce(i, braking ? 0 : Math.sign(engine) * lengthwaysN);
 
@@ -575,6 +593,7 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
       surfaceGrip.fill(1);
       sliding.fill(false);
       locked.fill(false);
+      spinning.fill(false);
       powertrain.reset();
       drivetrain = powertrain.update(0, 0, stepSeconds);
       energy?.reset();
@@ -588,12 +607,34 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
       const r = body.rotation();
       const v = body.linvel();
       const omega = body.angvel();
-      const wheels: WheelState[] = [0, 1, 2, 3].map((i) => ({
-        suspensionLength: vehicle.wheelSuspensionLength(i) ?? w.suspensionRestLength,
-        steerRad: vehicle.wheelSteering(i) ?? 0,
-        spinRad: vehicle.wheelRotation(i) ?? 0,
-        inContact: vehicle.wheelIsInContact(i),
-      }));
+      const t = body.translation();
+      const wheels: WheelState[] = [0, 1, 2, 3].map((i) => {
+        const steer = vehicle.wheelSteering(i) ?? 0;
+        const point = vehicle.wheelContactPoint(i);
+        const contact = vehicle.wheelIsInContact(i) && point ? { x: point.x, y: point.y, z: point.z } : undefined;
+        let slip: WheelSlip = "none";
+        if (contact && locked[i] === true) {
+          slip = "locked";
+        } else if (contact && spinning[i] === true) {
+          slip = "spinning";
+        } else if (contact) {
+          const axle = localPoint(Math.cos(steer), 0, -Math.sin(steer));
+          const at = body.velocityAtPoint(contact);
+          const across = at.x * (axle.x - t.x) + at.y * (axle.y - t.y) + at.z * (axle.z - t.z);
+          const moving = Math.hypot(at.x, at.z);
+          const sideways = moving > SLIDE_MIN_SPEED_MPS && Math.abs(across) > moving * Math.sin(SLIDE_ANGLE_RAD);
+          slip = sideways ? "sliding" : "none";
+        }
+
+        return {
+          suspensionLength: vehicle.wheelSuspensionLength(i) ?? w.suspensionRestLength,
+          steerRad: steer,
+          spinRad: vehicle.wheelRotation(i) ?? 0,
+          inContact: vehicle.wheelIsInContact(i),
+          slip,
+          contact,
+        };
+      });
 
       return {
         physicsVersion: PHYSICS_VERSION,

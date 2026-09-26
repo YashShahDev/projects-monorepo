@@ -52,6 +52,24 @@ describe("session laps", () => {
     expect(lap?.valid).toBe(false);
   });
 
+  test("a launch without traction control lays tyre marks, which outlast a reset", async () => {
+    session = await createDrivingSession(car, track);
+    session.setAssists({ steering: true, abs: true, traction: false });
+    hold(session, idle, 3);
+    expect(session.marks(0).marks).toEqual([]);
+    hold(session, throttle, 1.5);
+    const laid = session.marks(0);
+    expect(laid.marks.length).toBeGreaterThan(4);
+
+    // Only the rear tyres are driven, and they start at the grid.
+    const start = session.geometry.pointAt(track.startDistanceM);
+    expect(Math.hypot((laid.marks[0]?.ax ?? 0) - start.x, (laid.marks[0]?.az ?? 0) - start.z)).toBeLessThan(15);
+    session.action("reset");
+    expect(session.marks(0).serial).toBe(laid.serial);
+    hold(session, idle, 1);
+    expect(session.marks(laid.serial).marks).toEqual([]);
+  });
+
   test("reset abandons the lap and restarts the countdown", async () => {
     session = await createDrivingSession(car, track);
     hold(session, throttle, 6);

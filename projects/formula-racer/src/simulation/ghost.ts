@@ -1,3 +1,6 @@
+import { MAX_LAP_MARKS } from "./tyre-marks.ts";
+import type { TyreMark } from "./tyre-marks.ts";
+
 /** One recorded lap, as samples in time order. */
 export interface Ghost {
   lapTimeS: number;
@@ -8,6 +11,9 @@ export interface Ghost {
 
   /** Distance along the lap from its start; never decreases. */
   progressM: Float64Array;
+
+  /** Where its tyres slid, timed by the lap clock. */
+  marks: TyreMark[];
 }
 
 export interface GhostSample {
@@ -28,7 +34,7 @@ export interface GhostRecorder {
   sample(sample: GhostSample): void;
 
   /** Ends the lap with a sample at its exact finishing time. */
-  finish(last: GhostSample): Ghost;
+  finish(last: GhostSample, marks?: TyreMark[]): Ghost;
 }
 
 const INTERVAL_S = 0.1;
@@ -63,7 +69,7 @@ export function createGhostRecorder(): GhostRecorder {
         keep(s);
       }
     },
-    finish(last) {
+    finish(last, marks = []) {
       keep(last);
       const column = (pick: (s: GhostSample) => number) => Float64Array.from(samples, pick);
 
@@ -74,6 +80,7 @@ export function createGhostRecorder(): GhostRecorder {
         z: column((s) => s.z),
         heading: column((s) => s.heading),
         progressM: column((s) => s.progressM),
+        marks,
       };
     },
   };
@@ -135,15 +142,22 @@ export function ghostDelta(ghost: Ghost, lapTimeS: number, progressM: number): n
   return lapTimeS - ghostS;
 }
 
-// Format "1": the version digit, then base64 of: u16 sample count, f32 lap time, then
-// per sample f32 x, z, heading, progress and u16 centiseconds (18 bytes).
-const FORMAT = "1";
+// Format "2": the version digit, then base64 of: u16 sample count, f32 lap time, then
+// per sample f32 x, z, heading, progress and u16 centiseconds (18 bytes); then u16 mark
+// count and per mark f32 ax, az, bx, bz and u16 centiseconds (18 bytes). Format "1" is
+// the same without the marks.
+const FORMAT = "2";
+const MARKLESS_FORMAT = "1";
 const HEADER_BYTES = 6;
 const SAMPLE_BYTES = 18;
+const MARK_BYTES = 18;
+
+const centiseconds = (s: number) => Math.min(0xffff, Math.round(s * 100));
 
 export function encodeGhost(ghost: Ghost): string {
   const n = ghost.timeS.length;
-  const view = new DataView(new ArrayBuffer(HEADER_BYTES + n * SAMPLE_BYTES));
+  const marksAt = HEADER_BYTES + n * SAMPLE_BYTES;
+  const view = new DataView(new ArrayBuffer(marksAt + 2 + ghost.marks.length * MARK_BYTES));
   view.setUint16(0, n, true);
   view.setFloat32(2, ghost.lapTimeS, true);
   for (let i = 0; i < n; i += 1) {
@@ -152,8 +166,17 @@ export function encodeGhost(ghost: Ghost): string {
     view.setFloat32(at + 4, ghost.z[i] ?? 0, true);
     view.setFloat32(at + 8, ghost.heading[i] ?? 0, true);
     view.setFloat32(at + 12, ghost.progressM[i] ?? 0, true);
-    view.setUint16(at + 16, Math.min(0xffff, Math.round((ghost.timeS[i] ?? 0) * 100)), true);
+    view.setUint16(at + 16, centiseconds(ghost.timeS[i] ?? 0), true);
   }
+
+  view.setUint16(marksAt, ghost.marks.length, true);
+  ghost.marks.forEach((mark, k) => {
+    const at = marksAt + 2 + k * MARK_BYTES;
+    [mark.ax, mark.az, mark.bx, mark.bz].forEach((value, j) => {
+      view.setFloat32(at + j * 4, value, true);
+    });
+    view.setUint16(at + 16, centiseconds(mark.timeS), true);
+  });
 
   let binary = "";
   for (const byte of new Uint8Array(view.buffer)) {
@@ -165,7 +188,8 @@ export function encodeGhost(ghost: Ghost): string {
 
 /** Undefined for anything that is not a well-formed ghost within the caps. */
 export function decodeGhost(text: string): Ghost | undefined {
-  if (!text.startsWith(FORMAT)) {
+  const hasMarks = text.startsWith(FORMAT);
+  if (!hasMarks && !text.startsWith(MARKLESS_FORMAT)) {
     return undefined;
   }
 
@@ -183,10 +207,14 @@ export function decodeGhost(text: string): Ghost | undefined {
   const view = new DataView(bytes.buffer);
   const n = view.getUint16(0, true);
   const lapTimeS = view.getFloat32(2, true);
+  const marksAt = HEADER_BYTES + n * SAMPLE_BYTES;
+  const markCount = hasMarks && bytes.length >= marksAt + 2 ? view.getUint16(marksAt, true) : 0;
+  const expectedBytes = hasMarks ? marksAt + 2 + markCount * MARK_BYTES : marksAt;
   const valid =
     n >= 2 &&
     n <= MAX_GHOST_SAMPLES &&
-    bytes.length === HEADER_BYTES + n * SAMPLE_BYTES &&
+    markCount <= MAX_LAP_MARKS &&
+    bytes.length === expectedBytes &&
     Number.isFinite(lapTimeS) &&
     lapTimeS > 0 &&
     lapTimeS <= MAX_GHOST_LAP_S;
@@ -201,6 +229,7 @@ export function decodeGhost(text: string): Ghost | undefined {
     z: new Float64Array(n),
     heading: new Float64Array(n),
     progressM: new Float64Array(n),
+    marks: [],
   };
   for (let i = 0; i < n; i += 1) {
     const at = HEADER_BYTES + i * SAMPLE_BYTES;
@@ -211,9 +240,23 @@ export function decodeGhost(text: string): Ghost | undefined {
     ghost.timeS[i] = view.getUint16(at + 16, true) / 100;
   }
 
+  for (let k = 0; k < markCount; k += 1) {
+    const at = marksAt + 2 + k * MARK_BYTES;
+    const [ax, az, bx, bz] = [0, 1, 2, 3].map((j) => view.getFloat32(at + j * 4, true));
+    ghost.marks.push({
+      ax: ax ?? 0,
+      az: az ?? 0,
+      bx: bx ?? 0,
+      bz: bz ?? 0,
+      timeS: view.getUint16(at + 16, true) / 100,
+    });
+  }
+
   // Centiseconds lose the exact finish; the header keeps it.
   ghost.timeS[n - 1] = lapTimeS;
-  const finite = [ghost.x, ghost.z, ghost.heading, ghost.progressM].every((column) => column.every(Number.isFinite));
+  const finite =
+    [ghost.x, ghost.z, ghost.heading, ghost.progressM].every((column) => column.every(Number.isFinite)) &&
+    ghost.marks.every((m) => [m.ax, m.az, m.bx, m.bz].every(Number.isFinite));
 
   return finite ? ghost : undefined;
 }

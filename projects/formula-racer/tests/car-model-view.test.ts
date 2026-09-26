@@ -58,7 +58,14 @@ const snapshot = (patch: Partial<VehicleSnapshot> = {}): VehicleSnapshot => ({
   linearVelocity: { x: 0, y: 0, z: 0 },
   angularVelocity: { x: 0, y: 0, z: 0 },
   speedMps: 0,
-  wheels: [0, 1, 2, 3].map(() => ({ suspensionLength: 0.1, steerRad: 0, spinRad: 0, inContact: true })),
+  wheels: [0, 1, 2, 3].map(() => ({
+    suspensionLength: 0.1,
+    steerRad: 0,
+    spinRad: 0,
+    inContact: true,
+    slip: "none",
+    contact: undefined,
+  })),
   applied: { throttle: 0, brake: 0, steer: 0 },
   gear: 1,
   rpm: 4000,
@@ -121,6 +128,8 @@ describe("posing a car model", () => {
       steerRad: i < 2 ? 0.2 : 0,
       spinRad: 1.5,
       inContact: true,
+      slip: "none" as const,
+      contact: undefined,
     }));
     bound.pose(snapshot({ wheels }));
     const rl = root.getObjectByName("wheel_RL");

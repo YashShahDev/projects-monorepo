@@ -28,6 +28,8 @@ import type { EnergyMode } from "../simulation/energy.ts";
 import type { GearboxMode, ShiftRequest } from "../simulation/gearbox.ts";
 import { createGhostRecorder } from "../simulation/ghost.ts";
 import type { Ghost, GhostSample } from "../simulation/ghost.ts";
+import { createMarkRecorder } from "../simulation/tyre-marks.ts";
+import type { TyreMark } from "../simulation/tyre-marks.ts";
 
 /** Key actions the session handles; help belongs to the page, not the car. */
 export type SessionAction = Exclude<KeyAction, "help">;
@@ -112,6 +114,9 @@ export interface DrivingSession {
    * springs or aero under a moving car would be a discontinuity, not a tuning result.
    */
   retune(patch: Partial<CarDefinition>): void;
+
+  /** Tyre marks laid since the `serial`-th, timed by `simSeconds`; see `MarkRecorder`. */
+  marks(serial: number): { serial: number; marks: TyreMark[] };
 
   /** The car definition currently being driven. */
   car(): CarDefinition;
@@ -248,6 +253,7 @@ export async function createDrivingSession(
   const lapTimer = createLapTimer({ lengthM: geometry.lengthM, sectors: SECTORS });
   const laps: SessionLap[] = [];
   const recorder = createGhostRecorder();
+  const markRecorder = createMarkRecorder();
 
   // Contact patches in the chassis frame, front-left first as physics orders them.
   const tyrePositions = (snapshot: VehicleSnapshot) => {
@@ -353,7 +359,10 @@ export async function createDrivingSession(
             // The line was crossed `elapsedS` into the new lap, inside this step.
             const f = 1 - (running?.elapsedS ?? 0) / sim.stepSeconds;
             const crossing = blend(previous, now, Math.max(0, Math.min(1, f)));
-            const ghost = recorder.finish(ghostSample(crossing, record.timeS, geometry.lengthM));
+            const ghost = recorder.finish(
+              ghostSample(crossing, record.timeS, geometry.lengthM),
+              markRecorder.takeLap(),
+            );
             recorder.begin(ghostSample(crossing, 0, 0));
             laps.push({
               ...record,
@@ -368,6 +377,9 @@ export async function createDrivingSession(
           if (running) {
             recorder.sample(ghostSample(now, running.elapsedS, running.progressM));
           }
+
+          const snapshot = sim.snapshot();
+          markRecorder.step(snapshot.wheels, snapshot.simSeconds, running?.elapsedS);
         }
 
         alpha = plan.alpha;
@@ -408,6 +420,8 @@ export async function createDrivingSession(
         camera.reset();
         stepper.reset();
         hint = undefined;
+        markRecorder.lift();
+        markRecorder.takeLap();
         lapTimer.abort();
         countdownLeft = countdownSteps;
         pendingShift = undefined;
@@ -446,6 +460,7 @@ export async function createDrivingSession(
     retune(patch) {
       pending = parseCar({ ...(pending ?? current), ...patch });
     },
+    marks: (serial) => markRecorder.since(serial),
     car: () => current,
     snapshot: () => sim.snapshot(),
     state() {
