@@ -75,7 +75,7 @@ test("an even number of passes reports the middle of the two, not the better pas
   expect(summary.meetsTarget).toBe(false);
 });
 
-test("run options must be whole positive numbers and a known preset", () => {
+test("run options accept the durations the page accepts, and a known preset", () => {
   expect(parseRunOptions([])).toEqual({
     quality: "medium",
     passes: 3,
@@ -90,7 +90,10 @@ test("run options must be whole positive numbers and a known preset", () => {
     headed: true,
   });
   expect(() => parseRunOptions(["--passes", "abc"])).toThrow("--passes must be a positive whole number");
-  expect(() => parseRunOptions(["--seconds", "0"])).toThrow("--seconds must be a positive whole number");
+  expect(parseRunOptions(["--warmup", "0", "--seconds", "0.5"])).toMatchObject({ warmup: 0, seconds: 0.5 });
+  expect(() => parseRunOptions(["--seconds", "0"])).toThrow("--seconds must be between 0.1 and 600");
+  expect(() => parseRunOptions(["--warmup=-1"])).toThrow("--warmup must be between 0 and 600");
+  expect(() => parseRunOptions(["--seconds", "x"])).toThrow("--seconds must be between 0.1 and 600");
   expect(() => parseRunOptions(["--quality", "ultra"])).toThrow("--quality must be low, medium or high");
 });
 

@@ -176,10 +176,16 @@ export function parseRunOptions(args: string[]): RunOptions {
     throw new Error("--quality must be low, medium or high");
   }
 
-  const whole = (name: "passes" | "seconds" | "warmup") => {
+  const passes = Number(values.passes);
+  if (!Number.isInteger(passes) || passes <= 0) {
+    throw new Error("--passes must be a positive whole number");
+  }
+
+  // The same ranges `?bench` accepts, so the runner never builds a page URL it rejects.
+  const duration = (name: "seconds" | "warmup", min: number) => {
     const value = Number(values[name]);
-    if (!Number.isInteger(value) || value <= 0) {
-      throw new Error(`--${name} must be a positive whole number`);
+    if (!Number.isFinite(value) || value < min || value > 600) {
+      throw new Error(`--${name} must be between ${String(min)} and 600`);
     }
 
     return value;
@@ -187,9 +193,9 @@ export function parseRunOptions(args: string[]): RunOptions {
 
   return {
     quality: values.quality,
-    passes: whole("passes"),
-    seconds: whole("seconds"),
-    warmup: whole("warmup"),
+    passes,
+    seconds: duration("seconds", 0.1),
+    warmup: duration("warmup", 0),
     headed: values.headed,
     out: values.out,
   };
