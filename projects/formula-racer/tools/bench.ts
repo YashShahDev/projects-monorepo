@@ -1,10 +1,11 @@
 // Runs the ?bench route on the production build and records a comparable summary.
 //
 //   bun run tools/bench.ts [--quality medium] [--passes 3] [--seconds 120]
-//                          [--warmup 10] [--headless] [--out docs/performance/runs]
+//                          [--warmup 10] [--headed] [--out docs/performance/runs]
 //
-// Headed by default: headless Chromium falls back to software rendering, whose numbers
-// say nothing about the reference laptop (see docs/performance/PROTOCOL.md).
+// Headless by default so runs don't open windows on the desktop, with the GPU forced on:
+// plain headless Chromium renders in software, whose numbers say nothing about the
+// reference laptop (see docs/performance/PROTOCOL.md). Each report names its renderer.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -40,6 +41,11 @@ export interface RunSummary {
 
 export function isSoftwareRenderer(renderer: string): boolean {
   return /swiftshader|llvmpipe|softpipe|software/i.test(renderer);
+}
+
+/** Launch flags; ANGLE on GL matches what headed Chromium picks on the reference laptop. */
+export function chromiumArgs(headless: boolean): string[] {
+  return headless ? ["--use-angle=gl", "--enable-gpu", "--ignore-gpu-blocklist"] : [];
 }
 
 const median = (values: number[]) => {
@@ -91,7 +97,7 @@ async function main() {
       passes: { type: "string", default: "3" },
       seconds: { type: "string", default: "120" },
       warmup: { type: "string", default: "10" },
-      headless: { type: "boolean", default: false },
+      headed: { type: "boolean", default: false },
       out: { type: "string", default: "docs/performance/runs" },
     },
   });
@@ -109,7 +115,8 @@ async function main() {
   const { chromium } = await import("@playwright/test");
   const server = Bun.serve({ port: 0, fetch: (request) => serveStaticFile(root, "/", new URL(request.url).pathname) });
   const browser = await chromium.launch({
-    headless: values.headless ?? false,
+    headless: !values.headed,
+    args: chromiumArgs(!values.headed),
     ...(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {}),
   });
   const reports: BenchReport[] = [];

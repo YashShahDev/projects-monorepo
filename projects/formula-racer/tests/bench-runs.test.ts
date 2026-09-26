@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { isSoftwareRenderer, summarizeRuns } from "../tools/bench.ts";
+import { chromiumArgs, isSoftwareRenderer, summarizeRuns } from "../tools/bench.ts";
 import type { BenchReport } from "../src/app/bench.ts";
 
 const frames = (p95Ms: number) => ({
@@ -55,4 +55,11 @@ test("never counts a software renderer as a hardware result", () => {
 test("refuses to summarize runs of different routes or presets", () => {
   expect(() => summarizeRuns([report(10), { ...report(10), quality: "high" }])).toThrow("passes differ in quality");
   expect(() => summarizeRuns([])).toThrow("no passes");
+});
+
+test("forces the GPU in headless mode, where Chromium would otherwise render in software", () => {
+  expect(chromiumArgs(true)).toEqual(
+    expect.arrayContaining(["--use-angle=gl", "--enable-gpu", "--ignore-gpu-blocklist"]),
+  );
+  expect(chromiumArgs(false)).toEqual([]);
 });

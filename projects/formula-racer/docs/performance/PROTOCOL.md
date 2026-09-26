@@ -30,8 +30,11 @@ be confirmed. Target p95 frame time at or below 16.7 ms; report failure honestly
 identify the limiting stage. FPS and p95 alone do not prove input responsiveness.
 
 Implemented in P5-C1 ([record](../checkpoints/P5.md)): `make bench QUALITY=medium`
-builds, serves `dist/` and runs three headed 1280×720 passes of `?bench` (10 s warm-up,
-120 s autopilot route `harbour-autopilot-v1`). It writes
+builds, serves `dist/` and runs three 1280×720 passes of `?bench` (10 s warm-up,
+120 s autopilot route `harbour-autopilot-v1`) in headless Chromium with the GPU forced on
+(ANGLE on GL, the backend headed Chromium picks here), so no windows open; `--headed`
+remains. Headless frames are paced by Chromium's own 60 Hz clock rather than the
+display, so it measures work per frame but not compositor presentation jank. It writes
 `docs/performance/runs/<time>-<preset>.json`. Record AC/battery state beside each run.
 `renderMs` is CPU-side submission only. A summary with `hardware: false` is a software
 renderer and is never a performance result.

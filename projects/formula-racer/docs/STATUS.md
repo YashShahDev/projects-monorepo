@@ -28,7 +28,7 @@ The P5-C1 benchmark route and `make bench` runner are built ([record](checkpoint
 
 Next, on the reference laptop:
 
-1. `make bench QUALITY=low|medium|high` (headed, AC power noted); commit the summaries,
+1. `make bench QUALITY=low|medium|high` (GPU headless, AC power noted); commit the summaries,
    and name the limiting stage to close P5-C1.
 2. P5-C2 optimizations driven by that evidence.
 3. P5-C3: `make test-full` (the full browser matrix) and the final verification.
