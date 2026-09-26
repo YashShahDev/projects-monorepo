@@ -36,6 +36,7 @@ const menu = {
   traction: element<HTMLInputElement>("#assist-traction"),
   livery: element<HTMLSelectElement>("#livery"),
   quality: element<HTMLSelectElement>("#quality"),
+  sound: element<HTMLInputElement>("#sound"),
 };
 
 function showFatal(message: string): void {

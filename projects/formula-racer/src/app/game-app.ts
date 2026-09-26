@@ -1,9 +1,14 @@
+import { createCarAudio } from "../audio/car-audio.ts";
+import type { CarAudio } from "../audio/car-audio.ts";
+import { soundMix, wheelsOnKerb } from "../audio/sound-model.ts";
+import type { SoundMix } from "../audio/sound-model.ts";
 import { fetchCar } from "../content/car.ts";
 import type { CarDefinition } from "../content/car.ts";
 import { fetchEnergyRules } from "../content/energy-rules.ts";
 import { fetchLiveries } from "../content/livery.ts";
 import { loadCatalogTrack } from "../content/track-catalog.ts";
 import { initPhysics } from "../simulation/physics.ts";
+import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import { createTrackView } from "../rendering/track-view.ts";
 import { QUALITY_PRESETS, qualitySettings } from "../rendering/quality.ts";
 import { createKeyboard } from "./keyboard.ts";
@@ -22,6 +27,9 @@ export class StartupError extends Error {
 export interface GameAppState extends SessionState {
   frames: number;
   held: HeldKeys;
+
+  /** The mix the audio was last given, whether or not sound is on. */
+  sound: SoundMix & { enabled: boolean };
 }
 
 export interface GameApp {
@@ -59,6 +67,7 @@ export interface Menu {
   traction: HTMLInputElement;
   livery: HTMLSelectElement;
   quality: HTMLSelectElement;
+  sound: HTMLInputElement;
 }
 
 async function stage<T>(label: string, work: () => T | Promise<T>): Promise<T> {
@@ -171,6 +180,50 @@ export async function startGameApp(
     view.setLivery(preferences.livery());
   };
 
+  // Audio is optional: a browser without Web Audio still gets a silent game.
+  const audio: CarAudio | undefined = typeof AudioContext === "function" ? createCarAudio() : undefined;
+  menu.sound.checked = preferences.sound();
+  audio?.setEnabled(preferences.sound());
+  const onSound = () => {
+    preferences.setSound(menu.sound.checked);
+    audio?.setEnabled(preferences.sound());
+    onGesture();
+  };
+
+  const onGesture = () => audio?.resume();
+  let sound: SoundMix = soundMix({
+    paused: true,
+    rpm: 0,
+    idleRpm: 0,
+    redlineRpm: 1,
+    throttle: 0,
+    speedMps: 0,
+    lateralAccelMps2: 0,
+    kerbWheels: 0,
+  });
+  const listen = (car: VehicleSnapshot) => {
+    const gearbox = session.car().powertrain.gearbox;
+    const location = session.geometry.locate(car.position.x, car.position.z);
+    sound = soundMix({
+      paused: session.state().paused,
+      rpm: car.rpm,
+      idleRpm: gearbox.idleRpm,
+      redlineRpm: gearbox.redlineRpm,
+      throttle: car.applied.throttle,
+      speedMps: car.speedMps,
+
+      // Centripetal acceleration of the chassis: forward speed times yaw rate.
+      lateralAccelMps2: car.speedMps * car.angularVelocity.y,
+      kerbWheels: wheelsOnKerb({
+        lateralM: location.lateralM,
+        halfWidthM: session.geometry.halfWidthM,
+        kerbWidthM: session.geometry.kerbWidthM,
+        halfTrackM: session.car().wheels.halfTrack,
+      }),
+    });
+    audio?.update(sound);
+  };
+
   const onQuality = () => {
     preferences.setQuality(menu.quality.value);
     view.setQuality(qualitySettings(preferences.quality(), window.devicePixelRatio));
@@ -178,6 +231,9 @@ export async function startGameApp(
 
   menu.livery.addEventListener("change", onLivery);
   menu.quality.addEventListener("change", onQuality);
+  menu.sound.addEventListener("change", onSound);
+  addEventListener("keydown", onGesture);
+  addEventListener("pointerdown", onGesture);
   menu.resume.addEventListener("click", onResume);
   menu.restart.addEventListener("click", onRestart);
   for (const box of [menu.steering, menu.abs, menu.traction]) {
@@ -192,7 +248,12 @@ export async function startGameApp(
   let frameRequest = 0;
   let lastTime: number | undefined;
 
-  const state = (): GameAppState => ({ ...session.state(), frames, held: keyboard.held() });
+  const state = (): GameAppState => ({
+    ...session.state(),
+    frames,
+    held: keyboard.held(),
+    sound: { ...sound, enabled: preferences.sound() },
+  });
   const show = (): void => {
     const s = session.state();
     hud.speed.textContent = String(Math.round(Math.abs(s.speedKmh)));
@@ -235,6 +296,7 @@ export async function startGameApp(
   const draw = (frameSeconds: number, held: HeldKeys): void => {
     const { car, camera } = session.frame(frameSeconds, held);
     view.render(car, camera);
+    listen(car);
     show();
     frames += 1;
     if (frames === 1) {
@@ -277,6 +339,10 @@ export async function startGameApp(
     menu.restart.removeEventListener("click", onRestart);
     menu.livery.removeEventListener("change", onLivery);
     menu.quality.removeEventListener("change", onQuality);
+    menu.sound.removeEventListener("change", onSound);
+    removeEventListener("keydown", onGesture);
+    removeEventListener("pointerdown", onGesture);
+    audio?.dispose();
     for (const box of [menu.steering, menu.abs, menu.traction]) {
       box.removeEventListener("change", onAssists);
     }
