@@ -27,7 +27,8 @@ the real `fr26.glb` with chase and cockpit screenshots ([record](checkpoints/P4.
 The P5-C1 benchmark route and `make bench` runner are built ([record](checkpoints/P5.md)).
 
 P4-C4 (trackside, map, telemetry, braking harvest) is done and Codex-reviewed (2/2
-fixed). Benchmarks wait until the user says the laptop is idle (user, 2026-09-26); the
+fixed). The PR #7 Codex comments (6) and an independent review (6) are fixed in
+`beee51e` and `a01a783` ([P5](checkpoints/P5.md)). Benchmarks wait until the user says the laptop is idle (user, 2026-09-26); the
 earlier Low runs predate the scenery and must be repeated.
 
 Next, on the reference laptop:
