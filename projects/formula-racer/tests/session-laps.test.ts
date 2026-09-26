@@ -10,9 +10,7 @@ import { autopilot } from "./support/autopilot.ts";
 import { car } from "./support/vehicle.ts";
 
 const track = parseTrack(
-  JSON.parse(
-    readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8"),
-  ),
+  JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8")),
 );
 const idle = { throttle: false, brake: false, left: false, right: false, deploy: false };
 const throttle = { ...idle, throttle: true };
@@ -93,12 +91,7 @@ describe("session laps", () => {
 
 describe("session energy", () => {
   const rules = parseEnergyRules(
-    JSON.parse(
-      readFileSync(
-        resolve(import.meta.dirname, "../public/assets/rules/energy-2026-c18.json"),
-        "utf8",
-      ),
-    ),
+    JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/assets/rules/energy-2026-c18.json"), "utf8")),
   );
 
   test("E cycles Balanced → Harvest → Balanced", async () => {

@@ -11,10 +11,7 @@ describe("vehicle simulation", () => {
     run(sim, NO_CONTROLS, 5);
     const after = sim.snapshot();
     expect(after.wheels.every((wheel) => wheel.inContact)).toBe(true);
-    const drift = Math.hypot(
-      after.position.x - before.position.x,
-      after.position.z - before.position.z,
-    );
+    const drift = Math.hypot(after.position.x - before.position.x, after.position.z - before.position.z);
     expect(drift).toBeLessThan(0.05);
     expect(after.physicsVersion).toBe(PHYSICS_VERSION);
     sim.dispose();

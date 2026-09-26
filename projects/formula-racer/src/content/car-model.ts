@@ -48,8 +48,8 @@ export function parseCarModelInterface(value: unknown, source = "model"): CarMod
   }
 
   const lodCount = inRange(v.lodCount, `${source}.lodCount`, 1, 5);
-  const trianglesPerLod = array(v.trianglesPerLod, `${source}.trianglesPerLod`, lodCount).map(
-    (t, i) => positive(t, `${source}.trianglesPerLod[${String(i)}]`),
+  const trianglesPerLod = array(v.trianglesPerLod, `${source}.trianglesPerLod`, lodCount).map((t, i) =>
+    positive(t, `${source}.trianglesPerLod[${String(i)}]`),
   );
   if (trianglesPerLod.some((t, i) => i > 0 && t >= (trianglesPerLod[i - 1] ?? 0))) {
     throw new ContentError(`${source}.trianglesPerLod must shrink with each level`);
@@ -85,11 +85,7 @@ export function parseCarModelInterface(value: unknown, source = "model"): CarMod
 }
 
 /** Nodes with LOD mesh children, in a stable order. */
-export const lodNodes = (spec: CarModelInterface): string[] => [
-  spec.body,
-  ...spec.wheels,
-  ...spec.flaps,
-];
+export const lodNodes = (spec: CarModelInterface): string[] => [spec.body, ...spec.wheels, ...spec.flaps];
 
 export const requiredNodes = (spec: CarModelInterface): string[] => [
   ...lodNodes(spec),

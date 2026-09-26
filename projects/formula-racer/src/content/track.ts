@@ -1,13 +1,4 @@
-import {
-  array,
-  ContentError,
-  fetchJson,
-  finite,
-  inRange,
-  object,
-  positive,
-  text,
-} from "./validate.ts";
+import { array, ContentError, fetchJson, finite, inRange, object, positive, text } from "./validate.ts";
 
 /** A flat closed circuit described by its centreline, in metres on the x/z ground plane. */
 export interface TrackDefinition {

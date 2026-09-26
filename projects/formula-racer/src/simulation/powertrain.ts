@@ -61,8 +61,7 @@ export function createPowertrain(def: PowertrainDefinition): Powertrain {
       }
 
       const powerW = def.maxPowerW * share(def.powerCurve, state.rpm);
-      const driveForceN =
-        throttle * Math.min(def.maxDriveForceN, powerW / Math.max(Math.abs(speedMps), 1));
+      const driveForceN = throttle * Math.min(def.maxDriveForceN, powerW / Math.max(Math.abs(speedMps), 1));
 
       return { driveForceN, ...state };
     },

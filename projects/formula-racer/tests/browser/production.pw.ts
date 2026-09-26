@@ -20,9 +20,7 @@ test("a missing content file shows a recoverable error", async ({ page }) => {
 });
 
 test("invalid content names the failing field", async ({ page }) => {
-  await page.route("**/assets/tracks/harbour.json", (route) =>
-    route.fulfill({ json: { version: 9 } }),
-  );
+  await page.route("**/assets/tracks/harbour.json", (route) => route.fulfill({ json: { version: 9 } }));
   await page.goto("./");
   await expect(page.getByRole("alert")).toContainText("harbour.json.version must be 1");
 });

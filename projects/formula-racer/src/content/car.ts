@@ -1,14 +1,4 @@
-import {
-  array,
-  ContentError,
-  extents,
-  fetchJson,
-  inRange,
-  object,
-  positive,
-  text,
-  vec3,
-} from "./validate.ts";
+import { array, ContentError, extents, fetchJson, inRange, object, positive, text, vec3 } from "./validate.ts";
 import type { Vec3 } from "./validate.ts";
 
 /**
@@ -99,12 +89,7 @@ function parseStraightMode(aero: Record<string, unknown>, source: string) {
   return {
     // Straight Mode exists to shed drag; a setting that adds any is a content error.
     dragAreaM2: inRange(mode.dragAreaM2, `${source}.straightMode.dragAreaM2`, 0.01, drag),
-    downforceAreaM2: inRange(
-      mode.downforceAreaM2,
-      `${source}.straightMode.downforceAreaM2`,
-      0,
-      downforce,
-    ),
+    downforceAreaM2: inRange(mode.downforceAreaM2, `${source}.straightMode.downforceAreaM2`, 0, downforce),
   };
 }
 
@@ -129,23 +114,21 @@ function parseGearbox(value: unknown, source: string): GearboxDefinition {
   const upshiftRpm = inRange(g.upshiftRpm, `${source}.upshiftRpm`, 1, redlineRpm);
   const downshiftRpm = inRange(g.downshiftRpm, `${source}.downshiftRpm`, 1, upshiftRpm - 1);
   const idleRpm = inRange(g.idleRpm, `${source}.idleRpm`, 1, downshiftRpm);
-  const gearTopSpeedsKmh = array(g.gearTopSpeedsKmh, `${source}.gearTopSpeedsKmh`, 1).map(
-    (speed, i, all) => {
-      const field = `${source}.gearTopSpeedsKmh[${String(i)}]`;
-      const value = positive(speed, field);
-      const below = i > 0 ? Number(all[i - 1]) : 0;
-      if (i > 0 && !(value > below)) {
-        throw new ContentError(`${field} must be greater than the gear below`);
-      }
+  const gearTopSpeedsKmh = array(g.gearTopSpeedsKmh, `${source}.gearTopSpeedsKmh`, 1).map((speed, i, all) => {
+    const field = `${source}.gearTopSpeedsKmh[${String(i)}]`;
+    const value = positive(speed, field);
+    const below = i > 0 ? Number(all[i - 1]) : 0;
+    if (i > 0 && !(value > below)) {
+      throw new ContentError(`${field} must be greater than the gear below`);
+    }
 
-      // After an upshift the engine must still be above the downshift point.
-      if (i > 0 && (upshiftRpm * below) / value <= downshiftRpm) {
-        throw new ContentError(`${field} is too tall: an upshift would land below downshiftRpm`);
-      }
+    // After an upshift the engine must still be above the downshift point.
+    if (i > 0 && (upshiftRpm * below) / value <= downshiftRpm) {
+      throw new ContentError(`${field} is too tall: an upshift would land below downshiftRpm`);
+    }
 
-      return value;
-    },
-  );
+    return value;
+  });
 
   return { idleRpm, upshiftRpm, downshiftRpm, redlineRpm, gearTopSpeedsKmh };
 }
@@ -211,9 +194,6 @@ export function parseCar(value: unknown, source = "car"): CarDefinition {
   return car;
 }
 
-export async function fetchCar(
-  url: URL,
-  fetchImpl: (url: URL) => Promise<Response> = fetch,
-): Promise<CarDefinition> {
+export async function fetchCar(url: URL, fetchImpl: (url: URL) => Promise<Response> = fetch): Promise<CarDefinition> {
   return parseCar(await fetchJson(url, fetchImpl), url.pathname);
 }

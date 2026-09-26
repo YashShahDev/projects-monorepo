@@ -90,9 +90,7 @@ describe("energy system", () => {
 
   test("holding Shift requests the full permitted power", () => {
     expect(rolling().update(cruise({ deployRequest: true })).deployW).toBeCloseTo(350_000, 6);
-    expect(
-      rolling().update(cruise({ deployRequest: true, speedMps: kmh(300) })).deployW,
-    ).toBeCloseTo(300_000, 6);
+    expect(rolling().update(cruise({ deployRequest: true, speedMps: kmh(300) })).deployW).toBeCloseTo(300_000, 6);
   });
 
   test("no deployment off throttle, and none from a standing start below 50 km/h", () => {
@@ -162,9 +160,7 @@ describe("energy system", () => {
     energy.update(cruise({ deployRequest: true }));
     expect(energy.update(cruise({ throttle: 0, brakePowerW: 2_000_000 })).regenW).toBe(0);
     energy.newLap();
-    expect(energy.update(cruise({ throttle: 0, brakePowerW: 2_000_000 })).regenW).toBeGreaterThan(
-      0,
-    );
+    expect(energy.update(cruise({ throttle: 0, brakePowerW: 2_000_000 })).regenW).toBeGreaterThan(0);
   });
 
   test("energy is conserved: charge change equals regen in minus deployment out", () => {
@@ -184,8 +180,7 @@ describe("energy system", () => {
           mode: i % 500 < 250 ? "balanced" : "harvest",
         }),
       );
-      expected +=
-        flow.regenW * DT * rules.regenEfficiency - (flow.deployW * DT) / rules.deployEfficiency;
+      expected += flow.regenW * DT * rules.regenEfficiency - (flow.deployW * DT) / rules.deployEfficiency;
       expect(flow.socJ).toBeGreaterThanOrEqual(0);
       expect(flow.socJ).toBeLessThanOrEqual(rules.socWindowJ);
     }

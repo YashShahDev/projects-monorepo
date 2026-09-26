@@ -89,11 +89,8 @@ export function createTrackView(
   sun.position.set(300, 600, 200);
   scene.add(sun);
 
-  const flat = (colour: number) =>
-    own(new THREE.MeshStandardMaterial({ color: colour, roughness: 1, metalness: 0 }));
-  const painted = own(
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }),
-  );
+  const flat = (colour: number) => own(new THREE.MeshStandardMaterial({ color: colour, roughness: 1, metalness: 0 }));
+  const painted = own(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }));
 
   // Road, kerbs and grass are nearly coplanar. A 2 cm gap alone z-fought at 640×360 in
   // headless SwiftShader (no road visible), so polygon offset orders the layers instead.
@@ -109,8 +106,7 @@ export function createTrackView(
   const road = new THREE.Color(ROAD);
   const red = new THREE.Color(KERB_RED);
   const white = new THREE.Color(KERB_WHITE);
-  const stripe = (i: number) =>
-    Math.floor((i * track.spacingM) / KERB_STRIPE_M) % 2 === 0 ? red : white;
+  const stripe = (i: number) => (Math.floor((i * track.spacingM) / KERB_STRIPE_M) % 2 === 0 ? red : white);
   const half = track.halfWidthM;
   const kerb = half + track.kerbWidthM;
   scene.add(new THREE.Mesh(own(ribbon(track, -half, half, 0, () => road)), painted));

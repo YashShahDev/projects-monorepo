@@ -126,9 +126,7 @@ export function previewSvg(layout: Layout, points: { x: number; z: number }[]): 
   // Mirror x so the map reads as seen from above with +z up the page.
   const px = (x: number) => round(minX + w - (x - minX));
   const pz = (z: number) => round(minZ + h - (z - minZ));
-  const path = points
-    .map((p, i) => `${i ? "L" : "M"}${String(px(p.x))},${String(pz(p.z))}`)
-    .join(" ");
+  const path = points.map((p, i) => `${i ? "L" : "M"}${String(px(p.x))},${String(pz(p.z))}`).join(" ");
   const box = `${String(minX)} ${String(minZ)} ${String(w)} ${String(h)}`;
 
   return (
@@ -149,9 +147,7 @@ if (import.meta.main) {
   const result = generateTrack(layout);
   writeFileSync(outPath, `${JSON.stringify(result.track)}\n`);
   const [l1, l2] = result.solvedM;
-  console.log(
-    `solved straights ${l1.toFixed(1)} m and ${l2.toFixed(1)} m; ${String(result.points.length)} points`,
-  );
+  console.log(`solved straights ${l1.toFixed(1)} m and ${l2.toFixed(1)} m; ${String(result.points.length)} points`);
   if (svgPath) {
     writeFileSync(svgPath, previewSvg(layout, result.points));
   }

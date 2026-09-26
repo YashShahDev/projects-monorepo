@@ -11,9 +11,7 @@ test("@smoke starts on the grid and renders sky, grass, road and car", async ({ 
   expect(pixels.road).toBeGreaterThan(10_000);
   expect(pixels.car).toBeGreaterThan(500);
   await expect(page.locator("#gear")).toHaveText("1");
-  const startup = await page.evaluate(
-    () => performance.getEntriesByName("formula-racer:startup")[0]?.duration,
-  );
+  const startup = await page.evaluate(() => performance.getEntriesByName("formula-racer:startup")[0]?.duration);
   expect(startup).toBeGreaterThan(0);
 
   // Reported for the checkpoint record; headless software rendering is not a benchmark.

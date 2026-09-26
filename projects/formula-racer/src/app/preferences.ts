@@ -15,10 +15,7 @@ const SCHEMA = 1;
  * Player choices that do not affect timing. Storage problems only lose the choice
  * between visits, so they are not reported the way lost lap times are.
  */
-export function createPreferences(
-  storage: StorageLike | undefined,
-  liveries: readonly Livery[],
-): Preferences {
+export function createPreferences(storage: StorageLike | undefined, liveries: readonly Livery[]): Preferences {
   const fallback = liveries[0];
   if (!fallback) {
     throw new Error("createPreferences needs at least one livery");

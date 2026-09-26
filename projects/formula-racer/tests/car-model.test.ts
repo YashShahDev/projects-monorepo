@@ -16,9 +16,7 @@ describe("car model interface", () => {
   });
   test("rejects duplicate names and budgets that do not shrink", () => {
     expect(() => parseCarModelInterface({ ...spec, anchors: ["body"] })).toThrow("duplicate");
-    expect(() => parseCarModelInterface({ ...spec, trianglesPerLod: [100, 200, 50] })).toThrow(
-      "trianglesPerLod",
-    );
+    expect(() => parseCarModelInterface({ ...spec, trianglesPerLod: [100, 200, 50] })).toThrow("trianglesPerLod");
   });
 });
 
@@ -32,11 +30,7 @@ describe("car model validation", () => {
     findNode(doc, "camera_cockpit").dispose();
     findNode(doc, "wheel_RR").setName("wheel_RL");
     expect(problems(doc)).toEqual(
-      expect.arrayContaining([
-        "missing node camera_cockpit",
-        "missing node wheel_RR",
-        "node wheel_RL appears 2 times",
-      ]),
+      expect.arrayContaining(["missing node camera_cockpit", "missing node wheel_RR", "node wheel_RL appears 2 times"]),
     );
   });
 
@@ -65,17 +59,13 @@ describe("car model validation", () => {
 
   test("keeps each LOD level within its triangle budget", () => {
     const tight = { ...contract, trianglesPerLod: [5000, 1000, 400] };
-    expect(validateCarModel(validModel(car, contract), car, tight)).toContain(
-      "LOD0 has 14012 triangles, budget 5000",
-    );
+    expect(validateCarModel(validModel(car, contract), car, tight)).toContain("LOD0 has 14012 triangles, budget 5000");
   });
 
   test("puts wheel pivots at the physics hub positions", () => {
     const doc = validModel(car, contract);
     findNode(doc, "wheel_FR").setTranslation([-0.8, -0.16, 1.7]);
-    expect(problems(doc)).toContain(
-      "wheel_FR pivot is at (-0.800, -0.160, 1.700), expected (-0.800, -0.160, 1.800)",
-    );
+    expect(problems(doc)).toContain("wheel_FR pivot is at (-0.800, -0.160, 1.700), expected (-0.800, -0.160, 1.800)");
   });
 
   test("requires wheel meshes centred on the pivot with the physics radius", () => {

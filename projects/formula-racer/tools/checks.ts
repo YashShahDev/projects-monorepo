@@ -72,8 +72,7 @@ export function checkManagedTool(spec: ToolSpec, run: Runner = runCommand): Chec
     return {
       name: spec.name,
       ok: false,
-      detail:
-        resolved.error ?? (resolved.stderr.trim() || "mise could not resolve the installed tool"),
+      detail: resolved.error ?? (resolved.stderr.trim() || "mise could not resolve the installed tool"),
     };
   }
 

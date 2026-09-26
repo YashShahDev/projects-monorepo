@@ -48,9 +48,7 @@ describe("chase camera", () => {
 
     const slow = path(30);
     const fast = path(144);
-    expect(
-      Math.hypot(slow.position.x - fast.position.x, slow.position.z - fast.position.z),
-    ).toBeLessThan(0.1);
+    expect(Math.hypot(slow.position.x - fast.position.x, slow.position.z - fast.position.z)).toBeLessThan(0.1);
   });
 
   test("reset jumps straight behind the car", () => {

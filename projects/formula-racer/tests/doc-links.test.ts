@@ -31,9 +31,7 @@ test("resolves nested links and encoded paths relative to the source document", 
 });
 test("does not make external network requests or validate fragment-only links", () => {
   expect(
-    checkDocLinks(
-      fixture("[Web](https://example.invalid) [Mail](mailto:x@example.invalid) [Here](#here)"),
-    ),
+    checkDocLinks(fixture("[Web](https://example.invalid) [Mail](mailto:x@example.invalid) [Here](#here)")),
   ).toEqual([]);
 });
 test("ignores examples in fenced code and dependency documentation", () => {
@@ -43,7 +41,5 @@ test("ignores examples in fenced code and dependency documentation", () => {
   expect(checkDocLinks(root)).toEqual([]);
 });
 test("reports malformed encoding without crashing the whole scan", () => {
-  expect(checkDocLinks(fixture("[Bad](broken%.md)"))).toEqual([
-    "README.md: malformed link broken%.md",
-  ]);
+  expect(checkDocLinks(fixture("[Bad](broken%.md)"))).toEqual(["README.md: malformed link broken%.md"]);
 });

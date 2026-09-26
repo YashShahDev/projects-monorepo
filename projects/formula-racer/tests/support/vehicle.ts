@@ -6,9 +6,7 @@ import { createVehicleSimulation, NO_CONTROLS } from "../../src/simulation/vehic
 import type { DriverControls, VehicleSimulation } from "../../src/simulation/vehicle.ts";
 
 export const car: CarDefinition = parseCar(
-  JSON.parse(
-    readFileSync(resolve(import.meta.dirname, "../../public/assets/cars/fr26.json"), "utf8"),
-  ),
+  JSON.parse(readFileSync(resolve(import.meta.dirname, "../../public/assets/cars/fr26.json"), "utf8")),
 );
 
 export async function settledVehicle(definition: CarDefinition = car): Promise<VehicleSimulation> {

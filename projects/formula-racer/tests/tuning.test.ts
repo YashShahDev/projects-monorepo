@@ -7,9 +7,7 @@ import { parseTrack } from "../src/content/track.ts";
 import { car } from "./support/vehicle.ts";
 
 const track = parseTrack(
-  JSON.parse(
-    readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8"),
-  ),
+  JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8")),
 );
 const throttle = { throttle: true, brake: false, left: false, right: false, deploy: false };
 

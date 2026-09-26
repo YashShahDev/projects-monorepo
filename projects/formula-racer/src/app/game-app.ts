@@ -98,9 +98,7 @@ export async function startGameApp(
     ]),
   );
   await stage("Physics engine (WebAssembly) failed to start", initPhysics);
-  const session = await stage("Could not start the simulation", () =>
-    createDrivingSession(car, track, { energy }),
-  );
+  const session = await stage("Could not start the simulation", () => createDrivingSession(car, track, { energy }));
   const view = await stage("Renderer failed to start", () =>
     createTrackView(canvas, context, session.geometry, track.startDistanceM, car),
   ).catch((error: unknown) => {

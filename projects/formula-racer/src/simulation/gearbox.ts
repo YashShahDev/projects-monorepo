@@ -12,8 +12,7 @@ export interface Gearbox {
 
 export function createGearbox(box: GearboxDefinition): Gearbox {
   const tops = box.gearTopSpeedsKmh.map((kmh) => kmh / 3.6);
-  const rpmIn = (gear: number, speedMps: number) =>
-    (box.redlineRpm * Math.abs(speedMps)) / (tops[gear - 1] ?? 1);
+  const rpmIn = (gear: number, speedMps: number) => (box.redlineRpm * Math.abs(speedMps)) / (tops[gear - 1] ?? 1);
   let gear = 1;
 
   return {

@@ -84,10 +84,7 @@ describe("the shipped circuit", () => {
           continue;
         }
 
-        const d = Math.hypot(
-          (geometry.x[i] ?? 0) - (geometry.x[j] ?? 0),
-          (geometry.z[i] ?? 0) - (geometry.z[j] ?? 0),
-        );
+        const d = Math.hypot((geometry.x[i] ?? 0) - (geometry.x[j] ?? 0), (geometry.z[i] ?? 0) - (geometry.z[j] ?? 0));
         closest = Math.min(closest, d);
       }
     }
@@ -103,9 +100,7 @@ describe("the shipped circuit", () => {
 
 describe("track content", () => {
   test("names the failing field", () => {
-    expect(() => parseTrack({ ...raw, widthM: 3 })).toThrow(
-      "track.widthM must be between 6 and 30",
-    );
+    expect(() => parseTrack({ ...raw, widthM: 3 })).toThrow("track.widthM must be between 6 and 30");
     expect(() => parseTrack({ ...raw, version: 2 })).toThrow("track.version must be 1");
     expect(() =>
       parseTrack({
@@ -144,9 +139,7 @@ describe("track content", () => {
 
   test("loads over fetch and reports the URL path on failure", async () => {
     const ok = async () => new Response(JSON.stringify(raw));
-    expect((await fetchTrack(new URL("http://x/assets/tracks/harbour.json"), ok)).id).toBe(
-      "harbour",
-    );
+    expect((await fetchTrack(new URL("http://x/assets/tracks/harbour.json"), ok)).id).toBe("harbour");
     const bad = async () => new Response(JSON.stringify({ ...raw, name: "" }));
     await expect(fetchTrack(new URL("http://x/t.json"), bad)).rejects.toThrow("/t.json.name");
   });
@@ -154,23 +147,17 @@ describe("track content", () => {
   test("rejects non-objects, arrays and non-finite numbers", () => {
     expect(() => parseTrack(null)).toThrow(ContentError);
     expect(() => parseTrack([])).toThrow("must be an object");
-    expect(() => parseTrack({ ...raw, startDistanceM: Number.POSITIVE_INFINITY })).toThrow(
-      "track.startDistanceM",
-    );
+    expect(() => parseTrack({ ...raw, startDistanceM: Number.POSITIVE_INFINITY })).toThrow("track.startDistanceM");
   });
 
   test("reports a missing asset's path and HTTP status", async () => {
     const url = new URL("http://localhost/game/assets/tracks/harbour.json");
     const missing = () => Promise.resolve(new Response("", { status: 404 }));
-    await expect(fetchTrack(url, missing)).rejects.toThrow(
-      "/game/assets/tracks/harbour.json: HTTP 404",
-    );
+    await expect(fetchTrack(url, missing)).rejects.toThrow("/game/assets/tracks/harbour.json: HTTP 404");
   });
 
   test("reports malformed JSON as a content error", async () => {
     const url = new URL("http://localhost/t.json");
-    await expect(fetchTrack(url, () => Promise.resolve(new Response("{")))).rejects.toThrow(
-      "not valid JSON",
-    );
+    await expect(fetchTrack(url, () => Promise.resolve(new Response("{")))).rejects.toThrow("not valid JSON");
   });
 });

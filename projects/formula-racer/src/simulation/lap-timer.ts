@@ -104,8 +104,7 @@ export function createLapTimer({ lengthM, sectors, maxStepM = 30 }: LapTimerOpti
       // Sector boundaries count only when reached driving forward, and only once.
       while (lap.progress >= lap.nextSector * sectorM) {
         const boundary: number = lap.nextSector * sectorM;
-        const crossedT: number =
-          previousT + ((t - previousT) * (boundary - previous)) / (lap.progress - previous);
+        const crossedT: number = previousT + ((t - previousT) * (boundary - previous)) / (lap.progress - previous);
         lap.sectorsS.push(crossedT - lap.splitT);
         lap.splitT = crossedT;
         if (lap.nextSector < sectors) {

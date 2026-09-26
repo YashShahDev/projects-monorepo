@@ -76,10 +76,7 @@ export function extents(value: unknown, path: string): Vec3 {
   };
 }
 
-export async function fetchJson(
-  url: URL,
-  fetchImpl: (url: URL) => Promise<Response>,
-): Promise<unknown> {
+export async function fetchJson(url: URL, fetchImpl: (url: URL) => Promise<Response>): Promise<unknown> {
   const response = await fetchImpl(url);
   if (!response.ok) {
     throw new ContentError(`${url.pathname}: HTTP ${String(response.status)}`);

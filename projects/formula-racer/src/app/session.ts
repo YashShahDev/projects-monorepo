@@ -215,9 +215,7 @@ export async function createDrivingSession(
           // Straight Mode only on throttle, off the brakes, inside an activation zone.
           const here = locate().distanceM;
           const inZone = track.activeAeroZones.some((z) => here >= z.startM && here <= z.endM);
-          sim.setWingMode(
-            inZone && controls.throttle > 0 && controls.brake === 0 ? "straight" : "corner",
-          );
+          sim.setWingMode(inZone && controls.throttle > 0 && controls.brake === 0 ? "straight" : "corner");
           sim.step(controls);
           const location = locate();
           const before = lapTimer.laps().length;
@@ -225,8 +223,7 @@ export async function createDrivingSession(
           // Track limits: the lap stays valid until all four wheels are past the kerb,
           // i.e. the inner wheels' outer edges are beyond it.
           const withinLimits =
-            Math.abs(location.lateralM) - innerWheelOffsetM <=
-            geometry.halfWidthM + geometry.kerbWidthM;
+            Math.abs(location.lateralM) - innerWheelOffsetM <= geometry.halfWidthM + geometry.kerbWidthM;
           lapTimer.update(sim.snapshot().simSeconds, location.distanceM, withinLimits);
           const done = lapTimer.laps();
           if (done.length > before) {

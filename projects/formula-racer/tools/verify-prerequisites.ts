@@ -36,26 +36,17 @@ try {
     { timeout: 60_000, stdio: "pipe" },
   );
   const glb = await readFile(join(output, "fixture.glb"));
-  if (
-    glb.toString("ascii", 0, 4) !== "glTF" ||
-    glb.readUInt32LE(4) !== 2 ||
-    glb.readUInt32LE(8) !== glb.length
-  ) {
+  if (glb.toString("ascii", 0, 4) !== "glTF" || glb.readUInt32LE(4) !== 2 || glb.readUInt32LE(8) !== glb.length) {
     throw new Error("Blender did not produce a valid GLB 2 header");
   }
 
-  console.log(
-    `PASS Blender background Python: GLB export (${String(glb.length)} bytes) and PNG fixture`,
-  );
-  execFileSync(
-    "toktx",
-    ["--t2", "--encode", "uastc", join(output, "fixture.ktx2"), join(output, "fixture.png")],
-    { timeout: 30_000, stdio: "pipe" },
-  );
+  console.log(`PASS Blender background Python: GLB export (${String(glb.length)} bytes) and PNG fixture`);
+  execFileSync("toktx", ["--t2", "--encode", "uastc", join(output, "fixture.ktx2"), join(output, "fixture.png")], {
+    timeout: 30_000,
+    stdio: "pipe",
+  });
   const ktx = await readFile(join(output, "fixture.ktx2"));
-  const identifier = new Uint8Array([
-    0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a,
-  ]);
+  const identifier = new Uint8Array([0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a]);
   if (!ktx.subarray(0, 12).equals(identifier)) {
     throw new Error("KTX encoder did not produce KTX2");
   }

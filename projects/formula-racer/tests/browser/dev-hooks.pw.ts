@@ -87,9 +87,7 @@ test("@dev dispose frees the simulation and stops the frame loop", async ({ page
   await freezeFrames(page);
   await openGame(page);
   await hook(page, { name: "dispose" });
-  await expect(hook(page, { name: "state" })).rejects.toThrow(
-    "vehicle simulation used after dispose()",
-  );
+  await expect(hook(page, { name: "state" })).rejects.toThrow("vehicle simulation used after dispose()");
   await page.clock.runFor(300);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });

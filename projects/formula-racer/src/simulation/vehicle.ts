@@ -137,27 +137,20 @@ const PEAK_SLIP_RAD = 0.015;
 const GRAVITY = 9.81;
 const AIR_DENSITY_KG_M3 = 1.225;
 
-const clamp = (value: number, min: number, max: number): number =>
-  Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
 function headingQuat(headingRad: number): Quat {
   return { x: 0, y: Math.sin(headingRad / 2), z: 0, w: Math.cos(headingRad / 2) };
 }
 
-export async function createVehicleSimulation(
-  car: CarDefinition,
-  options: VehicleOptions,
-): Promise<VehicleSimulation> {
+export async function createVehicleSimulation(car: CarDefinition, options: VehicleOptions): Promise<VehicleSimulation> {
   await initPhysics();
 
   return buildVehicleSimulation(car, options);
 }
 
 /** Synchronous construction for callers that have already awaited `initPhysics()`. */
-export function buildVehicleSimulation(
-  car: CarDefinition,
-  options: VehicleOptions,
-): VehicleSimulation {
+export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptions): VehicleSimulation {
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
   const stepSeconds = world.timestep;
   const ground = options.groundHalfExtentM ?? 3000;
@@ -198,13 +191,7 @@ export function buildVehicleSimulation(
     // Rapier 0.21 names this setter `setIndexForwardAxis` (a property, not a method).
     controller.setIndexForwardAxis = 2;
     wheelPoints.forEach((point, i) => {
-      controller.addWheel(
-        point,
-        { x: 0, y: -1, z: 0 },
-        { x: -1, y: 0, z: 0 },
-        w.suspensionRestLength,
-        w.radius,
-      );
+      controller.addWheel(point, { x: 0, y: -1, z: 0 }, { x: -1, y: 0, z: 0 }, w.suspensionRestLength, w.radius);
       controller.setWheelMaxSuspensionTravel(i, w.maxSuspensionTravel);
       controller.setWheelSuspensionStiffness(i, w.suspensionStiffness);
       controller.setWheelSuspensionCompression(i, w.suspensionCompression);
@@ -224,8 +211,7 @@ export function buildVehicleSimulation(
   const powertrain = createPowertrain(car.powertrain);
   let wingMode: WingMode = "corner";
   let wingOpening = 0;
-  const dragAreaM2 = () =>
-    car.aero.dragAreaM2 + (car.aero.straightMode.dragAreaM2 - car.aero.dragAreaM2) * wingOpening;
+  const dragAreaM2 = () => car.aero.dragAreaM2 + (car.aero.straightMode.dragAreaM2 - car.aero.dragAreaM2) * wingOpening;
   const rules = options.energy;
   const energy = rules ? createEnergySystem(rules) : undefined;
   let energyMode: EnergyMode = "balanced";
@@ -362,8 +348,7 @@ export function buildVehicleSimulation(
       }
 
       const downforceN =
-        dynamicPressure *
-        (a.downforceAreaM2 + (a.straightMode.downforceAreaM2 - a.downforceAreaM2) * wingOpening);
+        dynamicPressure * (a.downforceAreaM2 + (a.straightMode.downforceAreaM2 - a.downforceAreaM2) * wingOpening);
       let steerRad = -applied.steer * car.steering.maxAngleRad;
       if (assists.steering) {
         // Past the angle that already uses all the front grip, extra lock only scrubs

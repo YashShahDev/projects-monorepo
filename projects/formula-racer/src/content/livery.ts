@@ -36,9 +36,7 @@ export function parseLiveries(value: unknown, source = "liveries"): Livery[] {
     const v = object(entry, path);
     for (const key of Object.keys(v)) {
       if (!KEYS.has(key)) {
-        throw new ContentError(
-          `${path}.${key} is not a livery property (liveries are visual only)`,
-        );
+        throw new ContentError(`${path}.${key} is not a livery property (liveries are visual only)`);
       }
     }
 
@@ -59,9 +57,6 @@ export function parseLiveries(value: unknown, source = "liveries"): Livery[] {
   });
 }
 
-export async function fetchLiveries(
-  url: URL,
-  fetchImpl: (url: URL) => Promise<Response> = fetch,
-): Promise<Livery[]> {
+export async function fetchLiveries(url: URL, fetchImpl: (url: URL) => Promise<Response> = fetch): Promise<Livery[]> {
   return parseLiveries(await fetchJson(url, fetchImpl), url.pathname);
 }

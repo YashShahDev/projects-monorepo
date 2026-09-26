@@ -2,12 +2,7 @@ import { getBounds, NodeIO, Primitive } from "@gltf-transform/core";
 import type { Document, Material, Node, Texture } from "@gltf-transform/core";
 import { parseCar } from "../src/content/car.ts";
 import type { CarDefinition } from "../src/content/car.ts";
-import {
-  lodName,
-  lodNodes,
-  parseCarModelInterface,
-  requiredNodes,
-} from "../src/content/car-model.ts";
+import { lodName, lodNodes, parseCarModelInterface, requiredNodes } from "../src/content/car-model.ts";
 import type { CarModelInterface } from "../src/content/car-model.ts";
 
 const POSITION_TOLERANCE_M = 0.01;
@@ -28,8 +23,7 @@ function triangles(node: Node): number {
       continue;
     }
 
-    const count =
-      primitive.getIndices()?.getCount() ?? primitive.getAttribute("POSITION")?.getCount();
+    const count = primitive.getIndices()?.getCount() ?? primitive.getAttribute("POSITION")?.getCount();
     total += Math.floor((count ?? 0) / 3);
   }
 
@@ -61,11 +55,7 @@ const TEXTURE_SLOTS: [string, (m: Material) => Texture | null][] = [
  * Checks a car model against the node interface and the physics definition it will be
  * drawn over. Returns every problem found, so one export run reports them all.
  */
-export function validateCarModel(
-  doc: Document,
-  car: CarDefinition,
-  spec: CarModelInterface,
-): string[] {
+export function validateCarModel(doc: Document, car: CarDefinition, spec: CarModelInterface): string[] {
   const problems: string[] = [];
   const nodes = doc.getRoot().listNodes();
   const byName = new Map<string, Node[]>();
@@ -94,9 +84,7 @@ export function validateCarModel(
 
   const allowedMeshes = new Set([
     spec.collision,
-    ...lodNodes(spec).flatMap((name) =>
-      Array.from({ length: spec.lodCount }, (_, level) => lodName(name, level)),
-    ),
+    ...lodNodes(spec).flatMap((name) => Array.from({ length: spec.lodCount }, (_, level) => lodName(name, level))),
   ]);
   for (const node of nodes) {
     if (node.getMesh() && !allowedMeshes.has(node.getName())) {
@@ -181,9 +169,7 @@ export function validateCarModel(
       ["occlusion", material.getOcclusionTexture()],
     ] as const) {
       if (!texture) {
-        problems.push(
-          `${bodyLod0?.getName() ?? ""} material ${material.getName()} has no ${slot} texture`,
-        );
+        problems.push(`${bodyLod0?.getName() ?? ""} material ${material.getName()} has no ${slot} texture`);
       }
     }
   }
@@ -216,11 +202,7 @@ export function validateCarModel(
       return;
     }
 
-    const expected = [
-      at(hubs[i] ?? [], 0),
-      w.connectionY - w.suspensionRestLength,
-      at(hubs[i] ?? [], 1),
-    ];
+    const expected = [at(hubs[i] ?? [], 0), w.connectionY - w.suspensionRestLength, at(hubs[i] ?? [], 1)];
     const actual = pivot.getWorldTranslation();
     if (expected.some((e, k) => Math.abs(e - at(actual, k)) > POSITION_TOLERANCE_M)) {
       problems.push(`${name} pivot is at ${f3(actual)}, expected ${f3(expected)}`);
@@ -238,9 +220,7 @@ export function validateCarModel(
 
     const radius = Math.max(size(bounds, 1), size(bounds, 2)) / 2;
     if (Math.abs(radius - w.radius) > POSITION_TOLERANCE_M) {
-      problems.push(
-        `${lodName(name, 0)} has radius ${radius.toFixed(3)} m, physics uses ${w.radius.toFixed(3)} m`,
-      );
+      problems.push(`${lodName(name, 0)} has radius ${radius.toFixed(3)} m, physics uses ${w.radius.toFixed(3)} m`);
     }
   });
 
@@ -255,9 +235,7 @@ export function validateCarModel(
     ] as const) {
       const measured = size(all, axis);
       if (measured < min - 1e-6 || measured > max + 1e-6) {
-        problems.push(
-          `${label} is ${measured.toFixed(3)} m, expected ${min.toFixed(3)}–${max.toFixed(3)} m`,
-        );
+        problems.push(`${label} is ${measured.toFixed(3)} m, expected ${min.toFixed(3)}–${max.toFixed(3)} m`);
       }
     }
   }
@@ -275,16 +253,12 @@ export function validateCarModel(
         expected.some((e, k) => Math.abs(e - at(half, k)) > COLLISION_TOLERANCE_M) ||
         [0, 1, 2].some((k) => Math.abs(centre(b, k)) > COLLISION_TOLERANCE_M);
       if (off) {
-        problems.push(
-          `${spec.collision} bounds ${f3(half)} differ from chassisHalfExtents ${f3(expected)}`,
-        );
+        problems.push(`${spec.collision} bounds ${f3(half)} differ from chassisHalfExtents ${f3(expected)}`);
       }
 
       const count = triangles(collision);
       if (count > spec.collisionMaxTriangles) {
-        problems.push(
-          `${spec.collision} has ${String(count)} triangles, limit ${String(spec.collisionMaxTriangles)}`,
-        );
+        problems.push(`${spec.collision} has ${String(count)} triangles, limit ${String(spec.collisionMaxTriangles)}`);
       }
     }
   }
@@ -309,8 +283,7 @@ export async function validateCarModelFile(
 }
 
 if (import.meta.main) {
-  const [model = "public/assets/cars/fr26.glb", carPath = "public/assets/cars/fr26.json"] =
-    process.argv.slice(2);
+  const [model = "public/assets/cars/fr26.glb", carPath = "public/assets/cars/fr26.json"] = process.argv.slice(2);
   const car = parseCar(await Bun.file(carPath).json(), carPath);
   const spec = parseCarModelInterface(await Bun.file("content/cars/model-interface.json").json());
   const problems = await validateCarModelFile(model, car, spec);

@@ -38,10 +38,7 @@ test("@smoke switching an assist off restarts on the grid", async ({ page }) => 
 test("@smoke a saved best lap is shown after loading", async ({ page }) => {
   await page.addInitScript(
     ([storageKey, lap]) => {
-      localStorage.setItem(
-        "formula-racer:laps",
-        JSON.stringify({ version: 1, bests: { [storageKey]: lap } }),
-      );
+      localStorage.setItem("formula-racer:laps", JSON.stringify({ version: 1, bests: { [storageKey]: lap } }));
     },
     [key, { timeS: 92.3456, sectorsS: [30, 31, 31.3456] }] as const,
   );

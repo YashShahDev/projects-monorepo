@@ -142,10 +142,7 @@ describe("steering assist", () => {
     const sim = await settledVehicle();
     sim.setAssists({ ...NONE, steering: true });
     sim.step({ throttle: 0, brake: 0, steer: 1 });
-    expect(Math.abs(sim.snapshot().wheels[0]?.steerRad ?? 0)).toBeCloseTo(
-      car.steering.maxAngleRad,
-      5,
-    );
+    expect(Math.abs(sim.snapshot().wheels[0]?.steerRad ?? 0)).toBeCloseTo(car.steering.maxAngleRad, 5);
     sim.dispose();
   });
 });

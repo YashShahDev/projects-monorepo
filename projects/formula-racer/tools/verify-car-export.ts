@@ -17,9 +17,7 @@ try {
     new Bun.CryptoHasher("sha256").update(new Uint8Array(await readFile(path))).digest("hex");
   const [expected, actual] = await Promise.all([hash(committed), hash(out)]);
   if (expected !== actual) {
-    console.error(
-      `${committed} is stale or not reproducible: committed ${expected}, rebuilt ${actual}`,
-    );
+    console.error(`${committed} is stale or not reproducible: committed ${expected}, rebuilt ${actual}`);
     process.exit(1);
   }
 

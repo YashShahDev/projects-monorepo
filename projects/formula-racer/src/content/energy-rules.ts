@@ -38,20 +38,18 @@ export function parseEnergyRules(value: unknown, source = "energy rules"): Energ
   }
 
   const ersMaxPowerW = positive(root.ersMaxPowerW, `${source}.ersMaxPowerW`);
-  const curve = array(root.deployCurveKphKw, `${source}.deployCurveKphKw`, 2).map(
-    (point, i, all): [number, number] => {
-      const field = `${source}.deployCurveKphKw[${String(i)}]`;
-      const pair = array(point, field, 2);
-      const kph = inRange(pair[0], `${field}[0]`, 0, 500);
-      const kw = inRange(pair[1], `${field}[1]`, 0, ersMaxPowerW / 1000);
-      const before = i > 0 ? Number((all[i - 1] as unknown[] | undefined)?.[0]) : -1;
-      if (!(kph > before)) {
-        throw new ContentError(`${field} speed must be greater than the point before`);
-      }
+  const curve = array(root.deployCurveKphKw, `${source}.deployCurveKphKw`, 2).map((point, i, all): [number, number] => {
+    const field = `${source}.deployCurveKphKw[${String(i)}]`;
+    const pair = array(point, field, 2);
+    const kph = inRange(pair[0], `${field}[0]`, 0, 500);
+    const kw = inRange(pair[1], `${field}[1]`, 0, ersMaxPowerW / 1000);
+    const before = i > 0 ? Number((all[i - 1] as unknown[] | undefined)?.[0]) : -1;
+    if (!(kph > before)) {
+      throw new ContentError(`${field} speed must be greater than the point before`);
+    }
 
-      return [kph, kw];
-    },
-  );
+    return [kph, kw];
+  });
 
   return {
     version: 1,
@@ -63,12 +61,7 @@ export function parseEnergyRules(value: unknown, source = "energy rules"): Energ
     deployCurveKphKw: curve,
     socWindowJ: positive(root.socWindowJ, `${source}.socWindowJ`),
     rechargePerLapJ: positive(root.rechargePerLapJ, `${source}.rechargePerLapJ`),
-    standingStartDeployKph: inRange(
-      root.standingStartDeployKph,
-      `${source}.standingStartDeployKph`,
-      0,
-      200,
-    ),
+    standingStartDeployKph: inRange(root.standingStartDeployKph, `${source}.standingStartDeployKph`, 0, 200),
     deployEfficiency: inRange(root.deployEfficiency, `${source}.deployEfficiency`, 0.5, 1),
     regenEfficiency: inRange(root.regenEfficiency, `${source}.regenEfficiency`, 0.5, 1),
     balancedDeployShare: inRange(root.balancedDeployShare, `${source}.balancedDeployShare`, 0, 1),

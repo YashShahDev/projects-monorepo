@@ -85,23 +85,17 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
       let deployW = 0;
       if (launched && throttle > 0 && mode !== "harvest") {
         const share = deployRequest ? 1 : rules.balancedDeployShare;
-        deployW = Math.min(
-          throttle * share * permittedDeployW(rules, speedMps),
-          limitW ?? Number.POSITIVE_INFINITY,
-        );
+        deployW = Math.min(throttle * share * permittedDeployW(rules, speedMps), limitW ?? Number.POSITIVE_INFINITY);
 
         // Never draw more than is stored.
         deployW = Math.min(deployW, (socJ * rules.deployEfficiency) / dtS);
       }
 
       const liftOff =
-        mode === "harvest" && throttle === 0 && Math.abs(speedMps) >= MIN_HARVEST_SPEED_MPS
-          ? rules.liftOffHarvestW
-          : 0;
+        mode === "harvest" && throttle === 0 && Math.abs(speedMps) >= MIN_HARVEST_SPEED_MPS ? rules.liftOffHarvestW : 0;
       const wanted = Math.min(rules.ersMaxPowerW, brakePowerW + liftOff);
       const roomJ = Math.min(
-        (rules.socWindowJ - (socJ - (deployW * dtS) / rules.deployEfficiency)) /
-          rules.regenEfficiency,
+        (rules.socWindowJ - (socJ - (deployW * dtS) / rules.deployEfficiency)) / rules.regenEfficiency,
         rules.rechargePerLapJ - lapRechargeJ,
       );
       const regenW = Math.max(0, Math.min(wanted, roomJ / dtS));

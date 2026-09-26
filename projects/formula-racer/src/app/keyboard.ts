@@ -70,10 +70,7 @@ export interface Keyboard {
   dispose(): void;
 }
 
-export function createKeyboard(
-  window: EventTarget,
-  document: EventTarget & { visibilityState: string },
-): Keyboard {
+export function createKeyboard(window: EventTarget, document: EventTarget & { visibilityState: string }): Keyboard {
   const down = new Set<string>();
   const listeners: ((action: KeyAction) => void)[] = [];
   const onKeyDown = (event: Event) => {

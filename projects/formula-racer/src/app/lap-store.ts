@@ -45,11 +45,7 @@ const SCHEMA = 1;
  * Bests are only comparable under the same track, physics model and assists, so each
  * combination keeps its own.
  */
-export function lapKey(parts: {
-  trackId: string;
-  physicsVersion: string;
-  assists: DriverAssists;
-}): string {
+export function lapKey(parts: { trackId: string; physicsVersion: string; assists: DriverAssists }): string {
   const a = parts.assists;
   const flags = `${a.steering ? "S" : "-"}${a.abs ? "A" : "-"}${a.traction ? "T" : "-"}`;
 
@@ -115,10 +111,7 @@ export function createLapStore(storage: StorageLike | undefined): LapStore {
     }
 
     try {
-      storage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ version: SCHEMA, bests: Object.fromEntries(bests) }),
-      );
+      storage.setItem(STORAGE_KEY, JSON.stringify({ version: SCHEMA, bests: Object.fromEntries(bests) }));
     } catch {
       // Quota or a revoked permission: the best still counts for this session.
       status.persistent = false;

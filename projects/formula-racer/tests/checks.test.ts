@@ -29,9 +29,7 @@ describe("prerequisite diagnostics", () => {
     expect(checkTool(spec, () => ({ ...success, stdout: "v1.2.30" })).ok).toBe(false);
   });
   test("rejects unrecognized version output", () => {
-    expect(checkTool(spec, () => ({ ...success, stdout: "unknown" })).detail).toContain(
-      "unrecognized",
-    );
+    expect(checkTool(spec, () => ({ ...success, stdout: "unknown" })).detail).toContain("unrecognized");
   });
   test("reports missing executables and timeouts as failures", () => {
     for (const error of ["ENOENT", "ETIMEDOUT"]) {
@@ -42,9 +40,7 @@ describe("prerequisite diagnostics", () => {
     expect(checkTool(spec, () => ({ ...success, status: 1 })).ok).toBe(false);
   });
   test("an unpinned utility still needs successful execution", () => {
-    expect(checkTool({ name: "Git", command: "git", args: ["--version"] }, () => success).ok).toBe(
-      true,
-    );
+    expect(checkTool({ name: "Git", command: "git", args: ["--version"] }, () => success).ok).toBe(true);
   });
   test("any failed prerequisite fails the aggregate report", () => {
     expect(checksPassed([{ name: "one", ok: true, detail: "ok" }])).toBe(true);
@@ -62,9 +58,7 @@ test("managed tools use the installed executable instead of a PATH installer wra
   const result = checkManagedTool(spec, (command) => {
     calls.push(command);
 
-    return command === "mise"
-      ? { status: 0, stdout: "/tools with spaces/example\n", stderr: "" }
-      : success;
+    return command === "mise" ? { status: 0, stdout: "/tools with spaces/example\n", stderr: "" } : success;
   });
   expect(result.ok).toBe(true);
   expect(calls).toEqual(["mise", "/tools with spaces/example"]);

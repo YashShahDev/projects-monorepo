@@ -49,12 +49,7 @@ function catmullRom(
   const t2 = t1 + knot(p1, p2);
   const t3 = t2 + knot(p2, p3);
   const u = t1 + (t2 - t1) * t;
-  const lerp = (
-    a: { x: number; z: number },
-    b: { x: number; z: number },
-    ta: number,
-    tb: number,
-  ) => {
+  const lerp = (a: { x: number; z: number }, b: { x: number; z: number }, ta: number, tb: number) => {
     const w = (u - ta) / (tb - ta);
 
     return { x: a.x + (b.x - a.x) * w, z: a.z + (b.z - a.z) * w };
@@ -196,8 +191,7 @@ export function buildTrackGeometry(track: TrackDefinition, spacingM = 2): TrackG
       // Left of travel is +x when facing +z: rotate the tangent by +90° about +y.
       const lateralM = dx * (tz[i] ?? 0) - dz * (tx[i] ?? 0);
       const offset = Math.abs(lateralM);
-      const surface: Surface =
-        offset <= halfWidthM ? "road" : offset <= halfWidthM + kerbWidthM ? "kerb" : "grass";
+      const surface: Surface = offset <= halfWidthM ? "road" : offset <= halfWidthM + kerbWidthM ? "kerb" : "grass";
       const distanceM = (((i * step + along) % lengthM) + lengthM) % lengthM;
 
       return { index: i, distanceM, lateralM, surface };

@@ -5,8 +5,7 @@ import { createPreferences } from "../src/app/preferences.ts";
 import type { StorageLike } from "../src/app/lap-store.ts";
 
 const liveries = parseLiveries(shipped);
-const clone = () =>
-  structuredClone(shipped) as { version: number; liveries: Record<string, unknown>[] };
+const clone = () => structuredClone(shipped) as { version: number; liveries: Record<string, unknown>[] };
 
 describe("liveries", () => {
   test("ships three fictional liveries, the first matching the greybox red", () => {
@@ -23,9 +22,7 @@ describe("liveries", () => {
   test("rejects malformed colours and duplicate ids", () => {
     const colour = clone();
     colour.liveries[0] = { ...colour.liveries[0], paint: "red" };
-    expect(() => parseLiveries(colour)).toThrow(
-      "liveries.liveries[0].paint must be a #rrggbb colour",
-    );
+    expect(() => parseLiveries(colour)).toThrow("liveries.liveries[0].paint must be a #rrggbb colour");
     const dup = clone();
     dup.liveries[2] = { ...dup.liveries[2], id: "vermilion" };
     expect(() => parseLiveries(dup)).toThrow("liveries.liveries[2].id vermilion is used twice");

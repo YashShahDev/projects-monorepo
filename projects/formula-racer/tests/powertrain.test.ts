@@ -75,8 +75,7 @@ describe("powertrain", () => {
 });
 
 describe("powertrain content", () => {
-  const withCurve = (powerCurve: unknown) => () =>
-    parseCar({ ...car, powertrain: { ...car.powertrain, powerCurve } });
+  const withCurve = (powerCurve: unknown) => () => parseCar({ ...car, powertrain: { ...car.powertrain, powerCurve } });
 
   test("rejects a power curve whose rpm does not increase", () => {
     expect(

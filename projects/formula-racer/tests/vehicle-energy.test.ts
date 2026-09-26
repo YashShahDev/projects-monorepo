@@ -8,12 +8,7 @@ import type { DriverControls, VehicleSimulation } from "../src/simulation/vehicl
 import { car, kmh, run } from "./support/vehicle.ts";
 
 const rules = parseEnergyRules(
-  JSON.parse(
-    readFileSync(
-      resolve(import.meta.dirname, "../public/assets/rules/energy-2026-c18.json"),
-      "utf8",
-    ),
-  ),
+  JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/assets/rules/energy-2026-c18.json"), "utf8")),
 );
 
 async function vehicle(withEnergy = true) {
@@ -27,12 +22,7 @@ async function vehicle(withEnergy = true) {
 }
 
 /** Seconds from `fromKmh` to `toKmh` holding `controls`. */
-function timeBetween(
-  sim: VehicleSimulation,
-  fromKmh: number,
-  toKmh: number,
-  controls: DriverControls,
-) {
+function timeBetween(sim: VehicleSimulation, fromKmh: number, toKmh: number, controls: DriverControls) {
   while (kmh(sim) < fromKmh) {
     sim.step({ throttle: 1, brake: 0, steer: 0 });
   }

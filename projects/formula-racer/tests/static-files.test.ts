@@ -31,9 +31,7 @@ describe("static file resolution", () => {
     expect(resolveStaticPath(root, "/", "/assets/")).toBe(join(root, "assets/index.html"));
   });
   test("decodes encoded names", () => {
-    expect(resolveStaticPath(root, "/", "/assets/a%20note.json")).toBe(
-      join(root, "assets/a note.json"),
-    );
+    expect(resolveStaticPath(root, "/", "/assets/a%20note.json")).toBe(join(root, "assets/a note.json"));
   });
   test("ignores requests outside the deployment base", () => {
     expect(resolveStaticPath(root, "/game/", "/assets/scene.json")).toBeNull();

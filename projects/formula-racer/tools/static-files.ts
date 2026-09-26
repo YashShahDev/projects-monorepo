@@ -44,11 +44,7 @@ export function resolveStaticPath(root: string, base: string, pathname: string):
   return path.startsWith(absoluteRoot + sep) ? path : null;
 }
 
-export async function serveStaticFile(
-  root: string,
-  base: string,
-  pathname: string,
-): Promise<Response> {
+export async function serveStaticFile(root: string, base: string, pathname: string): Promise<Response> {
   // Relative bundle URLs only resolve correctly once the subpath has its trailing slash.
   if (base !== "/" && pathname === base.slice(0, -1)) {
     return new Response(null, { status: 308, headers: { Location: base } });

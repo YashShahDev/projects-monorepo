@@ -2,9 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createLapStore, lapKey, storageNotice } from "../src/app/lap-store.ts";
 import type { StorageLike } from "../src/app/lap-store.ts";
 
-function memoryStorage(
-  initial: Record<string, string> = {},
-): StorageLike & { data: Record<string, string> } {
+function memoryStorage(initial: Record<string, string> = {}): StorageLike & { data: Record<string, string> } {
   const data = { ...initial };
 
   return {

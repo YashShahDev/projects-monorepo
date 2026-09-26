@@ -4,10 +4,7 @@ import { parseCarModelInterface } from "../src/content/car-model.ts";
 import { validateCarModelFile } from "./validate-car-model.ts";
 
 /** Builds the car GLB in Blender (background, factory settings) and validates the result. */
-export async function exportCar(
-  out: string,
-  options: { textureSize?: number; samples?: number } = {},
-) {
+export async function exportCar(out: string, options: { textureSize?: number; samples?: number } = {}) {
   const carPath = "public/assets/cars/fr26.json";
   const interfacePath = "content/cars/model-interface.json";
   const result = spawnSync(
@@ -34,9 +31,7 @@ export async function exportCar(
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 },
   );
   if (result.status !== 0) {
-    throw new Error(
-      `Blender export failed (${String(result.status)}):\n${result.stderr}${result.stdout.slice(-4000)}`,
-    );
+    throw new Error(`Blender export failed (${String(result.status)}):\n${result.stderr}${result.stdout.slice(-4000)}`);
   }
 
   const car = parseCar(await Bun.file(carPath).json(), carPath);
@@ -57,7 +52,5 @@ if (import.meta.main) {
     process.exit(1);
   }
 
-  console.log(
-    `${out}: exported and valid in ${((performance.now() - started) / 1000).toFixed(1)} s`,
-  );
+  console.log(`${out}: exported and valid in ${((performance.now() - started) / 1000).toFixed(1)} s`);
 }

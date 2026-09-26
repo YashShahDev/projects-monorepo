@@ -7,9 +7,7 @@ import { parseTrack } from "../src/content/track.ts";
 import { car } from "./support/vehicle.ts";
 
 const track = parseTrack(
-  JSON.parse(
-    readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8"),
-  ),
+  JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8")),
 );
 const idle = { throttle: false, brake: false, left: false, right: false, deploy: false };
 const throttle = { ...idle, throttle: true };
@@ -130,10 +128,7 @@ describe("driving session", () => {
     const s = await atSpeed();
     for (let i = 0; i < 30; i += 1) {
       const { car, camera } = s.frame(1 / 144, throttle);
-      const gap = Math.hypot(
-        camera.position.x - car.position.x,
-        camera.position.z - car.position.z,
-      );
+      const gap = Math.hypot(camera.position.x - car.position.x, camera.position.z - car.position.z);
       expect(gap).toBeCloseTo(6, 1);
     }
   });
