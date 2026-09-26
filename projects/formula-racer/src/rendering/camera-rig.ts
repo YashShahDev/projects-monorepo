@@ -9,9 +9,13 @@ export interface CarPose {
 export interface CameraView {
   position: Vec3;
   target: Vec3;
+
+  /** Vertical field of view. */
+  fovDeg: number;
 }
 
-export type CameraMode = "chase" | "cockpit";
+/** `tcam` is the onboard view from above the airbox; `far` is a higher, wider chase. */
+export type CameraMode = "chase" | "cockpit" | "tcam" | "far";
 
 /** Camera points in the chassis frame, from the car model's anchor nodes. */
 export interface CameraAnchors {
@@ -35,9 +39,20 @@ export interface CameraRig {
   reset(): void;
 }
 
-const MODES: CameraMode[] = ["chase", "cockpit"];
-const CHASE_DISTANCE_M = 6;
-const CHASE_HEIGHT_M = 2.2;
+const MODES: CameraMode[] = ["chase", "cockpit", "tcam", "far"];
+
+// A wide cockpit angle keeps the corner in view past the halo; the far chase narrows
+// so the car does not shrink to a dot.
+const FOV_DEG: Record<CameraMode, number> = { chase: 60, cockpit: 72, tcam: 66, far: 52 };
+
+const CHASE: Record<"chase" | "far", { distanceM: number; heightM: number }> = {
+  chase: { distanceM: 6, heightM: 2.2 },
+  far: { distanceM: 11, heightM: 4 },
+};
+
+// The T-cam pod sits on the airbox, above and behind the driver's head.
+const TCAM_OFFSET: Vec3 = { x: 0, y: 0.45, z: -0.7 };
+const TCAM_DIP_M = 1.2;
 const LOOK_AHEAD_M = 4;
 // The chase view follows the car's position exactly (a lagging camera loses a fast car)
 // and only its heading with lag, so turns read as the car rotating in the frame.
@@ -79,16 +94,23 @@ export function createCameraRig(anchors: CameraAnchors = DEFAULT_ANCHORS): Camer
       // Exponential decay per elapsed time, so the path does not depend on frame rate.
       heading += delta * (1 - Math.exp(-dtSeconds / HEADING_LAG_S));
       const p = car.position;
-      if (mode === "cockpit") {
+      const fovDeg = FOV_DEG[mode];
+      if (mode === "cockpit" || mode === "tcam") {
         // Rigid with the chassis, so pitch and roll show as they do to a driver.
-        const eye = rotate(car.rotation, anchors.cockpit);
-        const ahead = rotate(car.rotation, { ...anchors.cockpit, z: anchors.cockpit.z + COCKPIT_LOOK_M });
+        const c = anchors.cockpit;
+        const local = mode === "tcam" ? { x: c.x + TCAM_OFFSET.x, y: c.y + TCAM_OFFSET.y, z: c.z + TCAM_OFFSET.z } : c;
+        const dip = mode === "tcam" ? TCAM_DIP_M : 0;
+        const eye = rotate(car.rotation, local);
+        const ahead = rotate(car.rotation, { ...local, y: local.y - dip, z: local.z + COCKPIT_LOOK_M });
 
         return {
           position: { x: p.x + eye.x, y: p.y + eye.y, z: p.z + eye.z },
           target: { x: p.x + ahead.x, y: p.y + ahead.y, z: p.z + ahead.z },
+          fovDeg,
         };
       }
+
+      const { distanceM, heightM } = CHASE[mode];
 
       const fx = Math.sin(heading);
       const fz = Math.cos(heading);
@@ -100,11 +122,12 @@ export function createCameraRig(anchors: CameraAnchors = DEFAULT_ANCHORS): Camer
 
       return {
         position: {
-          x: p.x - fx * CHASE_DISTANCE_M,
-          y: p.y + CHASE_HEIGHT_M,
-          z: p.z - fz * CHASE_DISTANCE_M,
+          x: p.x - fx * distanceM,
+          y: p.y + heightM,
+          z: p.z - fz * distanceM,
         },
         target: { x: p.x + ax + fx * LOOK_AHEAD_M, y: p.y + a.y, z: p.z + az + fz * LOOK_AHEAD_M },
+        fovDeg,
       };
     },
     cycle() {

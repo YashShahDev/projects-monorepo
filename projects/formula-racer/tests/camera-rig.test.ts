@@ -59,14 +59,71 @@ describe("chase camera", () => {
     expect(view.position.z).toBeGreaterThan(104);
   });
 
-  test("C cycles to a rigid cockpit camera and back", () => {
+  test("C cycles to a rigid cockpit camera", () => {
     const rig = createCameraRig();
     settle(rig, facing(0), 3);
     expect(rig.cycle()).toBe("cockpit");
     const view = rig.update(facing(Math.PI / 2, 5, 5), 1 / 60);
     expect(view.position.x).toBeGreaterThan(5);
     expect(view.position.z).toBeCloseTo(5, 3);
-    expect(rig.cycle()).toBe("chase");
+  });
+
+  test("C cycles chase, cockpit, T-cam, far chase and back to chase", () => {
+    const rig = createCameraRig();
+    expect([rig.cycle(), rig.cycle(), rig.cycle(), rig.cycle()]).toEqual(["cockpit", "tcam", "far", "chase"]);
+  });
+
+  test("each view has its own field of view, wider close to the car", () => {
+    const rig = createCameraRig();
+    const fov = { chase: 0, cockpit: 0, tcam: 0, far: 0 };
+    for (let i = 0; i < 4; i += 1) {
+      fov[rig.cycle()] = rig.update(facing(0), 1 / 60).fovDeg;
+    }
+
+    for (const deg of Object.values(fov)) {
+      expect(deg).toBeGreaterThanOrEqual(45);
+      expect(deg).toBeLessThanOrEqual(80);
+    }
+
+    expect(fov.cockpit).toBeGreaterThan(fov.chase);
+    expect(fov.far).toBeLessThan(fov.chase);
+  });
+});
+
+describe("T-cam", () => {
+  const anchors = { chase: { x: 0, y: 0.9, z: -1 }, cockpit: { x: 0, y: 0.7, z: 0.3 } };
+
+  test("sits above and behind the driver's eye, carried rigidly by the car", () => {
+    const rig = createCameraRig(anchors);
+    rig.cycle();
+    rig.cycle();
+
+    // Facing +x: the car's +z is world +x.
+    const view = rig.update(facing(Math.PI / 2, 5, 5), 1 / 60);
+    expect(view.position.y).toBeGreaterThan(0.5 + 0.7 + 0.2);
+    expect(view.position.x).toBeLessThan(5 + 0.3);
+    expect(view.position.x).toBeGreaterThan(5 + 0.3 - 1.5);
+    expect(view.position.z).toBeCloseTo(5, 6);
+
+    // It looks along the heading, dipping slightly toward the road.
+    expect(view.target.x).toBeGreaterThan(view.position.x + 10);
+    expect(view.target.z).toBeCloseTo(5, 6);
+    expect(view.target.y).toBeLessThan(view.position.y);
+  });
+});
+
+describe("far chase", () => {
+  test("settles further back and higher than the chase camera, looking ahead of the car", () => {
+    const rig = createCameraRig();
+    const chase = settle(rig, facing(0), 3);
+    rig.cycle();
+    rig.cycle();
+    expect(rig.cycle()).toBe("far");
+    const far = settle(rig, facing(0), 3);
+    expect(far.position.x).toBeCloseTo(0, 3);
+    expect(far.position.z).toBeLessThan(chase.position.z - 3);
+    expect(far.position.y).toBeGreaterThan(chase.position.y + 1);
+    expect(far.target.z).toBeGreaterThan(0);
   });
 });
 

@@ -167,6 +167,11 @@ export function createTrackView(
         camera.updateProjectionMatrix();
       }
 
+      if (camera.fov !== view.fovDeg) {
+        camera.fov = view.fovDeg;
+        camera.updateProjectionMatrix();
+      }
+
       car.pose(snapshot);
       camera.position.set(view.position.x, view.position.y, view.position.z);
       camera.lookAt(view.target.x, view.target.y, view.target.z);
