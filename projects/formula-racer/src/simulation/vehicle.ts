@@ -104,6 +104,14 @@ export async function createVehicleSimulation(
   options: VehicleOptions,
 ): Promise<VehicleSimulation> {
   await initPhysics();
+  return buildVehicleSimulation(car, options);
+}
+
+/** Synchronous construction for callers that have already awaited `initPhysics()`. */
+export function buildVehicleSimulation(
+  car: CarDefinition,
+  options: VehicleOptions,
+): VehicleSimulation {
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
   const stepSeconds = world.timestep;
   const ground = options.groundHalfExtentM ?? 3000;

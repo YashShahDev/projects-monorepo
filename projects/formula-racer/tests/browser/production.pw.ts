@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { openGame } from "./helpers.ts";
 
-test("@prod production builds expose no test hooks", async ({ page }) => {
+test("@prod production builds expose no test hooks or tuning panel", async ({ page }) => {
   await openGame(page);
   expect(await page.evaluate(() => "__formulaRacerTest" in window)).toBe(false);
+  await page.keyboard.press("F2");
+  await expect(page.getByRole("form", { name: "Tuning" })).toHaveCount(0);
 });
 
 test("a missing content file shows a recoverable error", async ({ page }) => {

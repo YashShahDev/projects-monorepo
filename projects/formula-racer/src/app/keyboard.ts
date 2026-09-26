@@ -4,6 +4,17 @@ interface KeyFields {
   repeat: boolean;
 }
 
+const EDITABLE = new Set(["INPUT", "TEXTAREA", "SELECT"]);
+
+// Typing into a form field (the dev tuning panel) must not steer the car.
+const isEditable = (target: EventTarget | null): boolean => {
+  const element = target as { tagName?: unknown; isContentEditable?: unknown } | null;
+  return (
+    element?.isContentEditable === true ||
+    (typeof element?.tagName === "string" && EDITABLE.has(element.tagName))
+  );
+};
+
 const keyFields = (event: Event): KeyFields => {
   const { code, repeat } = event as Event & Partial<KeyFields>;
   return { code: code ?? "", repeat: repeat ?? false };
@@ -48,6 +59,7 @@ export function createKeyboard(
   const down = new Set<string>();
   const listeners: ((action: KeyAction) => void)[] = [];
   const onKeyDown = (event: Event) => {
+    if (isEditable(event.target)) return;
     const { code, repeat } = keyFields(event);
     const action = ACTION_KEYS[code];
     if (DRIVE_KEYS[code]) down.add(code);

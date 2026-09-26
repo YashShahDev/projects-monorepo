@@ -73,4 +73,19 @@ describe("keyboard input", () => {
     expect(keyboard.held().throttle).toBe(false);
     expect(actions).toEqual([]);
   });
+
+  test("keys typed into a form field neither drive nor lose their default", () => {
+    const { window, document } = page();
+    const keyboard = createKeyboard(window, document);
+    const input = Object.assign(new EventTarget(), { tagName: "INPUT" });
+    const event = Object.assign(new Event("keydown", { cancelable: true, bubbles: true }), {
+      code: "ArrowUp",
+      repeat: false,
+    });
+    // Dispatch on the field, then let it reach the window listener as a bubbled event.
+    Object.defineProperty(event, "target", { value: input });
+    window.dispatchEvent(event);
+    expect(keyboard.held().throttle).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+  });
 });

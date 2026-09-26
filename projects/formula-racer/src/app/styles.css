@@ -78,3 +78,29 @@ body {
 #paused[hidden] {
   display: none;
 }
+
+#tuning {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  display: grid;
+  gap: 6px;
+  width: 260px;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 75%);
+}
+
+#tuning[hidden] {
+  display: none;
+}
+
+#tuning label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#tuning input {
+  width: 96px;
+}

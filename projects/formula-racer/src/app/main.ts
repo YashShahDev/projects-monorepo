@@ -1,5 +1,6 @@
 import { startGameApp } from "./game-app.ts";
 import { installTestHooks } from "./test-hooks.ts";
+import { installTuningPanel } from "./tuning-panel.ts";
 
 function element<T extends HTMLElement>(selector: string): T {
   const found = document.querySelector<T>(selector);
@@ -31,7 +32,10 @@ try {
   addEventListener("pagehide", (event) => {
     if (!event.persisted) app.dispose();
   });
-  if (process.env.NODE_ENV !== "production") installTestHooks(app);
+  if (process.env.NODE_ENV !== "production") {
+    installTestHooks(app);
+    installTuningPanel(app);
+  }
 } catch (error) {
   showFatal(error instanceof Error ? error.message : String(error));
 }

@@ -1,3 +1,4 @@
+import { parseCar } from "../content/car.ts";
 import type { CarDefinition } from "../content/car.ts";
 import type { TrackDefinition } from "../content/track.ts";
 import { createCameraRig } from "../rendering/camera-rig.ts";
@@ -7,7 +8,8 @@ import { createInputSmoother } from "../simulation/input-smoothing.ts";
 import type { DigitalInput } from "../simulation/input-smoothing.ts";
 import { buildTrackGeometry } from "../simulation/track-geometry.ts";
 import type { Surface, TrackGeometry } from "../simulation/track-geometry.ts";
-import { createVehicleSimulation } from "../simulation/vehicle.ts";
+import { buildVehicleSimulation, createVehicleSimulation } from "../simulation/vehicle.ts";
+import type { VehicleOptions } from "../simulation/vehicle.ts";
 import type { DriverAssists, VehicleSnapshot } from "../simulation/vehicle.ts";
 import type { KeyAction } from "./keyboard.ts";
 
@@ -21,6 +23,11 @@ export interface SessionState {
   surface: Surface;
   camera: CameraMode;
   assists: DriverAssists;
+  physicsVersion: string;
+  /** The running car differs from the shipped definition; laps should say so. */
+  tuned: boolean;
+  /** A tuning change is waiting for the next reset. */
+  pendingTuning: boolean;
 }
 
 export interface DrivingSession {
@@ -31,6 +38,13 @@ export interface DrivingSession {
   action(action: KeyAction): void;
   focusLost(): void;
   setAssists(assists: DriverAssists): void;
+  /**
+   * Validates a change to the car and applies it on the next reset, since changing mass,
+   * springs or aero under a moving car would be a discontinuity, not a tuning result.
+   */
+  retune(patch: Partial<CarDefinition>): void;
+  /** The car definition currently being driven. */
+  car(): CarDefinition;
   snapshot(): VehicleSnapshot;
   state(): SessionState;
   dispose(): void;
@@ -46,7 +60,7 @@ export async function createDrivingSession(
   const start = geometry.pointAt(track.startDistanceM);
   // One lookup hint per wheel keeps each locate to a short windowed search.
   const wheelHints: (number | undefined)[] = [undefined, undefined, undefined, undefined];
-  const sim = await createVehicleSimulation(car, {
+  const options: VehicleOptions = {
     start: {
       position: { x: start.x, y: 0, z: start.z },
       headingRad: Math.atan2(start.tx, start.tz),
@@ -56,7 +70,11 @@ export async function createDrivingSession(
       wheelHints[wheel] = location.index;
       return track.surfaceGrip[location.surface];
     },
-  });
+  };
+  let sim = await createVehicleSimulation(car, options);
+  const stock = JSON.stringify(car);
+  let current = car;
+  let pending: CarDefinition | undefined;
   const stepper = new FixedStepper(sim.stepSeconds, MAX_STEPS_PER_FRAME);
   const smoother = createInputSmoother();
   const camera = createCameraRig();
@@ -96,7 +114,15 @@ export async function createDrivingSession(
         skipNextFrame = !paused;
         stepper.reset();
       } else if (action === "reset") {
-        sim.reset();
+        if (pending) {
+          const assists = sim.snapshot().assists;
+          sim.dispose();
+          current = pending;
+          pending = undefined;
+          sim = buildVehicleSimulation(current, { ...options, assists });
+        } else {
+          sim.reset();
+        }
         smoother.reset();
         camera.reset();
         stepper.reset();
@@ -111,6 +137,10 @@ export async function createDrivingSession(
     setAssists(assists) {
       sim.setAssists(assists);
     },
+    retune(patch) {
+      pending = parseCar({ ...(pending ?? current), ...patch });
+    },
+    car: () => current,
     snapshot: () => sim.snapshot(),
     state() {
       const snapshot = sim.snapshot();
@@ -125,6 +155,9 @@ export async function createDrivingSession(
         surface: location.surface,
         camera: cameraMode,
         assists: snapshot.assists,
+        physicsVersion: snapshot.physicsVersion,
+        tuned: JSON.stringify(current) !== stock,
+        pendingTuning: pending !== undefined,
       };
     },
     dispose() {

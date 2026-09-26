@@ -77,3 +77,28 @@ test("@dev dispose frees the simulation and stops the frame loop", async ({ page
   await page.clock.runFor(300);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
+
+test("@dev the tuning panel queues a change that applies on reset", async ({ page }) => {
+  await freezeFrames(page);
+  await openGame(page);
+  await page.keyboard.press("F2");
+  const panel = page.getByRole("form", { name: "Tuning" });
+  await expect(panel).toBeVisible();
+  await panel.getByLabel("Mass (kg)").fill("1600");
+  await panel.getByRole("button", { name: "Apply on reset" }).click();
+  await expect(panel.getByRole("status")).toContainText("Press R");
+  expect((await state(page)).pendingTuning).toBe(true);
+  await page.keyboard.press("KeyR");
+  const tuned = await state(page);
+  expect(tuned.tuned).toBe(true);
+  expect(tuned.pendingTuning).toBe(false);
+});
+
+test("@dev the tuning panel names an invalid value", async ({ page }) => {
+  await openGame(page);
+  await page.keyboard.press("F2");
+  const panel = page.getByRole("form", { name: "Tuning" });
+  await panel.getByLabel("Mass (kg)").fill("-1");
+  await panel.getByRole("button", { name: "Apply on reset" }).click();
+  await expect(panel.getByRole("status")).toContainText("car.massKg must be positive");
+});

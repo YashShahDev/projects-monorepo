@@ -1,4 +1,5 @@
 import { fetchCar } from "../content/car.ts";
+import type { CarDefinition } from "../content/car.ts";
 import { fetchTrack } from "../content/track.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import { createTrackView } from "../rendering/track-view.ts";
@@ -17,6 +18,9 @@ export interface GameAppState extends SessionState {
 }
 
 export interface GameApp {
+  /** See `DrivingSession.retune`. */
+  retune(patch: Partial<CarDefinition>): void;
+  car(): CarDefinition;
   /** Advances whole simulation steps with fixed input and renders once. */
   step(count: number, throttle: boolean): GameAppState;
   state(): GameAppState;
@@ -140,6 +144,11 @@ export async function startGameApp(
       draw(0, held);
       return state();
     },
+    retune(patch) {
+      session.retune(patch);
+      show();
+    },
+    car: () => session.car(),
     state,
     dispose,
   };

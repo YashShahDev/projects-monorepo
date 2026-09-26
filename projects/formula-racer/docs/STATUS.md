@@ -5,7 +5,7 @@ type: status
 status: active
 date: 2026-09-26
 updated: 2026-09-26
-summary: P2 in progress; P2-C1 and P2-C2 done, next P2-C3 surfaces, aero and powertrain.
+summary: P2 checkpoints done; phase review next, then P3.
 ---
 
 # Current delivery status
@@ -15,17 +15,17 @@ summary: P2 in progress; P2-C1 and P2-C2 done, next P2-C3 surfaces, aero and pow
 - Completed phases: P0 — documentation and prerequisites; P1 — browser technical
   foundation ([record](checkpoints/P1.md)).
 - Active phase: P2 — driving prototype ([record](checkpoints/P2.md)).
-- Next checkpoint: P2-C3 surface grip, aero, powertrain, tuning panel.
+- Next: P2 phase review, then P3.
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
 ## Next action
 
-P2-C3 in progress; aero, per-wheel surface grip and the powertrain are done (physics
-`p2.4`). Next, test-first: a development tuning panel;
-structural changes applied on reset; bump `PHYSICS_VERSION` again. Then close P2 with
-`make test-full`, the phase review (Codex `gpt-6-astra`, falling back to
-`/antigravity:review`; see AGENTS.md) and the P2 gate evidence.
+P2-C1–C3 are done and the gate evidence is in the [P2 record](checkpoints/P2.md). Next:
+the P2 phase review of `aab4afa^..HEAD` (Codex `gpt-6-astra`; if Codex is out of usage,
+`/antigravity:review`; see AGENTS.md). Reproduce each finding, fix with a failing test
+first, record accepted and rejected findings, then mark P2 done and start P3 from its
+phase document.
 
 ## Checkpoints
 
@@ -39,12 +39,16 @@ structural changes applied on reset; bump `PHYSICS_VERSION` again. Then close P2
 | P1-C3 | done    | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md) |
 | P2-C1 | done    | `aab4afa`; [P2 record](checkpoints/P2.md)                       |
 | P2-C2 | done    | `f9cb3b1`… (`--grep=P2-C2`); [P2 record](checkpoints/P2.md)     |
-| P2-C3 | next    | [P2](phases/P2-driving.md)                                      |
+| P2-C3 | done    | `ec511a5`… (`--grep=P2-C3`); [P2 record](checkpoints/P2.md)     |
 | P3–P5 | planned | [Roadmap](ROADMAP.md)                                           |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
 ## Verified
+
+P2-C3: drag and downforce (top speed ≈ 340 km/h), per-wheel surface grip, rpm power
+curve with shift cut, dev tuning panel applied on reset; physics `p2.4`; 130 unit tests;
+`make test-full` 33/33.
 
 P2-C2: drivable greybox Harbour Park in the browser: keyboard (released on blur and
 hidden tab), speed-sensitive steering smoothing, steering/ABS/traction assists, automatic
@@ -66,8 +70,9 @@ authenticated GitHub endpoint responds.
 
 ## Known limits
 
-No rolling resistance yet. Everything off the road has road grip until P2-C3. Kerb stripes are
-interpolated vertex colours (greybox). The production script is 4.88 MB raw / 1.79 MB
+No rolling resistance; Rapier's 2× longitudinal grip budget allows ≈3 g braking; grass
+still out-grips the brakes above ~250 km/h. Kerb stripes are interpolated vertex colours
+(greybox). The production script is 4.88 MB raw / 1.79 MB
 gzip, mostly Rapier's base64-inlined WASM. Static hosts must redirect a bare subpath
 to its trailing-slash form. No hardware graphics benchmark or regulation-accurate
 model. Full LFS object transfer is gated before the first large assets in P4. Arch
