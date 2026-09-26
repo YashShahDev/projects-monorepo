@@ -80,7 +80,11 @@ export interface DrivingSession {
    * Advances by one displayed frame and returns what to draw: the car interpolated
    * between the last two simulation steps, and the camera following that same pose.
    */
-  frame(frameSeconds: number, held: DigitalInput): FrameView;
+  /**
+   * `held` may be a function, called once per simulation step: a controller that reacts
+   * to the car (the benchmark autopilot) then drives the same at any frame rate.
+   */
+  frame(frameSeconds: number, held: DigitalInput | (() => DigitalInput)): FrameView;
   action(action: KeyAction): void;
   focusLost(): void;
   setAssists(assists: DriverAssists): void;
@@ -137,6 +141,25 @@ function blend(a: Pose, b: Pose, t: number): Pose {
   };
 }
 
+/**
+ * Whether a car is within track limits: some tyre's inner edge is still on or inside the
+ * kerb. Uses each tyre's own position, so a yawed or sliding car is judged fairly.
+ */
+export function tyresWithinLimits(
+  geometry: TrackGeometry,
+  tyres: readonly { x: number; z: number }[],
+  tyreHalfWidthM: number,
+  hints: (number | undefined)[] = [],
+): boolean {
+  const limit = geometry.halfWidthM + geometry.kerbWidthM;
+
+  return tyres.some((tyre, i) => {
+    const location = geometry.locate(tyre.x, tyre.z, hints[i]);
+
+    return Math.abs(location.lateralM) - tyreHalfWidthM <= limit;
+  });
+}
+
 export async function createDrivingSession(
   car: CarDefinition,
   track: TrackDefinition,
@@ -153,6 +176,12 @@ export async function createDrivingSession(
       );
     }
   });
+  if (track.startDistanceM >= geometry.lengthM) {
+    throw new ContentError(
+      `track.startDistanceM is ${String(track.startDistanceM)} m, past the ${String(Math.round(geometry.lengthM))} m lap`,
+    );
+  }
+
   const start = geometry.pointAt(track.startDistanceM);
   const trackside = buildTrackside(geometry);
 
@@ -177,7 +206,7 @@ export async function createDrivingSession(
       return track.surfaceGrip[surface === "asphalt" ? "road" : surface];
     },
     dragAt: (_x, _z, wheel) => (wheelSurfaces[wheel] === "gravel" ? GRAVEL_DRAG_N : 0),
-    barriers: trackside.barriers,
+    barriers: trackside.barriers.map((run) => ({ ...run, outside: run.side })),
   };
   let sim = await createVehicleSimulation(car, options);
   const stock = JSON.stringify(car);
@@ -190,7 +219,23 @@ export async function createDrivingSession(
   const lapTimer = createLapTimer({ lengthM: geometry.lengthM, sectors: SECTORS });
   const laps: SessionLap[] = [];
 
-  const innerWheelOffsetM = car.wheels.halfTrack + TYRE_HALF_WIDTH_M;
+  // Contact patches in the chassis frame, front-left first as physics orders them.
+  const tyrePositions = (snapshot: VehicleSnapshot) => {
+    const w = current.wheels;
+    const { x, z } = snapshot.position;
+    const q = snapshot.rotation;
+
+    // Heading of the chassis's +z axis about +y.
+    const yaw = Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y));
+    const [fx, fz] = [Math.sin(yaw), Math.cos(yaw)];
+
+    return [
+      [w.halfTrack, w.frontAxleZ],
+      [-w.halfTrack, w.frontAxleZ],
+      [w.halfTrack, w.rearAxleZ],
+      [-w.halfTrack, w.rearAxleZ],
+    ].map(([lx = 0, lz = 0]) => ({ x: x + lx * fz + lz * fx, z: z - lx * fx + lz * fz }));
+  };
 
   // Counted in whole steps so the countdown ends on the same step at any frame rate.
   const countdownSteps = Math.round(COUNTDOWN_S / sim.stepSeconds);
@@ -231,7 +276,8 @@ export async function createDrivingSession(
         for (let i = 0; i < plan.steps; i += 1) {
           previous = poseOf(sim.snapshot());
           const speed = sim.snapshot().speedMps;
-          const controls = smoother.update(held, speed, sim.stepSeconds);
+          const input = typeof held === "function" ? held() : held;
+          const controls = smoother.update(input, speed, sim.stepSeconds);
           if (countdownLeft > 0) {
             // Held on the brakes; steering still responds so the grid feels live.
             sim.step({ throttle: 0, brake: 1, steer: controls.steer });
@@ -251,10 +297,13 @@ export async function createDrivingSession(
           const location = locate();
           const before = lapTimer.laps().length;
 
-          // Track limits: the lap stays valid until all four wheels are past the kerb,
-          // i.e. the inner wheels' outer edges are beyond it.
-          const withinLimits =
-            Math.abs(location.lateralM) - innerWheelOffsetM <= geometry.halfWidthM + geometry.kerbWidthM;
+          // Track limits: the lap stays valid until all four tyres are past the kerb.
+          const withinLimits = tyresWithinLimits(
+            geometry,
+            tyrePositions(sim.snapshot()),
+            TYRE_HALF_WIDTH_M,
+            wheelHints,
+          );
           lapTimer.update(sim.snapshot().simSeconds, location.distanceM, withinLimits);
           const done = lapTimer.laps();
           if (done.length > before) {

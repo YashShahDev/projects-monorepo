@@ -80,6 +80,9 @@ describe("rolling resistance and barriers", () => {
             { x: 20, z: 60 },
           ],
           closed: false,
+
+          // Heading +x along the wall, the track (−z) is on its left: its outside is right.
+          outside: "right",
         },
       ],
     });
@@ -87,6 +90,29 @@ describe("rolling resistance and barriers", () => {
     expect(sim.snapshot().position.z).toBeLessThan(60);
     sim.dispose();
   });
+});
+
+test("the car stops at the barrier's drawn face, not 0.3 m short of it", async () => {
+  const sim = await createVehicleSimulation(car, {
+    start: { position: { x: 0, y: 0, z: 0 }, headingRad: 0 },
+    barriers: [
+      {
+        points: [
+          { x: -20, z: 30 },
+          { x: 20, z: 30 },
+        ],
+        closed: false,
+        outside: "right",
+      },
+    ],
+  });
+  run(sim, { throttle: 0.4, brake: 0, steer: 0 }, 8);
+
+  // The chassis box's front (half-length 2.5 m) rests against the face at z = 30.
+  const front = sim.snapshot().position.z + car.chassisHalfExtents.z;
+  expect(front).toBeGreaterThan(29.9);
+  expect(front).toBeLessThan(30.1);
+  sim.dispose();
 });
 
 describe("surface grip in a session", () => {

@@ -15,6 +15,10 @@ import { serveStaticFile } from "./static-files.ts";
 
 const TARGET_P95_MS = 16.7;
 
+// Chromium coarsens rAF timestamps to 0.1 ms, so a frame locked to the 16.67 ms refresh
+// records as 16.6–16.8 ms; the target allows that rounding and nothing more.
+const TIMESTAMP_ROUNDING_MS = 0.15;
+
 export interface RunSummary {
   route: string;
   quality: string;
@@ -86,7 +90,7 @@ export function summarizeRuns(reports: readonly BenchReport[]): RunSummary {
     userAgent: first.userAgent,
     transferBytes: first.transferBytes,
     hardware,
-    meetsTarget: hardware && p95Ms <= TARGET_P95_MS,
+    meetsTarget: hardware && p95Ms <= TARGET_P95_MS + TIMESTAMP_ROUNDING_MS,
   };
 }
 

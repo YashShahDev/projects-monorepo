@@ -346,7 +346,7 @@ export async function startGameApp(
   let lastCountdownS = Number.POSITIVE_INFINITY;
   const recorder = bench ? createBenchRecorder(bench.options) : undefined;
   let benchReported = false;
-  const draw = (frameSeconds: number, held: HeldKeys): void => {
+  const draw = (frameSeconds: number, held: HeldKeys | (() => HeldKeys)): void => {
     const t0 = performance.now();
     const { car, camera } = session.frame(frameSeconds, held);
     const t1 = performance.now();
@@ -406,8 +406,9 @@ export async function startGameApp(
       const frameSeconds = lastTime === undefined ? 0 : (time - lastTime) / 1000;
       lastTime = time;
 
-      // The benchmark route drives itself so every run sees the same inputs.
-      draw(frameSeconds, recorder && !benchReported ? autopilot(session) : keyboard.held());
+      // The benchmark route drives itself, deciding every simulation step, so every run
+      // sees the same inputs whatever its frame rate.
+      draw(frameSeconds, recorder && !benchReported ? () => autopilot(session) : keyboard.held());
     } catch (error) {
       fail(`Frame failed: ${error instanceof Error ? error.message : String(error)}`);
     }

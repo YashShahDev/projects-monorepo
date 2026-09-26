@@ -32,6 +32,9 @@ export async function buildSite(projectRoot: string, outdir: string): Promise<Bu
   }
 
   cpSync(publicRoot, outdir, { recursive: true });
+  assertNoLfsPointers(
+    listFiles(outdir).map((path): [string, Uint8Array] => [relative(outdir, path), new Uint8Array(readFileSync(path))]),
+  );
   const scripts = listFiles(outdir).filter((path) => path.endsWith(".js"));
   assertNoTestHooks(scripts.map((path) => [relative(outdir, path), readFileSync(path, "utf8")]));
 
@@ -39,6 +42,21 @@ export async function buildSite(projectRoot: string, outdir: string): Promise<Bu
     path: relative(outdir, path),
     bytes: statSync(path).size,
   }));
+}
+
+const LFS_POINTER = new TextEncoder().encode("version https://git-lfs.github.com/spec/");
+
+/**
+ * A clone without Git LFS (or with smudging skipped) has small text pointers in place of
+ * binary assets; packaging one would ship a game that cannot load its car.
+ */
+export function assertNoLfsPointers(files: [path: string, bytes: Uint8Array][]): void {
+  const pointers = files.filter(([, bytes]) => LFS_POINTER.every((byte, i) => bytes[i] === byte));
+  if (pointers.length) {
+    throw new Error(
+      `${pointers.map(([path]) => path).join(", ")} is a Git LFS pointer, not the asset; run git lfs pull`,
+    );
+  }
 }
 
 export function assertNoTestHooks(scripts: [path: string, source: string][]): void {

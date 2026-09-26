@@ -63,3 +63,9 @@ test("forces the GPU in headless mode, where Chromium would otherwise render in 
   );
   expect(chromiumArgs(false)).toEqual([]);
 });
+
+test("a hardware run locked to 60 Hz meets the target despite 0.1 ms timestamp rounding", () => {
+  const summary = summarizeRuns([report(16.8), report(16.8), report(16.7)]);
+  expect(summary.meetsTarget).toBe(true);
+  expect(summarizeRuns([report(18), report(18), report(18)]).meetsTarget).toBe(false);
+});

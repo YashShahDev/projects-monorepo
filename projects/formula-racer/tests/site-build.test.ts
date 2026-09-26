@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { TEST_HOOK_GLOBAL } from "../src/app/test-hook-name.ts";
-import { assertNoTestHooks, buildSite } from "../tools/site-build.ts";
+import { assertNoLfsPointers, assertNoTestHooks, buildSite } from "../tools/site-build.ts";
 
 const outdir = mkdtempSync(join(tmpdir(), "formula-racer-build-test-"));
 afterAll(() => rmSync(outdir, { recursive: true, force: true }));
@@ -41,4 +41,14 @@ test("the leak guard names the offending script", () => {
       ["bad.js", `w.${TEST_HOOK_GLOBAL}=1`],
     ]),
   ).toThrow("test hooks leaked into production: bad.js");
+});
+
+test("a Git LFS pointer in place of a runtime asset fails the build and names the file", () => {
+  const pointer = new TextEncoder().encode(
+    "version https://git-lfs.github.com/spec/v1\noid sha256:79e41e3773e5\nsize 1753024\n",
+  );
+  expect(() => assertNoLfsPointers([["assets/cars/fr26.glb", pointer]])).toThrow(
+    "assets/cars/fr26.glb is a Git LFS pointer",
+  );
+  expect(() => assertNoLfsPointers([["assets/cars/fr26.glb", new Uint8Array([0x67, 0x6c, 0x54, 0x46])]])).not.toThrow();
 });

@@ -122,6 +122,39 @@ describe("driving session", () => {
     expect(zone && zone.endM <= 3932).toBe(true);
   });
 
+  test("rejects a start distance past the end of the lap", async () => {
+    await expect(createDrivingSession(car, { ...track, startDistanceM: 5000 })).rejects.toThrow(
+      "track.startDistanceM is 5000 m, past the 3932 m lap",
+    );
+  });
+
+  test("an input function is sampled every simulation step, so frame rate cannot change the drive", async () => {
+    const at = async (hz: number) => {
+      const s = await createDrivingSession(car, track);
+
+      // A controller that reacts to the car: brakes above 100 km/h.
+      const react = () => ({
+        ...throttle,
+        throttle: s.snapshot().speedMps < 100 / 3.6,
+        brake: s.snapshot().speedMps > 100 / 3.6,
+      });
+      for (let t = 0; t < 8 - 1e-9; t += 1 / hz) {
+        s.frame(1 / hz, react);
+      }
+
+      const state = s.state();
+      s.dispose();
+
+      return state;
+    };
+
+    const slow = await at(20);
+    const fast = await at(60);
+    expect(fast.speedKmh).toBeGreaterThan(80);
+    expect(fast.speedKmh).toBeLessThan(115);
+    expect(slow.lapDistanceM).toBe(fast.lapDistanceM);
+  });
+
   test("C switches camera", async () => {
     const s = await start();
     s.action("camera");

@@ -131,8 +131,11 @@ export interface VehicleOptions {
   /** Rolling resistance a loose surface (gravel) puts on a wheel there, N; default 0. */
   dragAt?: (x: number, z: number, wheel: number) => number;
 
-  /** Solid walls along these ground lines, 1.2 m tall. */
-  barriers?: { points: { x: number; z: number }[]; closed: boolean }[];
+  /**
+   * Solid walls, 1.2 m tall, whose track-facing face runs along these ground lines. The
+   * wall's thickness lies on the `outside`, reckoned facing along the points.
+   */
+  barriers?: { points: { x: number; z: number }[]; closed: boolean; outside: "left" | "right" }[];
 }
 
 const BARRIER_HALF_HEIGHT_M = 0.6;
@@ -176,9 +179,16 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         continue;
       }
 
+      // Left of travel along (dx, dz) is (dz, −dx); the centre sits half a thickness out.
+      const sign = barrier.outside === "left" ? 1 : -1;
+      const out = (BARRIER_HALF_THICKNESS_M * sign) / length;
       world.createCollider(
         RAPIER.ColliderDesc.cuboid(BARRIER_HALF_THICKNESS_M, BARRIER_HALF_HEIGHT_M, length / 2)
-          .setTranslation((a.x + b.x) / 2, BARRIER_HALF_HEIGHT_M, (a.z + b.z) / 2)
+          .setTranslation(
+            (a.x + b.x) / 2 + (b.z - a.z) * out,
+            BARRIER_HALF_HEIGHT_M,
+            (a.z + b.z) / 2 - (b.x - a.x) * out,
+          )
           .setRotation(headingQuat(Math.atan2(b.x - a.x, b.z - a.z)))
           .setFriction(0.3)
           .setRestitution(0.1),
