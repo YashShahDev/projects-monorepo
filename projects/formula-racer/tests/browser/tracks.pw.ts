@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { GameApp } from "../../src/app/game-app.ts";
-import { freezeFrames, openGame, scenePixels } from "./helpers.ts";
+import { collectErrors, freezeFrames, openGame, scenePixels } from "./helpers.ts";
 
 test("@smoke loads the first catalog track by default", async ({ page }) => {
   await freezeFrames(page);
@@ -9,11 +9,13 @@ test("@smoke loads the first catalog track by default", async ({ page }) => {
 });
 
 test("@smoke the track query loads the small test map", async ({ page }) => {
+  const errors = collectErrors(page);
   await openGame(page, "./?track=test-loop");
   await expect(page.locator("#track-name")).toHaveText("Test Loop");
   const pixels = await scenePixels(page);
   expect(pixels.road).toBeGreaterThan(10_000);
   expect(pixels.car).toBeGreaterThan(500);
+  expect(errors).toEqual([]);
 });
 
 test("@dev the test map's geometry drives the session", async ({ page }) => {
