@@ -291,6 +291,10 @@ export async function createDrivingSession(
   let energyMode: EnergyMode = "balanced";
   let gearboxMode: GearboxMode = "automatic";
 
+  // A retune rebuilds the car, whose clock starts again at zero; the session's clock,
+  // which times tyre marks, runs on from where the old car's stopped.
+  let clockOffsetS = 0;
+
   // A pressed shift key, applied on the next simulation step that drives the car.
   let pendingShift: ShiftRequest | undefined;
   let hint: number | undefined;
@@ -381,14 +385,18 @@ export async function createDrivingSession(
           }
 
           const snapshot = sim.snapshot();
-          markRecorder.step(snapshot.wheels, snapshot.simSeconds, running?.elapsedS);
+          markRecorder.step(snapshot.wheels, clockOffsetS + snapshot.simSeconds, running?.elapsedS);
         }
 
         alpha = plan.alpha;
       }
 
       const latest = sim.snapshot();
-      const pose = { ...latest, ...blend(previous, poseOf(latest), alpha) };
+      const pose = {
+        ...latest,
+        simSeconds: clockOffsetS + latest.simSeconds,
+        ...blend(previous, poseOf(latest), alpha),
+      };
 
       const lap = lapTimer.current();
 
@@ -405,7 +413,8 @@ export async function createDrivingSession(
         stepper.reset();
       } else if (action === "reset") {
         if (pending) {
-          const assists = sim.snapshot().assists;
+          const { assists, simSeconds } = sim.snapshot();
+          clockOffsetS += simSeconds;
           sim.dispose();
           current = pending;
           pending = undefined;
@@ -474,7 +483,7 @@ export async function createDrivingSession(
 
       return {
         paused,
-        simSeconds: snapshot.simSeconds,
+        simSeconds: clockOffsetS + snapshot.simSeconds,
         speedKmh: snapshot.speedMps * 3.6,
         gear: snapshot.gear,
         rpm: snapshot.rpm,

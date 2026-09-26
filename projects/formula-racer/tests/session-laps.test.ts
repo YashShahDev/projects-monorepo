@@ -70,6 +70,27 @@ describe("session laps", () => {
     expect(session.marks(laid.serial).marks).toEqual([]);
   });
 
+  test("the session clock and its tyre marks run on through a retune's rebuilt car", async () => {
+    session = await createDrivingSession(car, track);
+    session.setAssists({ steering: true, abs: true, traction: false });
+    hold(session, idle, 3);
+    hold(session, throttle, 1.5);
+    const before = session.marks(0);
+    const lastS = before.marks.at(-1)?.timeS ?? Number.POSITIVE_INFINITY;
+    const clockS = session.state().simSeconds;
+
+    session.retune({ massKg: car.massKg + 10 });
+    session.action("reset");
+    expect(session.state().simSeconds).toBeGreaterThanOrEqual(clockS);
+    hold(session, idle, 3);
+    const drawn = session.frame(1 / 60, idle).car.simSeconds;
+    expect(drawn).toBeGreaterThan(clockS);
+    hold(session, throttle, 1.5);
+    const after = session.marks(before.serial).marks;
+    expect(after.length).toBeGreaterThan(0);
+    expect(after[0]?.timeS ?? 0).toBeGreaterThan(lastS);
+  });
+
   test("reset abandons the lap and restarts the countdown", async () => {
     session = await createDrivingSession(car, track);
     hold(session, throttle, 6);
