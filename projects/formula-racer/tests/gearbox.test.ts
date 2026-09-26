@@ -69,6 +69,105 @@ describe("automatic gearbox", () => {
   });
 });
 
+describe("reverse", () => {
+  test("a downshift request at a standstill selects reverse, and an upshift returns to first", () => {
+    const gearbox = createGearbox(box);
+    gearbox.update(0);
+    gearbox.request("down");
+    expect(gearbox.update(0).gear).toBe(-1);
+
+    // Automatic stays in reverse; it never shifts out of R on its own.
+    expect(gearbox.update(kmh(-10)).gear).toBe(-1);
+    gearbox.request("up");
+    expect(gearbox.update(kmh(-0.5)).gear).toBe(1);
+  });
+
+  test("reverse is refused while the car is moving", () => {
+    const gearbox = createGearbox(box);
+    gearbox.update(kmh(20));
+    gearbox.request("down");
+    expect(gearbox.update(kmh(20)).gear).toBe(1);
+  });
+
+  test("engine speed in reverse reaches the redline at the 30 km/h reverse cap", () => {
+    const gearbox = createGearbox(box);
+    gearbox.request("down");
+    gearbox.update(0);
+    expect(gearbox.update(kmh(-30)).rpm).toBeCloseTo(box.redlineRpm, 6);
+    expect(gearbox.update(kmh(-15)).rpm).toBeCloseTo(box.redlineRpm / 2, 6);
+  });
+
+  test("reset leaves reverse for first", () => {
+    const gearbox = createGearbox(box);
+    gearbox.request("down");
+    gearbox.update(0);
+    gearbox.reset();
+    expect(gearbox.update(0).gear).toBe(1);
+  });
+});
+
+describe("manual gearbox", () => {
+  const manual = () => {
+    const gearbox = createGearbox(box);
+    gearbox.setMode("manual");
+
+    return gearbox;
+  };
+
+  test("never shifts on its own, even at the redline", () => {
+    const gearbox = manual();
+    for (let v = 0; v <= 150; v += 1) {
+      expect(gearbox.update(kmh(v)).gear).toBe(1);
+    }
+
+    expect(gearbox.update(kmh(150)).rpm).toBe(box.redlineRpm);
+  });
+
+  test("shifts one gear per request, up and down", () => {
+    const gearbox = manual();
+    gearbox.update(kmh(80));
+    gearbox.request("up");
+    expect(gearbox.update(kmh(80)).gear).toBe(2);
+    gearbox.request("up");
+    expect(gearbox.update(kmh(80)).gear).toBe(3);
+    gearbox.request("down");
+    expect(gearbox.update(kmh(80)).gear).toBe(2);
+  });
+
+  test("refuses a downshift that would over-rev the engine", () => {
+    // fr26 tops: 1st 95, 2nd 130, 3rd 165, 4th 200 km/h.
+    const gearbox = manual();
+    for (let i = 0; i < 3; i += 1) {
+      gearbox.request("up");
+      gearbox.update(kmh(150));
+    }
+
+    expect(gearbox.update(kmh(150)).gear).toBe(4);
+    gearbox.request("down");
+    expect(gearbox.update(kmh(150)).gear).toBe(3);
+
+    // 2nd tops out at 130 km/h, so 150 km/h would be over the redline.
+    gearbox.request("down");
+    expect(gearbox.update(kmh(150)).gear).toBe(3);
+  });
+
+  test("stays in top gear when asked to go higher", () => {
+    const gearbox = manual();
+    for (let i = 0; i < 12; i += 1) {
+      gearbox.request("up");
+      gearbox.update(kmh(300));
+    }
+
+    expect(gearbox.update(kmh(300)).gear).toBe(box.gearTopSpeedsKmh.length);
+  });
+
+  test("reverse works the same as in automatic", () => {
+    const gearbox = manual();
+    gearbox.request("down");
+    expect(gearbox.update(0).gear).toBe(-1);
+  });
+});
+
 describe("gearbox content", () => {
   const withBox = (patch: Record<string, unknown>) => {
     const raw = { ...car, powertrain: { ...car.powertrain, gearbox: { ...box, ...patch } } };
