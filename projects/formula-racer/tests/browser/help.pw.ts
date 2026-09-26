@@ -30,3 +30,26 @@ test("@smoke the menu's Controls button opens the help and focus returns to it o
   await expect(help).toBeHidden();
   await expect(button).toBeFocused();
 });
+
+test("@smoke while help is open, the menu behind it cannot be reached or used", async ({ page }) => {
+  await lowQuality(page);
+  await freezeFrames(page);
+  await openGame(page);
+  await page.keyboard.press("KeyH");
+  const help = page.getByRole("dialog", { name: "Controls" });
+  const menu = page.locator("#paused");
+  await expect(help).toBeVisible();
+  for (let k = 0; k < 12; k += 1) {
+    await page.keyboard.press(k % 2 === 0 ? "Shift+Tab" : "Tab");
+    expect(await menu.evaluate((el) => el.contains(document.activeElement))).toBe(false);
+  }
+
+  await menu.getByRole("button", { name: "Resume" }).click({ force: true, timeout: 2_000 }).catch(() => undefined);
+  await expect(help).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Paused" })).toBeVisible();
+
+  // Closing the help gives the menu back.
+  await page.keyboard.press("Escape");
+  await menu.getByRole("button", { name: "Resume" }).click();
+  await expect(menu).toBeHidden();
+});

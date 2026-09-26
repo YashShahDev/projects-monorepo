@@ -253,12 +253,17 @@ export async function startGameApp(
 
     focusBeforeHelp = document.activeElement;
     menu.help.hidden = false;
+
+    // The menu stays in view behind the help, but out of reach of Tab and clicks, whose
+    // Resume and Restart would bypass the help's own key handling.
+    hud.paused.inert = true;
     menu.helpClose.focus();
     show();
   };
 
   const closeHelp = () => {
     menu.help.hidden = true;
+    hud.paused.inert = false;
     if (focusBeforeHelp instanceof HTMLElement) {
       focusBeforeHelp.focus();
     }
