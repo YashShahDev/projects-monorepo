@@ -73,3 +73,14 @@ describe("quality preference", () => {
     expect(prefs.quality()).toBe("medium");
   });
 });
+
+test("preferences leave a save from a newer version untouched", () => {
+  const storage = memory();
+  const newer = JSON.stringify({ version: 2, livery: "nightjar", quality: "high", extra: true });
+  storage.setItem("formula-racer:prefs", newer);
+  const prefs = createPreferences(storage, liveries);
+  expect(prefs.livery().id).toBe("vermilion");
+  prefs.setQuality("low");
+  expect(prefs.quality()).toBe("low");
+  expect(storage.getItem("formula-racer:prefs")).toBe(newer);
+});

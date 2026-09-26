@@ -36,9 +36,9 @@ export function parseTrackCatalog(value: unknown, source = "tracks"): TrackEntry
   });
 }
 
-/** The requested track, or the catalog's first when none is requested. */
+/** The requested track, or the catalog's first when none (or an empty id) is requested. */
 export function chooseTrack(catalog: readonly TrackEntry[], requested: string | null): TrackEntry {
-  const entry = requested === null ? catalog[0] : catalog.find((t) => t.id === requested);
+  const entry = requested === null || requested === "" ? catalog[0] : catalog.find((t) => t.id === requested);
   if (!entry) {
     const available = catalog.map((t) => t.id).join(", ");
 

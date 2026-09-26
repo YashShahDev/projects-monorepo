@@ -33,6 +33,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
   let current = fallback;
   let quality: QualityPreset = "medium";
   let sound = true;
+  let newerSave = false;
   try {
     const raw = storage?.getItem(STORAGE_KEY);
     const saved = raw
@@ -45,11 +46,18 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
       quality = isQualityPreset(saved.quality) ? saved.quality : quality;
       sound = typeof saved.sound === "boolean" ? saved.sound : sound;
     }
+
+    // A newer game version wrote this; keep it for that version rather than downgrade it.
+    newerSave = typeof saved?.version === "number" && saved.version > SCHEMA;
   } catch {
     // Unreadable or blocked: start from the defaults.
   }
 
   const save = () => {
+    if (newerSave) {
+      return;
+    }
+
     try {
       storage?.setItem(STORAGE_KEY, JSON.stringify({ version: SCHEMA, livery: current.id, quality, sound }));
     } catch {

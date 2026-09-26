@@ -62,6 +62,7 @@ describe("track catalog", () => {
   test("chooses the first track by default and a requested one by id", () => {
     expect(chooseTrack(catalog, null).id).toBe("harbour");
     expect(chooseTrack(catalog, "test-loop").id).toBe("test-loop");
+    expect(chooseTrack(catalog, "").id).toBe("harbour");
   });
 
   test("names the available tracks when the requested one is unknown", () => {
