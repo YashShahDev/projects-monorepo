@@ -15,18 +15,17 @@ summary: P2 done and reviewed; P3 time trial and energy in progress.
 - Completed phases: P0 — documentation and prerequisites; P1 — browser technical
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)).
-- Active phase: P3 — time trial and energy ([phase](phases/P3-time-trial.md)).
-- Next checkpoint: P3-C1 laps, checkpoints and timing.
+- Active phase: P3 — time trial and energy ([record](checkpoints/P3.md)).
+- Next checkpoint: P3-C2 energy rules, deployment and active aero.
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
 ## Next action
 
-P2 is done: all four Codex (`gpt-6-astra`) findings reproduced and fixed. Next, P3-C1,
-test-first: ordered checkpoints along `TrackGeometry`, lap countdown/validity/timing,
-reverse crossing and shortcut prevention, reset invalidating the current lap, and lap
-records tagged with physics version, assists and tuning. Before P3-C2, read RES-002,
-show the selected regulatory revision and document gameplay deviations.
+P3-C1 is done. Next, P3-C2: first read RES-002, show the selected regulatory revision
+and document the gameplay deviations; then test-first: versioned energy rules, Shift
+deployment above baseline, E cycling Balanced → Harvest, regeneration efficiency and
+brake blending, active-wing zones with braking override, and charge/power telemetry.
 
 ## Checkpoints
 
@@ -49,6 +48,10 @@ show the selected regulatory revision and document gameplay deviations.
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
 ## Verified
+
+P3-C1: ordered sectors, lap timing interpolated within a step, reverse-crossing and
+shortcut rules, four-wheels track limits, 3 s countdown, reset abandons the lap, laps
+tagged with physics/assists/tuning; 154 unit tests; `make test-full` 38/38.
 
 P2-C3: drag and downforce (top speed ≈ 340 km/h), per-wheel surface grip, rpm power
 curve with shift cut, dev tuning panel applied on reset; physics `p2.4`; 130 unit tests;

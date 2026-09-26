@@ -24,7 +24,8 @@ async function state(page: Page, call: Call = { name: "state" }): Promise<GameAp
 test("@dev stepping with the hooks is deterministic across page loads", async ({ page }) => {
   const run = async () => {
     await openGame(page);
-    return state(page, { name: "step", count: 120, throttle: true });
+    // 180 held countdown steps, then 120 driving.
+    return state(page, { name: "step", count: 300, throttle: true });
   };
   await freezeFrames(page);
   const first = await run();
@@ -38,6 +39,7 @@ test("@dev stepping with the hooks is deterministic across page loads", async ({
 test("@dev losing focus pauses and releases held keys", async ({ page }) => {
   await freezeFrames(page);
   await openGame(page);
+  await page.clock.runFor(3_000);
   await page.keyboard.down("ArrowUp");
   await page.clock.runFor(1_000);
   await page.evaluate(() => window.dispatchEvent(new Event("blur")));
@@ -57,6 +59,7 @@ test("@dev R resets to the grid", async ({ page }) => {
   await freezeFrames(page);
   await openGame(page);
   const grid = await state(page);
+  await page.clock.runFor(3_000);
   await page.keyboard.down("ArrowUp");
   await page.clock.runFor(2_000);
   await page.keyboard.up("ArrowUp");

@@ -20,10 +20,24 @@ test("@smoke starts on the grid and renders sky, grass, road and car", async ({ 
   expect(errors).toEqual([]);
 });
 
+test("@smoke the countdown holds the car, then the lap clock runs", async ({ page }) => {
+  await freezeFrames(page);
+  await openGame(page);
+  await page.keyboard.down("ArrowUp");
+  // Mid-second, clear of the boundary: the first frame has no previous timestamp.
+  await page.clock.runFor(1_500);
+  await expect(page.locator("#countdown")).toHaveText("2");
+  expect(await readSpeed(page)).toBe(0);
+  await page.clock.runFor(2_000);
+  await expect(page.locator("#countdown")).toBeHidden();
+  await expect(page.locator("#lap-time")).toHaveText(/^0:00\.[1-9]\d\d$/);
+});
+
 test("@smoke holding the throttle drives off and shifts up", async ({ page }) => {
   const errors = collectErrors(page);
   await freezeFrames(page);
   await openGame(page);
+  await page.clock.runFor(3_000);
   await page.keyboard.down("ArrowUp");
   await page.clock.runFor(3_000);
   expect(await readSpeed(page)).toBeGreaterThan(80);
@@ -34,6 +48,7 @@ test("@smoke holding the throttle drives off and shifts up", async ({ page }) =>
 test("@smoke Escape pauses the car and shows it", async ({ page }) => {
   await freezeFrames(page);
   await openGame(page);
+  await page.clock.runFor(3_000);
   await page.keyboard.down("ArrowUp");
   await page.clock.runFor(1_000);
   await page.keyboard.press("Escape");

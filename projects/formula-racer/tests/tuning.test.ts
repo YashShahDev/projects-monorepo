@@ -16,7 +16,11 @@ const throttle = { throttle: true, brake: false, left: false, right: false };
 let session: DrivingSession | undefined;
 afterEach(() => session?.dispose());
 
+/** Speed after `seconds` of throttle, once any standing-start countdown has ended. */
 function speedAfter(s: DrivingSession, seconds: number) {
+  const idle = { ...throttle, throttle: false };
+  const wait = s.state().countdownS;
+  for (let t = 0; t < wait - 1e-9; t += 1 / 60) s.frame(1 / 60, idle);
   for (let t = 0; t < seconds - 1e-9; t += 1 / 60) s.frame(1 / 60, throttle);
   return s.state().speedKmh;
 }

@@ -104,3 +104,37 @@ body {
 #tuning input {
   width: 96px;
 }
+
+#timing {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 55%);
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+}
+
+#timing .label {
+  opacity: 0.7;
+  font-size: 14px;
+}
+
+#lap-time.invalid {
+  color: #ff8a80;
+}
+
+#countdown {
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 96px;
+  font-weight: 700;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 60%);
+}
+
+#countdown[hidden] {
+  display: none;
+}

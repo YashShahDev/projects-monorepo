@@ -5,6 +5,7 @@ import { initPhysics } from "../simulation/physics.ts";
 import { createTrackView } from "../rendering/track-view.ts";
 import { createKeyboard } from "./keyboard.ts";
 import type { HeldKeys } from "./keyboard.ts";
+import { formatLapTime } from "./format.ts";
 import { createDrivingSession } from "./session.ts";
 import type { SessionState } from "./session.ts";
 
@@ -31,6 +32,9 @@ export interface Hud {
   speed: HTMLElement;
   gear: HTMLElement;
   paused: HTMLElement;
+  countdown: HTMLElement;
+  lapTime: HTMLElement;
+  lastLap: HTMLElement;
 }
 
 async function stage<T>(label: string, work: () => T | Promise<T>): Promise<T> {
@@ -94,6 +98,14 @@ export async function startGameApp(
     hud.speed.textContent = String(Math.round(Math.abs(s.speedKmh)));
     hud.gear.textContent = String(s.gear);
     hud.paused.hidden = !s.paused;
+    // Nudged below whole seconds so 2.0 s left reads "2", not "3".
+    const count = Math.ceil(s.countdownS - 1e-9);
+    hud.countdown.hidden = count <= 0;
+    hud.countdown.textContent = count > 0 ? String(count) : "";
+    hud.lapTime.textContent = s.lap ? formatLapTime(s.lap.elapsedS) : "–";
+    hud.lapTime.classList.toggle("invalid", s.lap?.valid === false);
+    const last = s.laps.at(-1);
+    hud.lastLap.textContent = last ? `${formatLapTime(last.timeS)}${last.valid ? "" : " ✕"}` : "–";
   };
   const draw = (frameSeconds: number, held: HeldKeys): void => {
     const { car, camera } = session.frame(frameSeconds, held);

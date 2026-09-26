@@ -10,7 +10,14 @@ function element<T extends HTMLElement>(selector: string): T {
 
 const canvas = element<HTMLCanvasElement>("#view");
 const status = element("#status");
-const hud = { speed: element("#speed"), gear: element("#gear"), paused: element("#paused") };
+const hud = {
+  speed: element("#speed"),
+  gear: element("#gear"),
+  paused: element("#paused"),
+  countdown: element("#countdown"),
+  lapTime: element("#lap-time"),
+  lastLap: element("#last-lap"),
+};
 
 function showFatal(message: string): void {
   status.setAttribute("role", "alert");

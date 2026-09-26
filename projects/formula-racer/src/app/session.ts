@@ -4,6 +4,8 @@ import type { TrackDefinition } from "../content/track.ts";
 import { createCameraRig } from "../rendering/camera-rig.ts";
 import type { CameraMode, CameraView } from "../rendering/camera-rig.ts";
 import { FixedStepper } from "../simulation/fixed-step.ts";
+import { createLapTimer } from "../simulation/lap-timer.ts";
+import type { CurrentLap, LapRecord } from "../simulation/lap-timer.ts";
 import { createInputSmoother } from "../simulation/input-smoothing.ts";
 import type { DigitalInput } from "../simulation/input-smoothing.ts";
 import { buildTrackGeometry } from "../simulation/track-geometry.ts";
@@ -13,6 +15,13 @@ import type { VehicleOptions } from "../simulation/vehicle.ts";
 import type { DriverAssists, VehicleSnapshot } from "../simulation/vehicle.ts";
 import type { Pose } from "../simulation/physics.ts";
 import type { KeyAction } from "./keyboard.ts";
+
+/** A completed lap and the conditions it was driven under. */
+export interface SessionLap extends LapRecord {
+  physicsVersion: string;
+  assists: DriverAssists;
+  tuned: boolean;
+}
 
 export interface SessionState {
   paused: boolean;
@@ -29,6 +38,11 @@ export interface SessionState {
   tuned: boolean;
   /** A tuning change is waiting for the next reset. */
   pendingTuning: boolean;
+  /** Seconds of the standing-start countdown left; the car is held until it is zero. */
+  countdownS: number;
+  /** The lap being timed, once the countdown ends. */
+  lap: CurrentLap | undefined;
+  laps: SessionLap[];
 }
 
 export interface FrameView {
@@ -60,6 +74,8 @@ export interface DrivingSession {
 }
 
 const MAX_STEPS_PER_FRAME = 8;
+const COUNTDOWN_S = 3;
+const SECTORS = 3;
 
 const poseOf = (s: VehicleSnapshot): Pose => ({ position: s.position, rotation: s.rotation });
 
@@ -119,6 +135,13 @@ export async function createDrivingSession(
   const smoother = createInputSmoother();
   const camera = createCameraRig();
   let paused = false;
+  const lapTimer = createLapTimer({ lengthM: geometry.lengthM, sectors: SECTORS });
+  const laps: SessionLap[] = [];
+  // Counted in whole steps so the countdown ends on the same step at any frame rate.
+  const TYRE_HALF_WIDTH_M = 0.2;
+  const innerWheelOffsetM = car.wheels.halfTrack + TYRE_HALF_WIDTH_M;
+  const countdownSteps = Math.round(COUNTDOWN_S / sim.stepSeconds);
+  let countdownLeft = countdownSteps;
   // Pose before the latest step and how far the display is between the two.
   let previous = poseOf(sim.snapshot());
   let alpha = 1;
@@ -147,7 +170,32 @@ export async function createDrivingSession(
         for (let i = 0; i < plan.steps; i += 1) {
           previous = poseOf(sim.snapshot());
           const speed = sim.snapshot().speedMps;
-          sim.step(smoother.update(held, speed, sim.stepSeconds));
+          const controls = smoother.update(held, speed, sim.stepSeconds);
+          if (countdownLeft > 0) {
+            // Held on the brakes; steering still responds so the grid feels live.
+            sim.step({ throttle: 0, brake: 1, steer: controls.steer });
+            countdownLeft -= 1;
+            if (countdownLeft === 0) lapTimer.start(sim.snapshot().simSeconds, locate().distanceM);
+            continue;
+          }
+          sim.step(controls);
+          const location = locate();
+          const before = lapTimer.laps().length;
+          // Track limits: the lap stays valid until all four wheels are past the kerb,
+          // i.e. the inner wheels' outer edges are beyond it.
+          const withinLimits =
+            Math.abs(location.lateralM) - innerWheelOffsetM <=
+            geometry.halfWidthM + geometry.kerbWidthM;
+          lapTimer.update(sim.snapshot().simSeconds, location.distanceM, withinLimits);
+          const done = lapTimer.laps();
+          for (const record of done.slice(before)) {
+            laps.push({
+              ...record,
+              physicsVersion: sim.snapshot().physicsVersion,
+              assists: sim.snapshot().assists,
+              tuned: JSON.stringify(current) !== stock,
+            });
+          }
         }
         alpha = plan.alpha;
       }
@@ -176,6 +224,8 @@ export async function createDrivingSession(
         camera.reset();
         stepper.reset();
         hint = undefined;
+        lapTimer.abort();
+        countdownLeft = countdownSteps;
       } else {
         cameraMode = camera.cycle();
       }
@@ -207,6 +257,9 @@ export async function createDrivingSession(
         physicsVersion: snapshot.physicsVersion,
         tuned: JSON.stringify(current) !== stock,
         pendingTuning: pending !== undefined,
+        countdownS: countdownLeft * sim.stepSeconds,
+        lap: lapTimer.current(),
+        laps: laps.map((lap) => ({ ...lap })),
       };
     },
     dispose() {

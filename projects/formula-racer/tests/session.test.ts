@@ -22,6 +22,13 @@ async function start() {
   return session;
 }
 
+/** Waits out the standing-start countdown, during which the car is held. */
+function ready(s: DrivingSession) {
+  const wait = s.state().countdownS;
+  for (let t = 0; t < wait - 1e-9; t += 1 / 60) s.frame(1 / 60, idle);
+  return s;
+}
+
 function drive(s: DrivingSession, held: typeof idle, seconds: number, hz = 60) {
   for (let t = 0; t < seconds - 1e-9; t += 1 / hz) s.frame(1 / hz, held);
   return s.state();
@@ -38,7 +45,7 @@ describe("driving session", () => {
   });
 
   test("holding throttle drives forward along the lap and up the gears", async () => {
-    const s = await start();
+    const s = ready(await start());
     const state = drive(s, throttle, 4);
     expect(state.speedKmh).toBeGreaterThan(120);
     expect(state.gear).toBeGreaterThan(2);
