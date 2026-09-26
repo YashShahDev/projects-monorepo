@@ -28,6 +28,16 @@ describe("corners", () => {
     expect(hairpin.radiusM).toBeLessThan(24);
   });
 
+  test("turn 1 is the first corner after the start line, not after the data's first sample", () => {
+    const start = (corners[0]?.apexM ?? 0) + 1;
+    const fromStart = findCorners(harbour, start);
+    expect(fromStart.map((c) => c.number)).toEqual(fromStart.map((_, i) => i + 1));
+    expect(fromStart[0]?.apexM).toBe(corners[1]?.apexM);
+
+    // The corner just behind the start line is the last one the driver reaches.
+    expect(fromStart.at(-1)?.apexM).toBe(corners[0]?.apexM);
+  });
+
   test("a straight gives no corners", () => {
     expect(findCorners({ ...harbour, curvature: new Float64Array(harbour.count) })).toEqual([]);
   });

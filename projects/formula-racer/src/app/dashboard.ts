@@ -119,7 +119,7 @@ export function createDashboard(
   );
 
   // Corner preview.
-  const corners = findCorners(track);
+  const corners = findCorners(track, startDistanceM);
   const previewSvg = svg("svg", { viewBox: "0 0 100 100", "aria-hidden": "true" });
   const behind = svg("path", { class: "behind" });
   const ahead = svg("path", { class: "ahead" });

@@ -18,8 +18,8 @@ const CORNER_RADIUS_M = 300;
 // A bend has to turn at least this far to count, so kinks are not numbered.
 const MIN_TURN_RAD = (15 * Math.PI) / 180;
 
-/** The circuit's corners, in lap order from the start of the centreline. */
-export function findCorners(track: TrackGeometry): Corner[] {
+/** The circuit's corners, numbered in the order a lap from `startDistanceM` reaches them. */
+export function findCorners(track: TrackGeometry, startDistanceM = 0): Corner[] {
   const n = track.count;
   const k = (i: number) => track.curvature[((i % n) + n) % n] ?? 0;
   const inCorner = (i: number) => Math.abs(k(i)) > 1 / CORNER_RADIUS_M;
@@ -67,7 +67,8 @@ export function findCorners(track: TrackGeometry): Corner[] {
     i = end;
   }
 
-  corners.sort((a, b) => a.apexM - b.apexM);
+  const fromStart = (c: Corner) => (((c.apexM - startDistanceM) % track.lengthM) + track.lengthM) % track.lengthM;
+  corners.sort((a, b) => fromStart(a) - fromStart(b));
 
   return corners.map((c, index) => ({ ...c, number: index + 1 }));
 }
