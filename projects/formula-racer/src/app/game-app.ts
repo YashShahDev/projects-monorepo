@@ -10,6 +10,9 @@ import { loadCatalogTrack } from "../content/track-catalog.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import { createTrackView } from "../rendering/track-view.ts";
+import { createGuideView } from "../rendering/guide-view.ts";
+import type { GuideState, GuideView } from "../rendering/guide-view.ts";
+import { buildRacingLine, lineLimits } from "../simulation/racing-line.ts";
 import { parseCarModelInterface } from "../content/car-model.ts";
 import { loadCarModel } from "../rendering/car-model-loader.ts";
 import modelInterface from "../../content/cars/model-interface.json";
@@ -37,6 +40,9 @@ export interface GameAppState extends SessionState {
 
   /** The mix the audio was last given, whether or not sound is on. */
   sound: SoundMix & { enabled: boolean; output: AudioContextState | "none" };
+
+  /** Undefined until the racing line is built, shortly after the first frame. */
+  guide: GuideState | undefined;
 }
 
 export interface GameApp {
@@ -79,6 +85,7 @@ export interface Menu {
   livery: HTMLSelectElement;
   quality: HTMLSelectElement;
   gearbox: HTMLSelectElement;
+  racingLine: HTMLSelectElement;
   sound: HTMLInputElement;
   controls: HTMLButtonElement;
   help: HTMLElement;
@@ -172,6 +179,7 @@ export async function startGameApp(
   menu.quality.value = preferences.quality();
   menu.gearbox.value = preferences.gearboxMode();
   session.setGearboxMode(preferences.gearboxMode());
+  menu.racingLine.value = preferences.racingLine();
   view.setQuality(qualitySettings(preferences.quality(), window.devicePixelRatio));
   let storedLaps = 0;
   const keyOf = (assists: SessionState["assists"], physicsVersion: string, gearboxMode: SessionState["gearboxMode"]) =>
@@ -349,6 +357,23 @@ export async function startGameApp(
   };
 
   menu.gearbox.addEventListener("change", onGearbox);
+  const onRacingLine = () => {
+    preferences.setRacingLine(menu.racingLine.value);
+  };
+
+  menu.racingLine.addEventListener("change", onRacingLine);
+
+  // Building the line takes a noticeable fraction of a second, so it waits until the
+  // game is already on screen.
+  let guide: GuideView | undefined;
+  let guideState: GuideState | undefined;
+  const guideTimer = setTimeout(() => {
+    const limits = lineLimits(carDefinition);
+    const line = buildRacingLine(session.geometry, limits);
+    guide = createGuideView(session.geometry, line, limits);
+    view.add(guide);
+    dashboard.setRacingLine(line);
+  }, 0);
   menu.sound.addEventListener("change", onSound);
   addEventListener("keydown", onGesture);
   addEventListener("pointerdown", onGesture);
@@ -373,6 +398,7 @@ export async function startGameApp(
     frames,
     held: keyboard.held(),
     sound: { ...sound, enabled: preferences.sound(), output: audio?.state() ?? "none" },
+    guide: guideState,
   });
   const show = (): SessionState => {
     const s = session.state();
@@ -424,6 +450,7 @@ export async function startGameApp(
     const t0 = performance.now();
     const { car, camera } = session.frame(frameSeconds, held);
     const t1 = performance.now();
+    guideState = guide?.update(car.position, car.speedMps, preferences.racingLine());
     view.render(car, camera);
     if (recorder && bench && !benchReported) {
       const stats = view.stats();
@@ -514,6 +541,8 @@ export async function startGameApp(
     menu.livery.removeEventListener("change", onLivery);
     menu.quality.removeEventListener("change", onQuality);
     menu.gearbox.removeEventListener("change", onGearbox);
+    menu.racingLine.removeEventListener("change", onRacingLine);
+    clearTimeout(guideTimer);
     menu.sound.removeEventListener("change", onSound);
     removeEventListener("keydown", onGesture);
     removeEventListener("pointerdown", onGesture);

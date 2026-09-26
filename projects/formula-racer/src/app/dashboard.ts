@@ -1,3 +1,5 @@
+import { slowestBetween } from "../simulation/racing-line.ts";
+import type { RacingLine } from "../simulation/racing-line.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
 import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import { createGMeter, shiftLights } from "./telemetry.ts";
@@ -27,6 +29,9 @@ export interface Dashboard {
 
   /** The car was put back on the grid: readings that compare frames start again. */
   reset(): void;
+
+  /** With a line, the preview also gives the speed to carry through the next corner. */
+  setRacingLine(line: RacingLine): void;
 }
 
 const svg = <K extends keyof SVGElementTagNameMap>(name: K, attributes: Record<string, string> = {}) => {
@@ -127,14 +132,19 @@ export function createDashboard(
   previewSvg.append(behind, ahead, svg("circle", { cx: "50", cy: "90", r: "3", class: "car" }), ...turnMarks);
   const label = html("span", { id: "corner-label" });
   const then = html("span", { id: "corner-then" });
-  elements.preview.replaceChildren(previewSvg, label, then);
+  const cornerSpeed = html("span", { id: "corner-speed" });
+  elements.preview.replaceChildren(previewSvg, label, cornerSpeed, then);
   elements.preview.hidden = true;
   let shownCorner = -1;
 
   // Starting each lookup from the last frame's sample avoids a full centreline scan.
   let hint: number | undefined;
+  let racingLine: RacingLine | undefined;
 
   return {
+    setRacingLine(line) {
+      racingLine = line;
+    },
     reset() {
       meter.reset();
       hint = undefined;
@@ -178,6 +188,13 @@ export function createDashboard(
         const text = describe(corner, inM);
         if (label.textContent !== text) {
           label.textContent = text;
+        }
+
+        const speedText = racingLine
+          ? `${String(Math.round((slowestBetween(racingLine, track.spacingM, corner.startM, corner.endM) * 3.6) / 5) * 5)} km/h`
+          : "";
+        if (cornerSpeed.textContent !== speedText) {
+          cornerSpeed.textContent = speedText;
         }
 
         // The corner after it, and both turn numbers drawn at their apexes on the road.

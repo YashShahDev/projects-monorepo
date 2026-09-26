@@ -521,6 +521,15 @@ kbd {
   stroke-width: 2px;
 }
 
+#corner-speed {
+  color: #ffd84a;
+  font-size: 13px;
+}
+
+#corner-speed:empty {
+  display: none;
+}
+
 #corner-then {
   font-size: 12px;
   font-weight: 500;

@@ -45,6 +45,7 @@ const menu = {
   livery: element("#livery", HTMLSelectElement),
   quality: element("#quality", HTMLSelectElement),
   gearbox: element("#gearbox", HTMLSelectElement),
+  racingLine: element("#racing-line", HTMLSelectElement),
   sound: element("#sound", HTMLInputElement),
   controls: element("#controls", HTMLButtonElement),
   help: element("#help"),

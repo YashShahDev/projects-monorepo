@@ -24,6 +24,9 @@ export interface TrackView {
   render(car: VehicleSnapshot, view: CameraView): void;
   setLivery(livery: Livery): void;
   setQuality(settings: QualitySettings): void;
+
+  /** Adds an object to the scene; the view disposes of it with itself. */
+  add(part: { readonly object: THREE.Object3D; dispose(): void }): void;
   dispose(): void;
 }
 
@@ -192,6 +195,10 @@ export function createTrackView(
       }
 
       camera.updateProjectionMatrix();
+    },
+    add(part) {
+      scene.add(part.object);
+      disposables.push(part);
     },
     dispose() {
       for (const resource of disposables) {

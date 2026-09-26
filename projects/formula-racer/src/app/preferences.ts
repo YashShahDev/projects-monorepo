@@ -1,5 +1,7 @@
 import type { Livery } from "../content/livery.ts";
 import { isRecord } from "../content/validate.ts";
+import { isGuideMode } from "../rendering/guide-view.ts";
+import type { GuideMode } from "../rendering/guide-view.ts";
 import { isQualityPreset } from "../rendering/quality.ts";
 import type { QualityPreset } from "../rendering/quality.ts";
 import { isGearboxMode } from "../simulation/gearbox.ts";
@@ -21,6 +23,10 @@ export interface Preferences {
 
   /** Ignores values that are not a gearbox mode. */
   setGearboxMode(mode: string): void;
+  racingLine(): GuideMode;
+
+  /** Ignores values that are not a racing-line mode. */
+  setRacingLine(mode: string): void;
 }
 
 const STORAGE_KEY = "formula-racer:prefs";
@@ -42,6 +48,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
   let quality: QualityPreset = "medium";
   let sound = true;
   let gearboxMode: GearboxMode = "automatic";
+  let racingLine: GuideMode = "off";
   let newerSave = false;
   try {
     const raw = storage?.getItem(STORAGE_KEY);
@@ -50,10 +57,11 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
     if (saved?.version === SCHEMA) {
       current = byId(saved.livery) ?? fallback;
 
-      // Quality, sound and gearbox mode were added within schema 1, so older saves may lack them.
+      // Everything but the livery was added within schema 1, so older saves may lack it.
       quality = isQualityPreset(saved.quality) ? saved.quality : quality;
       sound = typeof saved.sound === "boolean" ? saved.sound : sound;
       gearboxMode = isGearboxMode(saved.gearboxMode) ? saved.gearboxMode : gearboxMode;
+      racingLine = isGuideMode(saved.racingLine) ? saved.racingLine : racingLine;
     }
 
     // A newer game version wrote this; keep it for that version rather than downgrade it.
@@ -70,7 +78,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
     try {
       storage?.setItem(
         STORAGE_KEY,
-        JSON.stringify({ version: SCHEMA, livery: current.id, quality, sound, gearboxMode }),
+        JSON.stringify({ version: SCHEMA, livery: current.id, quality, sound, gearboxMode, racingLine }),
       );
     } catch {
       // Quota or revoked permission: the choice still holds for this visit.
@@ -109,6 +117,15 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
       }
 
       gearboxMode = mode;
+      save();
+    },
+    racingLine: () => racingLine,
+    setRacingLine(mode) {
+      if (!isGuideMode(mode)) {
+        return;
+      }
+
+      racingLine = mode;
       save();
     },
   };

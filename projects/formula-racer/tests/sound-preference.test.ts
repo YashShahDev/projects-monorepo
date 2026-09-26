@@ -44,3 +44,12 @@ test("the gearbox mode defaults to automatic, is remembered, and ignores unknown
   storage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, gearboxMode: "sequential" }));
   expect(createPreferences(storage, liveries).gearboxMode()).toBe("automatic");
 });
+
+test("the racing line defaults to off, is remembered, and ignores unknown values", () => {
+  const storage = memory();
+  const prefs = createPreferences(storage, liveries);
+  expect(prefs.racingLine()).toBe("off");
+  prefs.setRacingLine("braking");
+  prefs.setRacingLine("rainbow");
+  expect(createPreferences(storage, liveries).racingLine()).toBe("braking");
+});
