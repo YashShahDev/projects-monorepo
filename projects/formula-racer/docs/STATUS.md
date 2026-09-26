@@ -5,7 +5,7 @@ type: status
 status: active
 date: 2026-09-26
 updated: 2026-09-26
-summary: P0–P5 complete; the game is playable and the PR is ready for review.
+summary: P0–P5 complete; P6 (user feedback after playing) planned and Codex-reviewed, in progress.
 ---
 
 # Current delivery status
@@ -15,8 +15,8 @@ summary: P0–P5 complete; the game is playable and the PR is ready for review.
 - Completed phases: P0 — documentation and prerequisites; P1 — browser technical
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)); P4 — content and presentation ([record](checkpoints/P4.md)).
-- Active phase: P5 — performance and release verification ([phase](phases/P5-release.md)).
-- Next checkpoint: none; P0–P5 complete.
+- Active phase: P6 — driving aids, views and presentation ([phase](phases/P6-polish.md)).
+- Next checkpoint: P6-C1 manual gears and reverse ([P6](phases/P6-polish.md)).
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
@@ -38,6 +38,12 @@ P5-C1 is closed. On the reference laptop, every preset holds a locked 60 Hz: p95
 Next:
 
 P5 is complete. The phase review found 5 defects, all fixed ([P5](checkpoints/P5.md#phase-review)).
+
+P6 adds the user's requests from playing the game: a menu redesign and keyboard help,
+a bigger corner preview, manual gears and reverse, a physics and assists check, two
+more cameras, F1-style scenery, a racing line with a braking guide, and a ghost. The
+plan is in [P6](phases/P6-polish.md), reviewed by Codex. It lands in PR #7 (user). Next
+is P6-C1.
 The PR is ready for the user's review; don't merge. The open items listed in that
 review are optional follow-ups.
 
@@ -47,29 +53,30 @@ repository sources.
 
 ## Checkpoints
 
-| ID        | State  | Evidence                                                                      |
-| --------- | ------ | ----------------------------------------------------------------------------- |
-| P0-C1     | done   | `35d4059`; [P0 record](checkpoints/P0.md)                                     |
-| P0-C2     | done   | `1df7e26`; [tooling evidence](checkpoints/P0.md)                              |
-| P0-C3     | done   | `d8f8b38`; [verification](checkpoints/P0.md)                                  |
-| P1-C1     | done   | `2c619ed`; [P1 record](checkpoints/P1.md)                                     |
-| P1-C2     | done   | `c4768e0`; [P1 record](checkpoints/P1.md)                                     |
-| P1-C3     | done   | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md)               |
-| P2-C1     | done   | `aab4afa`; [P2 record](checkpoints/P2.md)                                     |
-| P2-C2     | done   | `f9cb3b1`… (`--grep=P2-C2`); [P2 record](checkpoints/P2.md)                   |
-| P2-C3     | done   | `ec511a5`… (`--grep=P2-C3`); [P2 record](checkpoints/P2.md)                   |
-| P2 review | done   | Codex `gpt-6-astra`, 4/4 fixed; [P2 record](checkpoints/P2.md#phase-review)   |
-| P3-C1–C3  | done   | `09c6ec9`… (`--grep=P3-C`); [P3 record](checkpoints/P3.md)                    |
-| P3 review | done   | Codex `gpt-6-astra`, 3/3 fixed; [P3 record](checkpoints/P3.md)                |
-| P4-C1     | done   | `--grep=P4-C1`; [P4 record](checkpoints/P4.md)                                |
-| P4-C2     | done   | `--grep=P4-C2`; [P4 record](checkpoints/P4.md)                                |
-| P4-C3     | active | `--grep=P4-C3`; needs the real-model check; [P4](checkpoints/P4.md)           |
-| P4 review | done   | Fresh review agent, 9 fixed, 2 rejected; [P4](checkpoints/P4.md#phase-review) |
-| P4-C4     | done   | `--grep=P4-C4`; Codex reviewed, 2/2 fixed; [P4](checkpoints/P4.md)            |
-| P5-C1     | done   | `--grep=P5-C1`; all presets locked 60 Hz; [P5](checkpoints/P5.md)             |
-| P5-C2     | done   | No bottleneck to optimize; [P5](checkpoints/P5.md)                            |
-| P5-C3     | done   | Lint, Chromium tests, screenshots, limitations; [P5](checkpoints/P5.md)       |
-| P5 review | done   | Independent agent, 5 fixed; [P5](checkpoints/P5.md#phase-review)              |
+| ID        | State   | Evidence                                                                      |
+| --------- | ------- | ----------------------------------------------------------------------------- |
+| P0-C1     | done    | `35d4059`; [P0 record](checkpoints/P0.md)                                     |
+| P0-C2     | done    | `1df7e26`; [tooling evidence](checkpoints/P0.md)                              |
+| P0-C3     | done    | `d8f8b38`; [verification](checkpoints/P0.md)                                  |
+| P1-C1     | done    | `2c619ed`; [P1 record](checkpoints/P1.md)                                     |
+| P1-C2     | done    | `c4768e0`; [P1 record](checkpoints/P1.md)                                     |
+| P1-C3     | done    | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md)               |
+| P2-C1     | done    | `aab4afa`; [P2 record](checkpoints/P2.md)                                     |
+| P2-C2     | done    | `f9cb3b1`… (`--grep=P2-C2`); [P2 record](checkpoints/P2.md)                   |
+| P2-C3     | done    | `ec511a5`… (`--grep=P2-C3`); [P2 record](checkpoints/P2.md)                   |
+| P2 review | done    | Codex `gpt-6-astra`, 4/4 fixed; [P2 record](checkpoints/P2.md#phase-review)   |
+| P3-C1–C3  | done    | `09c6ec9`… (`--grep=P3-C`); [P3 record](checkpoints/P3.md)                    |
+| P3 review | done    | Codex `gpt-6-astra`, 3/3 fixed; [P3 record](checkpoints/P3.md)                |
+| P4-C1     | done    | `--grep=P4-C1`; [P4 record](checkpoints/P4.md)                                |
+| P4-C2     | done    | `--grep=P4-C2`; [P4 record](checkpoints/P4.md)                                |
+| P4-C3     | active  | `--grep=P4-C3`; needs the real-model check; [P4](checkpoints/P4.md)           |
+| P4 review | done    | Fresh review agent, 9 fixed, 2 rejected; [P4](checkpoints/P4.md#phase-review) |
+| P4-C4     | done    | `--grep=P4-C4`; Codex reviewed, 2/2 fixed; [P4](checkpoints/P4.md)            |
+| P5-C1     | done    | `--grep=P5-C1`; all presets locked 60 Hz; [P5](checkpoints/P5.md)             |
+| P5-C2     | done    | No bottleneck to optimize; [P5](checkpoints/P5.md)                            |
+| P5-C3     | done    | Lint, Chromium tests, screenshots, limitations; [P5](checkpoints/P5.md)       |
+| P5 review | done    | Independent agent, 5 fixed; [P5](checkpoints/P5.md#phase-review)              |
+| P6-C1–C8  | planned | [P6](phases/P6-polish.md)                                                     |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
