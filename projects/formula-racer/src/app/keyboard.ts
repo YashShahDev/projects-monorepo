@@ -2,6 +2,7 @@
 interface KeyFields {
   code: string;
   repeat: boolean;
+  key: string;
 }
 
 // Inputs that take typed text. A focused checkbox or button (the pause menu) must still
@@ -31,6 +32,7 @@ const isEditable = (target: EventTarget | null): boolean => {
 const keyFields = (event: Event): KeyFields => ({
   code: "code" in event && typeof event.code === "string" ? event.code : "",
   repeat: "repeat" in event && event.repeat === true,
+  key: "key" in event && typeof event.key === "string" ? event.key : "",
 });
 
 export interface HeldKeys {
@@ -56,7 +58,7 @@ const DRIVE_KEYS: Record<string, keyof HeldKeys> = {
   ShiftRight: "deploy",
 };
 
-export type KeyAction = "reset" | "camera" | "pause" | "energyMode" | "shiftUp" | "shiftDown";
+export type KeyAction = "reset" | "camera" | "pause" | "energyMode" | "shiftUp" | "shiftDown" | "help";
 
 const ACTION_KEYS: Record<string, KeyAction> = {
   KeyR: "reset",
@@ -65,7 +67,48 @@ const ACTION_KEYS: Record<string, KeyAction> = {
   KeyE: "energyMode",
   KeyX: "shiftUp",
   KeyZ: "shiftDown",
+  KeyH: "help",
 };
+
+const LABELS: Record<keyof HeldKeys | KeyAction, string> = {
+  throttle: "Throttle",
+  brake: "Brake",
+  left: "Steer left",
+  right: "Steer right",
+  deploy: "Deploy battery (hold)",
+  shiftUp: "Shift up",
+  shiftDown: "Shift down (R when stopped)",
+  energyMode: "Energy mode: Balanced / Harvest",
+  camera: "Change camera",
+  reset: "Restart from the grid",
+  pause: "Pause menu",
+  help: "This help",
+};
+
+const keycap = (code: string): string =>
+  ({
+    ArrowUp: "↑",
+    ArrowDown: "↓",
+    ArrowLeft: "←",
+    ArrowRight: "→",
+    ShiftLeft: "Left Shift",
+    ShiftRight: "Right Shift",
+    Escape: "Esc",
+  })[code] ?? code.replace(/^Key/u, "");
+
+/** One row per control, built from the same tables the keyboard reads. */
+export const CONTROLS_HELP: readonly { label: string; codes: string[]; keys: string[] }[] = (() => {
+  const rows = new Map<keyof typeof LABELS, string[]>();
+  for (const [code, control] of [...Object.entries(DRIVE_KEYS), ...Object.entries(ACTION_KEYS)]) {
+    rows.set(control, [...(rows.get(control) ?? []), code]);
+  }
+
+  return [...rows].map(([control, codes]) => ({
+    label: LABELS[control],
+    codes,
+    keys: control === "help" ? [...codes.map(keycap), "?"] : codes.map(keycap),
+  }));
+})();
 
 export interface Keyboard {
   held(): HeldKeys;
@@ -81,8 +124,10 @@ export function createKeyboard(window: EventTarget, document: EventTarget & { vi
       return;
     }
 
-    const { code, repeat } = keyFields(event);
-    const action = ACTION_KEYS[code];
+    const { code, repeat, key } = keyFields(event);
+
+    // ? sits on different physical keys across layouts, so it is matched by character.
+    const action = ACTION_KEYS[code] ?? (key === "?" ? "help" : undefined);
     if (DRIVE_KEYS[code]) {
       down.add(code);
     } else if (!action) {

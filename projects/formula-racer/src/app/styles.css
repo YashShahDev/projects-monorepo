@@ -64,32 +64,169 @@ body {
   opacity: 0.7;
 }
 
-#paused {
+#paused,
+#help {
+  --panel: rgb(16 20 26 / 92%);
+  --line: rgb(255 255 255 / 12%);
+  --muted: rgb(232 237 242 / 62%);
+  --accent: #e10600;
+
   position: fixed;
+  z-index: 2;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   display: grid;
-  gap: 8px;
-  min-width: 260px;
-  padding: 16px 20px;
-  border-radius: 8px;
-  background: rgb(0 0 0 / 80%);
+  gap: 14px;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 45%);
+  backdrop-filter: blur(6px);
 }
 
-#paused h2 {
+#paused[hidden],
+#help[hidden] {
+  display: none;
+}
+
+#paused h2,
+#help h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 22px;
+  letter-spacing: 0.02em;
 }
 
-#paused fieldset {
+#paused header {
   display: grid;
   gap: 4px;
-  border: 1px solid rgb(255 255 255 / 25%);
+}
+
+#paused .actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+#paused button,
+#help button {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 8%);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#paused button:hover,
+#help button:hover {
+  background: rgb(255 255 255 / 14%);
+}
+
+#paused button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+#paused button:focus-visible,
+#help button:focus-visible,
+#paused select:focus-visible,
+#paused input:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+#paused section {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+#paused h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#paused h3 .note {
+  margin-left: 6px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#paused label.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 #paused select {
-  margin-left: 8px;
+  min-width: 190px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 8%);
+  color: inherit;
+  font: inherit;
+}
+
+#paused select option {
+  background: #1b2129;
+}
+
+#paused label.switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+/* A checkbox drawn as a sliding switch; it stays a real checkbox for keyboard and tests. */
+#paused label.switch input {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 22%);
+  appearance: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#paused label.switch input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+#paused label.switch input:checked {
+  background: #1db954;
+}
+
+#paused label.switch input:checked::after {
+  transform: translateX(16px);
 }
 
 #paused .hint,
@@ -99,8 +236,45 @@ body {
   opacity: 0.75;
 }
 
-#paused[hidden] {
-  display: none;
+kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 1px 6px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 10%);
+  font:
+    600 12px/1.5 ui-monospace,
+    monospace;
+  text-align: center;
+}
+
+#help {
+  z-index: 3;
+}
+
+#help table {
+  border-collapse: collapse;
+}
+
+#help th,
+#help td {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+#help th {
+  font-weight: 400;
+}
+
+#help td {
+  text-align: right;
+}
+
+#help td kbd + kbd {
+  margin-left: 4px;
 }
 
 #tuning {

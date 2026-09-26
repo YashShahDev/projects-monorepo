@@ -31,33 +31,52 @@
     </div>
     <div id="countdown" aria-live="assertive"></div>
     <div id="paused" role="dialog" aria-label="Paused" hidden>
-      <h2>Paused</h2>
-      <button id="resume" type="button">Resume</button>
-      <button id="restart" type="button">Restart</button>
-      <fieldset>
-        <legend>Assists (changing one restarts the lap)</legend>
-        <label><input id="assist-steering" type="checkbox" checked /> Steering assist</label>
-        <label><input id="assist-abs" type="checkbox" checked /> ABS</label>
-        <label><input id="assist-traction" type="checkbox" checked /> Traction control</label>
-      </fieldset>
-      <label
-        >Livery
-        <select id="livery"></select
-      ></label>
-      <label
-        >Gearbox
-        <select id="gearbox">
-          <option value="automatic">Automatic</option>
-          <option value="hybrid">Hybrid (auto + manual)</option>
-          <option value="manual">Manual</option>
-        </select></label
-      >
-      <label
-        >Graphics
-        <select id="quality"></select
-      ></label>
-      <label><input id="sound" type="checkbox" checked /> Sound</label>
-      <p class="hint">Esc resume · R restart · Z/X gear down/up · Shift deploy · E energy mode · C camera</p>
+      <header>
+        <h2>Paused</h2>
+        <p class="hint">Press <kbd>Esc</kbd> to resume · <kbd>H</kbd> for controls</p>
+      </header>
+      <div class="actions">
+        <button id="resume" class="primary" type="button">Resume</button>
+        <button id="restart" type="button">Restart</button>
+        <button id="controls" type="button">Controls</button>
+      </div>
+      <section aria-labelledby="menu-driving">
+        <h3 id="menu-driving">Driving</h3>
+        <label class="row"
+          >Gearbox
+          <select id="gearbox">
+            <option value="automatic">Automatic</option>
+            <option value="hybrid">Hybrid (auto + manual)</option>
+            <option value="manual">Manual</option>
+          </select></label
+        >
+      </section>
+      <section aria-labelledby="menu-assists">
+        <h3 id="menu-assists">Assists <span class="note">changing one restarts the lap</span></h3>
+        <label class="switch"><input id="assist-steering" type="checkbox" checked /> Steering assist</label>
+        <label class="switch"><input id="assist-abs" type="checkbox" checked /> ABS</label>
+        <label class="switch"><input id="assist-traction" type="checkbox" checked /> Traction control</label>
+      </section>
+      <section aria-labelledby="menu-display">
+        <h3 id="menu-display">Display</h3>
+        <label class="row"
+          >Livery
+          <select id="livery"></select
+        ></label>
+        <label class="row"
+          >Graphics
+          <select id="quality"></select
+        ></label>
+      </section>
+      <section aria-labelledby="menu-audio">
+        <h3 id="menu-audio">Audio</h3>
+        <label class="switch"><input id="sound" type="checkbox" checked /> Sound</label>
+      </section>
+    </div>
+    <div id="help" role="dialog" aria-label="Controls" hidden>
+      <h2>Controls</h2>
+      <table id="help-table"></table>
+      <button id="help-close" type="button">Close</button>
     </div>
     <div id="status" role="status">Loading…</div>
   </body>

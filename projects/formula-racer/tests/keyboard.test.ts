@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { createKeyboard } from "../src/app/keyboard.ts";
+import { CONTROLS_HELP, createKeyboard } from "../src/app/keyboard.ts";
 
 function page() {
   const window = new EventTarget();
   const document = Object.assign(new EventTarget(), { visibilityState: "visible" });
-  const key = (type: "keydown" | "keyup", code: string, repeat = false) => {
-    const event = Object.assign(new Event(type, { cancelable: true }), { code, repeat });
+  const key = (type: "keydown" | "keyup", code: string, repeat = false, typed = "") => {
+    const event = Object.assign(new Event(type, { cancelable: true }), { code, repeat, key: typed });
     window.dispatchEvent(event);
 
     return event;
@@ -127,6 +127,36 @@ describe("keyboard input", () => {
     key("keyup", "KeyX");
     key("keydown", "KeyZ");
     expect(actions).toEqual(["shiftUp", "shiftDown"]);
+  });
+
+  test("H or ? opens the controls help, whatever key the layout puts ? on", () => {
+    const { window, document, key } = page();
+    const keyboard = createKeyboard(window, document);
+    const actions: string[] = [];
+    keyboard.onAction((action) => actions.push(action));
+    key("keydown", "KeyH");
+    key("keydown", "Minus", false, "?");
+    expect(actions).toEqual(["help", "help"]);
+  });
+
+  test("the controls help lists every bound key, and each key once", () => {
+    const codes = CONTROLS_HELP.flatMap((row) => row.codes);
+    expect(new Set(codes).size).toBe(codes.length);
+    for (const code of ["ArrowUp", "KeyW", "KeyS", "KeyA", "KeyD", "ShiftLeft", "KeyR", "KeyC", "Escape", "KeyE"]) {
+      expect(codes).toContain(code);
+    }
+
+    for (const code of ["KeyX", "KeyZ", "KeyH"]) {
+      expect(codes).toContain(code);
+    }
+
+    for (const row of CONTROLS_HELP) {
+      expect(row.label.length).toBeGreaterThan(0);
+      expect(row.keys.length).toBeGreaterThanOrEqual(row.codes.length);
+    }
+
+    // ? has no fixed key code, so the help row shows it as an extra keycap.
+    expect(CONTROLS_HELP.find((row) => row.codes.includes("KeyH"))?.keys).toEqual(["H", "?"]);
   });
 
   test("a focused checkbox or button still lets game keys through", () => {

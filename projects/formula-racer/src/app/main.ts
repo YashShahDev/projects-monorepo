@@ -46,6 +46,10 @@ const menu = {
   quality: element("#quality", HTMLSelectElement),
   gearbox: element("#gearbox", HTMLSelectElement),
   sound: element("#sound", HTMLInputElement),
+  controls: element("#controls", HTMLButtonElement),
+  help: element("#help"),
+  helpTable: element("#help-table", HTMLTableElement),
+  helpClose: element("#help-close", HTMLButtonElement),
 };
 
 function showFatal(message: string): void {

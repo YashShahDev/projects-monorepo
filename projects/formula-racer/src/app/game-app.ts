@@ -14,7 +14,7 @@ import { parseCarModelInterface } from "../content/car-model.ts";
 import { loadCarModel } from "../rendering/car-model-loader.ts";
 import modelInterface from "../../content/cars/model-interface.json";
 import { QUALITY_PRESETS, qualitySettings } from "../rendering/quality.ts";
-import { createKeyboard } from "./keyboard.ts";
+import { CONTROLS_HELP, createKeyboard } from "./keyboard.ts";
 import type { HeldKeys } from "./keyboard.ts";
 import { formatGear, formatLapTime } from "./format.ts";
 import { createLapStore, lapKey, storageNotice } from "./lap-store.ts";
@@ -80,6 +80,10 @@ export interface Menu {
   quality: HTMLSelectElement;
   gearbox: HTMLSelectElement;
   sound: HTMLInputElement;
+  controls: HTMLButtonElement;
+  help: HTMLElement;
+  helpTable: HTMLTableElement;
+  helpClose: HTMLButtonElement;
 }
 
 async function stage<T>(label: string, work: () => T | Promise<T>): Promise<T> {
@@ -174,7 +178,63 @@ export async function startGameApp(
     lapKey({ trackId: track.id, physicsVersion, assists, gearboxMode });
 
   const keyboard = createKeyboard(window, document);
+
+  // The help pauses the game and owns the keyboard while open: Esc or H close it, and
+  // focus goes back to what had it.
+  menu.helpTable.replaceChildren(
+    ...CONTROLS_HELP.map((row) => {
+      const tr = document.createElement("tr");
+      const label = document.createElement("th");
+      label.scope = "row";
+      label.textContent = row.label;
+      const keys = document.createElement("td");
+      keys.append(
+        ...row.keys.map((key) => {
+          const cap = document.createElement("kbd");
+          cap.textContent = key;
+
+          return cap;
+        }),
+      );
+      tr.append(label, keys);
+
+      return tr;
+    }),
+  );
+  let focusBeforeHelp: Element | null = null;
+  const openHelp = () => {
+    if (!session.state().paused) {
+      session.action("pause");
+    }
+
+    focusBeforeHelp = document.activeElement;
+    menu.help.hidden = false;
+    menu.helpClose.focus();
+    show();
+  };
+
+  const closeHelp = () => {
+    menu.help.hidden = true;
+    if (focusBeforeHelp instanceof HTMLElement) {
+      focusBeforeHelp.focus();
+    }
+  };
+
   keyboard.onAction((action) => {
+    if (menu.help.hidden !== true) {
+      if (action === "help" || action === "pause") {
+        closeHelp();
+      }
+
+      return;
+    }
+
+    if (action === "help") {
+      openHelp();
+
+      return;
+    }
+
     session.action(action);
 
     // Show pause and reset at once rather than on the next frame.
@@ -293,6 +353,8 @@ export async function startGameApp(
   addEventListener("keydown", onGesture);
   addEventListener("pointerdown", onGesture);
   menu.resume.addEventListener("click", onResume);
+  menu.controls.addEventListener("click", openHelp);
+  menu.helpClose.addEventListener("click", closeHelp);
   menu.restart.addEventListener("click", onRestart);
   for (const box of [menu.steering, menu.abs, menu.traction]) {
     box.addEventListener("change", onAssists);
@@ -446,6 +508,8 @@ export async function startGameApp(
     canvas.removeEventListener("webglcontextlost", onContextLost);
     removeEventListener("blur", onBlur);
     menu.resume.removeEventListener("click", onResume);
+    menu.controls.removeEventListener("click", openHelp);
+    menu.helpClose.removeEventListener("click", closeHelp);
     menu.restart.removeEventListener("click", onRestart);
     menu.livery.removeEventListener("change", onLivery);
     menu.quality.removeEventListener("change", onQuality);

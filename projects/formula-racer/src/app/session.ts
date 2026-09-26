@@ -27,6 +27,9 @@ import type { EnergyRules } from "../content/energy-rules.ts";
 import type { EnergyMode } from "../simulation/energy.ts";
 import type { GearboxMode, ShiftRequest } from "../simulation/gearbox.ts";
 
+/** Key actions the session handles; help belongs to the page, not the car. */
+export type SessionAction = Exclude<KeyAction, "help">;
+
 /** A completed lap and the conditions it was driven under. */
 export interface SessionLap extends LapRecord {
   physicsVersion: string;
@@ -92,7 +95,7 @@ export interface DrivingSession {
    * to the car (the benchmark autopilot) then drives the same at any frame rate.
    */
   frame(frameSeconds: number, held: DigitalInput | (() => DigitalInput)): FrameView;
-  action(action: KeyAction): void;
+  action(action: SessionAction): void;
   focusLost(): void;
   setAssists(assists: DriverAssists): void;
   setGearboxMode(mode: GearboxMode): void;
