@@ -1,6 +1,8 @@
 import * as RAPIER from "@dimforge/rapier3d-compat";
 import type { CarDefinition } from "../content/car.ts";
 import type { Vec3 } from "../content/validate.ts";
+import { createBarrierField } from "./barrier-field.ts";
+import type { BarrierRun } from "./barrier-field.ts";
 import { initPhysics } from "./physics.ts";
 import { REVERSE } from "./gearbox.ts";
 import type { GearboxMode, ShiftRequest } from "./gearbox.ts";
@@ -151,11 +153,8 @@ export interface VehicleOptions {
    * Solid walls, 1.2 m tall, whose track-facing face runs along these ground lines. The
    * wall's thickness lies on the `outside`, reckoned facing along the points.
    */
-  barriers?: { points: { x: number; z: number }[]; closed: boolean; outside: "left" | "right" }[];
+  barriers?: BarrierRun[];
 }
-
-const BARRIER_HALF_HEIGHT_M = 0.6;
-const BARRIER_HALF_THICKNESS_M = 0.3;
 
 // Share of the tyre's grip the assists let braking or drive use, with cornering.
 const ASSIST_GRIP_MARGIN = 0.9;
@@ -196,33 +195,8 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
   const ground = options.groundHalfExtentM ?? 3000;
   world.createCollider(RAPIER.ColliderDesc.cuboid(ground, 1, ground).setTranslation(0, -1, 0));
 
-  for (const barrier of options.barriers ?? []) {
-    const { points } = barrier;
-    const segments = barrier.closed ? points.length : points.length - 1;
-    for (let i = 0; i < segments; i += 1) {
-      const a = points[i] ?? { x: 0, z: 0 };
-      const b = points[(i + 1) % points.length] ?? a;
-      const length = Math.hypot(b.x - a.x, b.z - a.z);
-      if (length < 1e-3) {
-        continue;
-      }
-
-      // Left of travel along (dx, dz) is (dz, −dx); the centre sits half a thickness out.
-      const sign = barrier.outside === "left" ? 1 : -1;
-      const out = (BARRIER_HALF_THICKNESS_M * sign) / length;
-      world.createCollider(
-        RAPIER.ColliderDesc.cuboid(BARRIER_HALF_THICKNESS_M, BARRIER_HALF_HEIGHT_M, length / 2)
-          .setTranslation(
-            (a.x + b.x) / 2 + (b.z - a.z) * out,
-            BARRIER_HALF_HEIGHT_M,
-            (a.z + b.z) / 2 - (b.x - a.x) * out,
-          )
-          .setRotation(headingQuat(Math.atan2(b.x - a.x, b.z - a.z)))
-          .setFriction(0.3)
-          .setRestitution(0.1),
-      );
-    }
-  }
+  const barriers = createBarrierField(world, options.barriers ?? []);
+  barriers.follow(options.start.position.x, options.start.position.z);
 
   const w = car.wheels;
   const rideHeight = w.suspensionRestLength + w.radius - w.connectionY;
@@ -419,11 +393,72 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
     body.applyImpulse({ x: -v.x * impulse, y: 0, z: -v.z * impulse }, true);
   };
 
+  const takeSnapshot = (): VehicleSnapshot => {
+    const { x, y, z } = body.translation();
+    const r = body.rotation();
+    const v = body.linvel();
+    const omega = body.angvel();
+    const t = body.translation();
+    const wheels: WheelState[] = [0, 1, 2, 3].map((i) => {
+      const steer = vehicle.wheelSteering(i) ?? 0;
+      const point = vehicle.wheelContactPoint(i);
+      const contact = vehicle.wheelIsInContact(i) && point ? { x: point.x, y: point.y, z: point.z } : undefined;
+      let slip: WheelSlip = "none";
+      if (contact && locked[i] === true) {
+        slip = "locked";
+      } else if (contact && spinning[i] === true) {
+        slip = "spinning";
+      } else if (contact) {
+        const axle = localPoint(Math.cos(steer), 0, -Math.sin(steer));
+        const at = body.velocityAtPoint(contact);
+        const across = at.x * (axle.x - t.x) + at.y * (axle.y - t.y) + at.z * (axle.z - t.z);
+        const moving = Math.hypot(at.x, at.z);
+        const sideways = moving > SLIDE_MIN_SPEED_MPS && Math.abs(across) > moving * Math.sin(SLIDE_ANGLE_RAD);
+        slip = sideways ? "sliding" : "none";
+      }
+
+      return {
+        suspensionLength: vehicle.wheelSuspensionLength(i) ?? w.suspensionRestLength,
+        steerRad: steer,
+        spinRad: vehicle.wheelRotation(i) ?? 0,
+        inContact: vehicle.wheelIsInContact(i),
+        slip,
+        contact,
+      };
+    });
+
+    return {
+      physicsVersion: PHYSICS_VERSION,
+      simSeconds,
+      position: { x, y, z },
+      rotation: { x: r.x, y: r.y, z: r.z, w: r.w },
+      linearVelocity: { x: v.x, y: v.y, z: v.z },
+      angularVelocity: { x: omega.x, y: omega.y, z: omega.z },
+      speedMps: vehicle.currentVehicleSpeed(),
+      wheels,
+      applied: { ...applied },
+      gear: drivetrain.gear,
+      rpm: drivetrain.rpm,
+      wing: { mode: wingMode, opening: wingOpening },
+      energy: energy && {
+        mode: energyMode,
+        ...energy.state(),
+        deployW: flow.deployW,
+        regenW: flow.regenW,
+      },
+      assists: { ...assists },
+    };
+  };
+
+  // Several readers take a snapshot every step; each is built once until something changes.
+  let latest: VehicleSnapshot | undefined;
+
   return {
     stepSeconds,
     car,
     step(controls) {
       assertLive();
+      latest = undefined;
       deployRequest = controls.deploy === true;
       applied = {
         throttle: clamp(controls.throttle, 0, 1),
@@ -558,26 +593,34 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
 
       applyAero(dynamicPressure, downforceN);
       applySurfaceDrag();
+      const at = body.translation();
+      barriers.follow(at.x, at.z);
       world.step();
       simSeconds += stepSeconds;
     },
     setAssists(next) {
+      latest = undefined;
       assists = { ...next };
     },
     setEnergyMode(mode) {
+      latest = undefined;
       energyMode = mode;
     },
     setGearboxMode(mode) {
+      latest = undefined;
       powertrain.setMode(mode);
     },
     setWingMode(mode) {
+      latest = undefined;
       wingMode = mode === "straight" && applied.brake > 0 ? "corner" : mode;
     },
     newLap() {
+      latest = undefined;
       energy?.newLap();
     },
     reset() {
       assertLive();
+      latest = undefined;
       body.setTranslation(startPosition, true);
       body.setRotation(startRotation, true);
       body.setLinvel({ x: 0, y: 0, z: 0 }, true);
@@ -603,60 +646,9 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
     },
     snapshot() {
       assertLive();
-      const { x, y, z } = body.translation();
-      const r = body.rotation();
-      const v = body.linvel();
-      const omega = body.angvel();
-      const t = body.translation();
-      const wheels: WheelState[] = [0, 1, 2, 3].map((i) => {
-        const steer = vehicle.wheelSteering(i) ?? 0;
-        const point = vehicle.wheelContactPoint(i);
-        const contact = vehicle.wheelIsInContact(i) && point ? { x: point.x, y: point.y, z: point.z } : undefined;
-        let slip: WheelSlip = "none";
-        if (contact && locked[i] === true) {
-          slip = "locked";
-        } else if (contact && spinning[i] === true) {
-          slip = "spinning";
-        } else if (contact) {
-          const axle = localPoint(Math.cos(steer), 0, -Math.sin(steer));
-          const at = body.velocityAtPoint(contact);
-          const across = at.x * (axle.x - t.x) + at.y * (axle.y - t.y) + at.z * (axle.z - t.z);
-          const moving = Math.hypot(at.x, at.z);
-          const sideways = moving > SLIDE_MIN_SPEED_MPS && Math.abs(across) > moving * Math.sin(SLIDE_ANGLE_RAD);
-          slip = sideways ? "sliding" : "none";
-        }
+      latest ??= takeSnapshot();
 
-        return {
-          suspensionLength: vehicle.wheelSuspensionLength(i) ?? w.suspensionRestLength,
-          steerRad: steer,
-          spinRad: vehicle.wheelRotation(i) ?? 0,
-          inContact: vehicle.wheelIsInContact(i),
-          slip,
-          contact,
-        };
-      });
-
-      return {
-        physicsVersion: PHYSICS_VERSION,
-        simSeconds,
-        position: { x, y, z },
-        rotation: { x: r.x, y: r.y, z: r.z, w: r.w },
-        linearVelocity: { x: v.x, y: v.y, z: v.z },
-        angularVelocity: { x: omega.x, y: omega.y, z: omega.z },
-        speedMps: vehicle.currentVehicleSpeed(),
-        wheels,
-        applied: { ...applied },
-        gear: drivetrain.gear,
-        rpm: drivetrain.rpm,
-        wing: { mode: wingMode, opening: wingOpening },
-        energy: energy && {
-          mode: energyMode,
-          ...energy.state(),
-          deployW: flow.deployW,
-          regenW: flow.regenW,
-        },
-        assists: { ...assists },
-      };
+      return latest;
     },
     dispose() {
       if (disposed) {

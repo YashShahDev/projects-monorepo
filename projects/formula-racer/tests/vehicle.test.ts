@@ -67,6 +67,28 @@ describe("vehicle simulation", () => {
     sim.dispose();
   });
 
+  test("a snapshot between steps shows each setting changed since the last one", async () => {
+    const sim = await settledVehicle();
+    const first = sim.snapshot();
+    expect(sim.snapshot()).toEqual(first);
+
+    const off = { steering: false, abs: false, traction: false };
+    sim.setAssists(off);
+    expect(sim.snapshot().assists).toEqual(off);
+    sim.setWingMode("straight");
+    expect(sim.snapshot().wing.mode).toBe("straight");
+    sim.step({ throttle: 1, brake: 0, steer: 0 });
+    expect(sim.snapshot().simSeconds).toBeGreaterThan(first.simSeconds);
+    expect(sim.snapshot().applied.throttle).toBe(1);
+    run(sim, { throttle: 1, brake: 0, steer: 0 }, 1);
+    expect(sim.snapshot().position.z).toBeGreaterThan(1);
+
+    // Back at the start point, before it settles onto its suspension.
+    sim.reset();
+    expect(sim.snapshot().position).toMatchObject({ x: 0, z: 0 });
+    sim.dispose();
+  });
+
   test("reset returns the car to the start at rest", async () => {
     const sim = await settledVehicle();
     const start = sim.snapshot().position;

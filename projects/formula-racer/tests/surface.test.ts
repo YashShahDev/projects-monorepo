@@ -112,6 +112,21 @@ test("the car stops at the barrier's drawn face, not 0.3 m short of it", async (
   sim.dispose();
 });
 
+// Barriers are made of short segments all round a lap; the one the car meets may be
+// far from where it started and among hundreds of others.
+test("a wall of many short segments far down the road still stops the car", async () => {
+  const points = Array.from({ length: 601 }, (_, i) => ({ x: -600 + 2 * i, z: 300 }));
+  const sim = await createVehicleSimulation(car, {
+    start: { position: { x: 0, y: 0, z: 0 }, headingRad: 0 },
+    barriers: [{ points, closed: false, outside: "right" }],
+  });
+  run(sim, { throttle: 1, brake: 0, steer: 0 }, 14);
+  const { z } = sim.snapshot().position;
+  expect(z + car.chassisHalfExtents.z).toBeLessThan(300.1);
+  expect(z).toBeGreaterThan(290);
+  sim.dispose();
+});
+
 describe("surface grip in a session", () => {
   let sessions: DrivingSession[] = [];
   afterEach(() => {

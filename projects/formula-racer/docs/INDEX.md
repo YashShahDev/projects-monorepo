@@ -24,6 +24,7 @@ Read [STATUS](STATUS.md) first when resuming.
 - [ADR-001 Bun browser toolchain](decisions/ADR-001-bun-toolchain.md).
 - [ADR-002 WASM and simulation boundary](decisions/ADR-002-physics-boundary.md).
 - [ADR-003 Repository knowledge and checkpoint protocol](decisions/ADR-003-checkpoints.md).
+- [ADR-004 Tyre model for P7](decisions/ADR-004-tyre-model.md).
 - [RES-001 Toolchain sources](research/RES-001-toolchain.md).
 - [RES-002 2026 energy rules](research/RES-002-energy-rules.md).
 - [Performance protocol](performance/PROTOCOL.md).
