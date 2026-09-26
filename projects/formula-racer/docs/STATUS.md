@@ -5,7 +5,7 @@ type: status
 status: active
 date: 2026-09-26
 updated: 2026-09-26
-summary: P5-C1 done; Low, Medium and High hold a locked 60 Hz on the reference laptop.
+summary: P0–P5 complete; the game is playable and the PR is ready for review.
 ---
 
 # Current delivery status
@@ -16,7 +16,7 @@ summary: P5-C1 done; Low, Medium and High hold a locked 60 Hz on the reference l
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)); P4 — content and presentation ([record](checkpoints/P4.md)).
 - Active phase: P5 — performance and release verification ([phase](phases/P5-release.md)).
-- Next checkpoint: P5 phase review ([P5](checkpoints/P5.md)).
+- Next checkpoint: none; P0–P5 complete.
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
@@ -37,8 +37,9 @@ P5-C1 is closed. On the reference laptop, every preset holds a locked 60 Hz: p95
 
 Next:
 
-1. P5 phase review (Codex `gpt-6-astra`): reproduce each finding, then fix it.
-2. Then the PR is ready for the user's review. Don't merge.
+P5 is complete. The phase review found 5 defects, all fixed ([P5](checkpoints/P5.md#phase-review)).
+The PR is ready for the user's review; don't merge. The open items listed in that
+review are optional follow-ups.
 
 Cloud sessions: set `PW_CHROMIUM_PATH` (see [SETUP](SETUP.md)). LFS works through the
 root `.lfsconfig`, provided `YashShahDev/projects-monorepo` is in the session's
@@ -68,6 +69,7 @@ repository sources.
 | P5-C1     | done   | `--grep=P5-C1`; all presets locked 60 Hz; [P5](checkpoints/P5.md)             |
 | P5-C2     | done   | No bottleneck to optimize; [P5](checkpoints/P5.md)                            |
 | P5-C3     | done   | Lint, Chromium tests, screenshots, limitations; [P5](checkpoints/P5.md)       |
+| P5 review | done   | Independent agent, 5 fixed; [P5](checkpoints/P5.md#phase-review)              |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
