@@ -1,0 +1,271 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createDrivingSession } from "../src/app/session.ts";
+import type { DrivingSession } from "../src/app/session.ts";
+import { parseTrack } from "../src/content/track.ts";
+import { car } from "./support/vehicle.ts";
+
+const track = parseTrack(
+  JSON.parse(readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8")),
+);
+const idle = { throttle: false, brake: false, left: false, right: false, deploy: false };
+const throttle = { ...idle, throttle: true };
+
+let session: DrivingSession | undefined;
+afterEach(() => session?.dispose());
+
+async function start() {
+  session = await createDrivingSession(car, track);
+
+  return session;
+}
+
+/** Waits out the standing-start countdown, during which the car is held. */
+function ready(s: DrivingSession) {
+  const wait = s.state().countdownS;
+  for (let t = 0; t < wait - 1e-9; t += 1 / 60) {
+    s.frame(1 / 60, idle);
+  }
+
+  return s;
+}
+
+function drive(s: DrivingSession, held: typeof idle, seconds: number, hz = 60) {
+  for (let t = 0; t < seconds - 1e-9; t += 1 / hz) {
+    s.frame(1 / hz, held);
+  }
+
+  return s.state();
+}
+
+describe("driving session", () => {
+  test("starts on the road at the track's start line, stopped in first gear", async () => {
+    const s = await start();
+    const state = s.state();
+    expect(state.surface).toBe("road");
+    expect(state.lapDistanceM).toBeCloseTo(track.startDistanceM, -1);
+    expect(state.gear).toBe(1);
+    expect(Math.abs(state.speedKmh)).toBeLessThan(1);
+  });
+
+  test("holding throttle drives forward along the lap and up the gears", async () => {
+    const s = ready(await start());
+    const state = drive(s, throttle, 4);
+    expect(state.speedKmh).toBeGreaterThan(120);
+    expect(state.gear).toBeGreaterThan(2);
+    expect(state.lapDistanceM).toBeGreaterThan(track.startDistanceM + 50);
+  });
+
+  test("Escape pauses and resumes; paused frames do not move the car", async () => {
+    const s = await start();
+    drive(s, throttle, 1);
+    s.action("pause");
+    const before = s.state();
+    const after = drive(s, throttle, 1);
+    expect(after.paused).toBe(true);
+    expect(after.simSeconds).toBe(before.simSeconds);
+    s.action("pause");
+    expect(drive(s, throttle, 0.5).simSeconds).toBeGreaterThan(before.simSeconds);
+  });
+
+  test("the long frame gap after resuming does not fast-forward the car", async () => {
+    const s = await start();
+    drive(s, throttle, 1);
+    s.action("pause");
+    const before = s.state().simSeconds;
+    s.action("pause");
+
+    // The browser's frame clock reports the whole paused time on the first frame back.
+    s.frame(30, throttle);
+    expect(s.state().simSeconds - before).toBeLessThan(0.02);
+  });
+
+  test("losing focus pauses until the player resumes", async () => {
+    const s = await start();
+    s.focusLost();
+    expect(drive(s, throttle, 0.5).paused).toBe(true);
+  });
+
+  test("the countdown does not run down while paused", async () => {
+    const s = await start();
+    const before = s.state().countdownS;
+    s.action("pause");
+    drive(s, idle, 2);
+    expect(s.state().countdownS).toBe(before);
+    s.action("pause");
+    drive(s, idle, 0.5);
+    expect(s.state().countdownS).toBeCloseTo(before - 0.5, 1);
+  });
+
+  test("changing assists with a retune pending applies both on the restart", async () => {
+    const s = await start();
+    s.retune({ massKg: car.massKg + 50 });
+    expect(s.car().massKg).toBe(car.massKg);
+    s.setAssists({ steering: false, abs: false, traction: true });
+    const state = s.state();
+    expect(s.car().massKg).toBe(car.massKg + 50);
+    expect(state.tuned).toBe(true);
+    expect(state.assists).toEqual({ steering: false, abs: false, traction: true });
+    expect(state.countdownS).toBeGreaterThan(0);
+  });
+
+  test("Z at a standstill selects reverse once the countdown is over, and does not cycle the camera", async () => {
+    const s = ready(await start());
+    const camera = s.state().camera;
+    s.action("shiftDown");
+    const state = drive(s, idle, 0.1);
+    expect(state.gear).toBe(-1);
+    expect(state.camera).toBe(camera);
+  });
+
+  test("gear requests are ignored during the countdown and while paused", async () => {
+    const s = await start();
+    s.action("shiftDown");
+    expect(drive(s, idle, 0.1).gear).toBe(1);
+    ready(s);
+    s.action("pause");
+    s.action("shiftDown");
+    s.action("pause");
+    expect(drive(s, idle, 0.1).gear).toBe(1);
+  });
+
+  test("changing the gearbox mode restarts the lap; manual then holds a gear, even after a restart", async () => {
+    const s = ready(await start());
+    drive(s, throttle, 2);
+    s.setGearboxMode("manual");
+    expect(s.state().countdownS).toBeGreaterThan(0);
+    ready(s);
+    expect(drive(s, throttle, 4).gear).toBe(1);
+    s.action("reset");
+    expect(s.state().gearboxMode).toBe("manual");
+    ready(s);
+    expect(drive(s, throttle, 4).gear).toBe(1);
+  });
+
+  test("a restart leaves reverse for first", async () => {
+    const s = ready(await start());
+    s.action("shiftDown");
+    drive(s, idle, 0.1);
+    s.action("reset");
+    expect(drive(s, idle, 0.1).gear).toBe(1);
+  });
+
+  test("R puts the car back on the start line at rest", async () => {
+    const s = await start();
+    drive(s, { ...throttle, right: true }, 3);
+    s.action("reset");
+    const state = drive(s, idle, 0.5);
+    expect(state.lapDistanceM).toBeCloseTo(track.startDistanceM, -1);
+    expect(Math.abs(state.speedKmh)).toBeLessThan(2);
+    expect(state.gear).toBe(1);
+  });
+
+  test("the cockpit camera uses the model's anchor", async () => {
+    session = await createDrivingSession(car, track, {
+      cameraAnchors: { chase: { x: 0, y: 0.5, z: 0 }, cockpit: { x: 0, y: 3, z: 0 } },
+    });
+    session.action("camera");
+    const { car: pose, camera } = session.frame(0, {
+      throttle: false,
+      brake: false,
+      left: false,
+      right: false,
+      deploy: false,
+    });
+    expect(camera.position.y).toBeCloseTo(pose.position.y + 3, 1);
+  });
+
+  test("rejects an active-aero zone that runs past the end of the lap", () => {
+    // Harbour Park's generated loop is about 3.93 km, so a zone ending at 5 km never fits.
+    const beyond = { ...track, activeAeroZones: [{ startM: 3800, endM: 5000 }] };
+    expect(createDrivingSession(car, beyond)).rejects.toThrow(
+      "track.activeAeroZones[0].endM is 5000 m, past the 3932 m lap",
+    );
+    const zone = track.activeAeroZones[0];
+    expect(zone && zone.endM <= 3932).toBe(true);
+  });
+
+  test("rejects a start distance past the end of the lap", () => {
+    expect(createDrivingSession(car, { ...track, startDistanceM: 5000 })).rejects.toThrow(
+      "track.startDistanceM is 5000 m, past the 3932 m lap",
+    );
+  });
+
+  test("an input function is sampled every simulation step, so frame rate cannot change the drive", async () => {
+    const at = async (hz: number) => {
+      const s = await createDrivingSession(car, track);
+
+      // A controller that reacts to the car: brakes above 100 km/h.
+      const react = () => ({
+        ...throttle,
+        throttle: s.snapshot().speedMps < 100 / 3.6,
+        brake: s.snapshot().speedMps > 100 / 3.6,
+      });
+      for (let t = 0; t < 8 - 1e-9; t += 1 / hz) {
+        s.frame(1 / hz, react);
+      }
+
+      const state = s.state();
+      s.dispose();
+
+      return state;
+    };
+
+    const slow = await at(20);
+    const fast = await at(60);
+    expect(fast.speedKmh).toBeGreaterThan(80);
+    expect(fast.speedKmh).toBeLessThan(115);
+    expect(slow.lapDistanceM).toBe(fast.lapDistanceM);
+  });
+
+  test("C switches camera", async () => {
+    const s = await start();
+    s.action("camera");
+    expect(s.state().camera).toBe("cockpit");
+  });
+
+  test("render rate does not change where the car ends up", async () => {
+    const at = async (hz: number) => {
+      const s = await createDrivingSession(car, track);
+      const state = drive(s, throttle, 2, hz);
+      s.dispose();
+
+      return state.lapDistanceM;
+    };
+
+    expect(await at(30)).toBe(await at(144));
+  });
+
+  // Codex P2 review: the car was drawn from the pre-step snapshot with the post-step
+  // camera, and whole 60 Hz steps judder at 144 Hz.
+  async function atSpeed() {
+    const s = await start();
+    drive(s, throttle, 8);
+
+    return s;
+  }
+
+  test("each frame's camera follows the car pose drawn in that frame", async () => {
+    const s = await atSpeed();
+    for (let i = 0; i < 30; i += 1) {
+      const { car: pose, camera } = s.frame(1 / 144, throttle);
+      const gap = Math.hypot(camera.position.x - pose.position.x, camera.position.z - pose.position.z);
+      expect(gap).toBeCloseTo(6, 1);
+    }
+  });
+
+  test("the drawn car moves smoothly at 144 Hz between 60 Hz simulation steps", async () => {
+    const s = await atSpeed();
+    let last = s.frame(1 / 144, throttle).car.position;
+    const moves: number[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      const { position } = s.frame(1 / 144, throttle).car;
+      moves.push(Math.hypot(position.x - last.x, position.z - last.z));
+      last = position;
+    }
+
+    expect(Math.min(...moves)).toBeGreaterThan(0);
+    expect(Math.max(...moves) / Math.min(...moves)).toBeLessThan(1.3);
+  });
+});

@@ -1,0 +1,173 @@
+import { describe, expect, test } from "bun:test";
+import { parseCar } from "../src/content/car.ts";
+import { createPowertrain } from "../src/simulation/powertrain.ts";
+import { car } from "./support/vehicle.ts";
+
+const DT = 1 / 60;
+const kmh = (v: number) => v / 3.6;
+
+/** Ramps speed up at full throttle and records each step's output. */
+function sweep(toKmh: number) {
+  const powertrain = createPowertrain(car.powertrain);
+  const out = [];
+  for (let v = 0; v <= toKmh; v += 0.25) {
+    out.push({ v, ...powertrain.update(1, kmh(v), DT) });
+  }
+
+  return out;
+}
+
+describe("powertrain", () => {
+  test("launch force is capped at the traction-limited maximum", () => {
+    const [first] = sweep(1);
+    expect(first?.driveForceN).toBe(car.powertrain.maxDriveForceN);
+  });
+
+  test("an upshift cuts drive for the shift time, then drive resumes", () => {
+    const run = sweep(150);
+    const shift = run.findIndex((s, i) => i > 0 && s.gear > (run[i - 1]?.gear ?? 1));
+    expect(shift).toBeGreaterThan(0);
+    const cutSteps = Math.round(car.powertrain.shiftTimeS / DT);
+    for (let k = 0; k < cutSteps; k += 1) {
+      expect(run[shift + k]?.driveForceN).toBe(0);
+    }
+
+    expect(run[shift + cutSteps]?.driveForceN ?? 0).toBeGreaterThan(0);
+  });
+
+  test("above the traction cap, drive is the power curve over road speed", () => {
+    // 256 km/h in 7th (318 km/h at 13 000 rpm) is 10 465 rpm; the curve is 0.75 + 0.25 *
+    // (10 465 - 7000) / 3500 = 0.9975 of the 400 kW ICE, and 399.0 kW / 71.11 m/s = 5611 N.
+    const at256 = sweep(256).at(-1);
+    expect(at256?.gear).toBe(7);
+    expect(at256?.driveForceN ?? 0).toBeCloseTo(5611, -1);
+  });
+
+  test("an upshift at the force crossover loses no drive once the cut ends", () => {
+    const run = sweep(300);
+    const cutSteps = Math.round(car.powertrain.shiftTimeS / DT);
+    const shift = run.findIndex((s, i) => i > 0 && s.gear === 7 && (run[i - 1]?.gear ?? 0) === 6);
+    const before = run[shift - 1];
+    const after = run[shift + cutSteps];
+    if (!before || !after) {
+      throw new Error("no 6→7 upshift in the sweep");
+    }
+
+    expect(after.rpm).toBeLessThan(before.rpm);
+
+    // Equal at the crossover; the speed gained during the 50 ms cut costs well under 1%.
+    expect(after.driveForceN).toBeGreaterThan(before.driveForceN * 0.99);
+  });
+
+  test("no throttle, no drive", () => {
+    expect(createPowertrain(car.powertrain).update(0, kmh(100), DT).driveForceN).toBe(0);
+  });
+
+  test("reset returns to first gear with no shift pending", () => {
+    const powertrain = createPowertrain(car.powertrain);
+    for (let v = 0; v < 200; v += 1) {
+      powertrain.update(1, kmh(v), DT);
+    }
+
+    powertrain.reset();
+    const state = powertrain.update(1, 0, DT);
+    expect(state.gear).toBe(1);
+    expect(state.driveForceN).toBe(car.powertrain.maxDriveForceN);
+  });
+});
+
+describe("automatic shift points", () => {
+  /** The rpm each upshift left its gear at, in a full-throttle sweep. */
+  const upshiftRpms = () => {
+    const run = sweep(340);
+    const out = new Map<number, number>();
+    for (let i = 1; i < run.length; i += 1) {
+      const [was, now] = [run[i - 1], run[i]];
+      if (was && now && now.gear > was.gear) {
+        out.set(was.gear, was.rpm);
+      }
+    }
+
+    return out;
+  };
+
+  test("widely spaced low gears are held to the redline, where the next gear still gives less force", () => {
+    // 1st→2nd is 95→130 km/h: at 12 500 rpm, 2nd would sit at 9 135 rpm, on the rising
+    // part of the curve (0.93 of peak) against 0.94 at the redline.
+    expect(upshiftRpms().get(1)).toBeGreaterThan(12_400);
+  });
+
+  test("closely spaced top gears shift where the next gear's force overtakes, before the redline", () => {
+    // 7th→8th is 305→345 km/h. Solving share(r) = share(r · 305/345) on the curve gives
+    // about 11 430 rpm, earlier than the old fixed 11 800 rpm point.
+    const rpm = upshiftRpms().get(7) ?? 0;
+    expect(rpm).toBeGreaterThan(11_300);
+    expect(rpm).toBeLessThan(11_600);
+  });
+});
+
+describe("reverse and manual", () => {
+  test("in reverse, throttle drives backwards", () => {
+    const powertrain = createPowertrain(car.powertrain);
+    powertrain.request("down");
+    const state = powertrain.update(1, 0, DT);
+    expect(state.gear).toBe(-1);
+    expect(state.driveForceN).toBe(-car.powertrain.maxDriveForceN);
+  });
+
+  test("the limiter cuts reverse drive at 30 km/h and restores it a little below", () => {
+    const powertrain = createPowertrain(car.powertrain);
+    powertrain.request("down");
+    powertrain.update(1, 0, DT);
+    expect(powertrain.update(1, kmh(-30), DT).driveForceN).toBe(0);
+    expect(powertrain.update(1, kmh(-29.9), DT).driveForceN).toBe(0);
+    expect(powertrain.update(1, kmh(-28), DT).driveForceN).toBeLessThan(0);
+  });
+
+  test("in manual, the limiter cuts drive at the redline instead of shifting", () => {
+    const powertrain = createPowertrain(car.powertrain);
+    powertrain.setMode("manual");
+    const top1 = car.powertrain.gearbox.gearTopSpeedsKmh[0] ?? 0;
+    const atRedline = powertrain.update(1, kmh(top1), DT);
+    expect(atRedline.gear).toBe(1);
+    expect(atRedline.driveForceN).toBe(0);
+    expect(powertrain.update(1, kmh(top1 * 0.9), DT).driveForceN).toBeGreaterThan(0);
+  });
+
+  test("a manual downshift cuts drive for the shift time too", () => {
+    const powertrain = createPowertrain(car.powertrain);
+    powertrain.setMode("manual");
+    powertrain.request("up");
+    powertrain.update(1, kmh(80), DT);
+    for (let i = 0; i < 30; i += 1) {
+      powertrain.update(1, kmh(80), DT);
+    }
+
+    powertrain.request("down");
+    const cut = powertrain.update(1, kmh(80), DT);
+    expect(cut.gear).toBe(1);
+    expect(cut.driveForceN).toBe(0);
+  });
+});
+
+describe("powertrain content", () => {
+  const withCurve = (powerCurve: unknown) => () => parseCar({ ...car, powertrain: { ...car.powertrain, powerCurve } });
+
+  test("rejects a power curve whose rpm does not increase", () => {
+    expect(
+      withCurve([
+        [4000, 0.5],
+        [3000, 0.8],
+      ]),
+    ).toThrow("car.powertrain.powerCurve[1] rpm must be greater than the point before");
+  });
+
+  test("rejects fractions outside 0–1", () => {
+    expect(
+      withCurve([
+        [4000, 0.5],
+        [9000, 1.2],
+      ]),
+    ).toThrow("car.powertrain.powerCurve[1][1]");
+  });
+});

@@ -1,0 +1,579 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #101418;
+  color: #e8edf2;
+  font:
+    14px/1.4 system-ui,
+    sans-serif;
+}
+
+#view {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#status {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 55%);
+}
+
+#status[hidden] {
+  display: none;
+}
+
+#status[role="alert"] {
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  text-align: center;
+  border-radius: 0;
+  background: #101418;
+}
+
+#hud {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 55%);
+  font-variant-numeric: tabular-nums;
+}
+
+#speed {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+#gear {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.unit,
+.gear-label {
+  opacity: 0.7;
+}
+
+#paused,
+#help {
+  --panel: rgb(16 20 26 / 92%);
+  --line: rgb(255 255 255 / 12%);
+  --muted: rgb(232 237 242 / 62%);
+  --accent: #e10600;
+
+  position: fixed;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 14px;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 45%);
+  backdrop-filter: blur(6px);
+}
+
+#paused[hidden],
+#help[hidden] {
+  display: none;
+}
+
+#paused h2,
+#help h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.02em;
+}
+
+#paused header {
+  display: grid;
+  gap: 4px;
+}
+
+#paused .actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+#paused button,
+#help button {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 8%);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#paused button:hover,
+#help button:hover {
+  background: rgb(255 255 255 / 14%);
+}
+
+#paused button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+#paused button:focus-visible,
+#help button:focus-visible,
+#paused select:focus-visible,
+#paused input:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+#paused section {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+#paused h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#paused h3 .note {
+  margin-left: 6px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#paused label.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#paused select {
+  min-width: 190px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 8%);
+  color: inherit;
+  font: inherit;
+}
+
+#paused select option {
+  background: #1b2129;
+}
+
+#paused label.switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+/* A checkbox drawn as a sliding switch; it stays a real checkbox for keyboard and tests. */
+#paused label.switch input {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 22%);
+  appearance: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#paused label.switch input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+
+#paused label.switch input:checked {
+  background: #1db954;
+}
+
+#paused label.switch input:checked::after {
+  transform: translateX(16px);
+}
+
+#paused .hint,
+#storage-note {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 1px 6px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 10%);
+  font:
+    600 12px/1.5 ui-monospace,
+    monospace;
+  text-align: center;
+}
+
+#help {
+  z-index: 3;
+}
+
+#help table {
+  border-collapse: collapse;
+}
+
+#help th,
+#help td {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+#help th {
+  font-weight: 400;
+}
+
+#help td {
+  text-align: right;
+}
+
+#help td kbd + kbd {
+  margin-left: 4px;
+}
+
+#tuning {
+  position: fixed;
+  z-index: 1;
+  top: 12px;
+  left: 12px;
+  display: grid;
+  gap: 6px;
+  width: 260px;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 75%);
+}
+
+#tuning[hidden] {
+  display: none;
+}
+
+#tuning label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#tuning input {
+  width: 96px;
+}
+
+#timing {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 55%);
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+}
+
+/* On a small window the full timing row would run into the track map. */
+@media (max-width: 720px) {
+  #timing {
+    max-width: calc(100vw - 260px);
+    font-size: 13px;
+  }
+}
+
+#timing .label {
+  opacity: 0.7;
+  font-size: 14px;
+}
+
+#delta {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+#delta.ahead {
+  color: #4ade80;
+}
+
+#delta.behind {
+  color: #ff6b5e;
+}
+
+#lap-time.invalid {
+  color: #ff8a80;
+}
+
+#countdown {
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 96px;
+  font-weight: 700;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 60%);
+}
+
+#countdown[hidden] {
+  display: none;
+}
+
+#energy {
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+#bench-report {
+  position: fixed;
+  inset: 16px auto auto 16px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  background: rgb(0 0 0 / 80%);
+  color: #fff;
+  font-size: 12px;
+}
+
+#charge-meter {
+  width: 64px;
+  vertical-align: middle;
+}
+
+#telemetry {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+#shift-lights {
+  display: flex;
+  gap: 4px;
+}
+
+#shift-lights i {
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 15%);
+}
+
+#shift-lights i.on.green {
+  background: #4cd964;
+}
+
+#shift-lights i.on.amber {
+  background: #ffcc00;
+}
+
+#shift-lights i.on.red {
+  background: #ff5a4a;
+}
+
+#shift-lights.flash i.on {
+  background: #6fa8ff;
+}
+
+#telemetry .rpm {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+#telemetry .pedal {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  align-items: center;
+  font-size: 12px;
+}
+
+#telemetry .bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 15%);
+}
+
+#telemetry .bar i {
+  display: block;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+#throttle-bar {
+  background: #4cd964;
+}
+
+#brake-bar {
+  background: #ff5a4a;
+}
+
+#telemetry .g-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.g-ring {
+  width: 44px;
+  height: 44px;
+}
+
+.g-ring circle,
+.g-ring line {
+  fill: none;
+  stroke: rgb(255 255 255 / 35%);
+  stroke-width: 0.04;
+}
+
+.g-ring #g-dot {
+  fill: #ffcc00;
+  stroke: none;
+}
+
+#track-map {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  width: 220px;
+  height: 150px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 45%);
+}
+
+#track-map .outline {
+  fill: none;
+  stroke: rgb(0 0 0 / 60%);
+  stroke-width: 6;
+  stroke-linejoin: round;
+}
+
+#track-map .road {
+  fill: none;
+  stroke: #e8edf2;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+#track-map .start {
+  fill: #ffcc00;
+}
+
+#map-car {
+  fill: #ff5a4a;
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+#corner-preview {
+  position: fixed;
+
+  /* Under the track map, clear of the road ahead and of the timing row. */
+  top: 172px;
+  left: 12px;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 55%);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#corner-preview[hidden] {
+  display: none;
+}
+
+/* Sized by the screen's short side so it stays clear of the car on a small window. */
+#corner-preview svg {
+  width: clamp(96px, 28vmin, 200px);
+  height: clamp(96px, 28vmin, 200px);
+}
+
+#corner-preview .turn {
+  fill: #ffd84a;
+  font-size: 9px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: rgb(0 0 0 / 70%);
+  stroke-width: 2px;
+}
+
+#corner-speed {
+  color: #ffd84a;
+  font-size: 13px;
+}
+
+#corner-speed:empty {
+  display: none;
+}
+
+#corner-then {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+#corner-preview path {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#corner-preview .ahead {
+  stroke: #e8edf2;
+}
+
+#corner-preview .behind {
+  stroke: rgb(232 237 242 / 35%);
+}
+
+#corner-preview .car {
+  fill: #ff5a4a;
+}
