@@ -55,6 +55,7 @@ export interface Hud {
   lastLap: HTMLElement;
   energyMode: HTMLElement;
   charge: HTMLElement;
+  chargeMeter: HTMLMeterElement;
   ers: HTMLElement;
   wing: HTMLElement;
   bestLap: HTMLElement;
@@ -276,7 +277,9 @@ export async function startGameApp(
     hud.lapTime.classList.toggle("invalid", s.lap?.valid === false);
     if (s.energy) {
       hud.energyMode.textContent = s.energy.mode === "harvest" ? "Harvest" : "Balanced";
-      hud.charge.textContent = `${String(Math.round((100 * s.energy.socJ) / energy.socWindowJ))}%`;
+      const percent = Math.round((100 * s.energy.socJ) / energy.socWindowJ);
+      hud.charge.textContent = `${String(percent)}%`;
+      hud.chargeMeter.value = percent;
       const netKw = Math.round((s.energy.deployW - s.energy.regenW) / 1000);
       hud.ers.textContent = `${netKw > 0 ? "+" : ""}${String(netKw)} kW`;
     }

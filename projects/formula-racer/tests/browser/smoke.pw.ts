@@ -78,6 +78,20 @@ test("@smoke E switches the energy mode and Shift deploys from the battery", asy
   expect(Number((await page.locator("#charge").textContent())?.replace("%", ""))).toBeLessThan(97);
 });
 
+test("@smoke a battery meter shows the charge the readout gives", async ({ page }) => {
+  await freezeFrames(page);
+  await openGame(page);
+  const meter = page.getByRole("meter", { name: "Battery" });
+  await expect(meter).toHaveAttribute("value", "100");
+  await page.clock.runFor(3_000);
+  await page.keyboard.down("Shift");
+  await page.keyboard.down("ArrowUp");
+  await page.clock.runFor(2_000);
+  const shown = Number((await page.locator("#charge").textContent())?.replace("%", ""));
+  expect(shown).toBeLessThan(97);
+  await expect(meter).toHaveAttribute("value", String(shown));
+});
+
 test("@smoke running wide onto the grass marks the lap invalid", async ({ page }) => {
   await freezeFrames(page);
   await openGame(page);

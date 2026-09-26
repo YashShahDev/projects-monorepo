@@ -22,6 +22,7 @@ const hud = {
   lastLap: element("#last-lap"),
   energyMode: element("#energy-mode"),
   charge: element("#charge"),
+  chargeMeter: element<HTMLMeterElement>("#charge-meter"),
   ers: element("#ers"),
   wing: element("#wing"),
   bestLap: element("#best-lap"),

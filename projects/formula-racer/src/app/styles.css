@@ -168,3 +168,8 @@ body {
   font-size: 13px;
   opacity: 0.9;
 }
+
+#charge-meter {
+  width: 64px;
+  vertical-align: middle;
+}
