@@ -49,20 +49,31 @@ describe("lap timer", () => {
     expect(timer.laps()).toHaveLength(1);
   });
 
-  test("a shortcut jump earns no distance and invalidates the lap", () => {
+  test("a shortcut invalidates the lap, which still ends at the real start line", () => {
     const { timer, at } = start();
     const before = drive(timer, at, 500);
     // The nearest centreline point jumps 800 m ahead: the car cut across the infield.
     const t = before.t + DT;
     const d = before.d + 800;
     timer.update(t, d, false);
-    // Driving the remaining distance to the line is not enough...
-    const toLine = drive(timer, { t, d }, LENGTH - 500 - 800 + 10);
-    expect(timer.laps()).toHaveLength(0);
-    // ...the skipped 800 m must be covered again before the lap closes.
-    drive(timer, toLine, 800);
+    drive(timer, { t, d }, LENGTH - 500 - 800 + 10);
     const [lap] = timer.laps();
     expect(lap?.valid).toBe(false);
+  });
+
+  test("after a shortcut, the next lap is timed from the real start line", () => {
+    // Codex P3 review: skipped distance used to displace every later lap boundary.
+    const { timer, at } = start(100);
+    const before = drive(timer, at, 500);
+    const t = before.t + DT;
+    timer.update(t, before.d + 800, false);
+    const line = drive(timer, { t, d: before.d + 800 }, LENGTH - 1300);
+    expect(timer.laps()).toHaveLength(1);
+    // A full clean lap from the line closes back at the line after 60 s.
+    drive(timer, line, LENGTH + 5);
+    const [, clean] = timer.laps();
+    expect(clean?.valid).toBe(true);
+    expect(clean?.timeS).toBeCloseTo(60, 3);
   });
 
   test("leaving the track invalidates the lap but it is still timed; the next is clean", () => {

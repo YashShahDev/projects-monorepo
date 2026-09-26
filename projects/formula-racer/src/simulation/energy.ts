@@ -20,6 +20,11 @@ export interface EnergyFlow {
   regenW: number;
   /** The share of requested braking left to the friction brakes. */
   frictionBrakeW: number;
+  /**
+   * Regeneration with no brake request behind it (Harvest on lift-off). The vehicle must
+   * apply it as drivetrain braking, or the stored energy would come from nowhere.
+   */
+  engineBrakeW: number;
   socJ: number;
   /** Recharge counted against this lap's limit. */
   lapRechargeJ: number;
@@ -49,6 +54,10 @@ export function permittedDeployW(rules: EnergyRules, speedMps: number): number {
   return 0;
 }
 
+// Below this the MGU-K has too little wheel speed to harvest, and P/v braking would
+// grow without bound as the car stops.
+const MIN_HARVEST_SPEED_MPS = 5;
+
 export function createEnergySystem(rules: EnergyRules): EnergySystem {
   let socJ = rules.socWindowJ;
   let lapRechargeJ = 0;
@@ -66,7 +75,10 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
         // Never draw more than is stored.
         deployW = Math.min(deployW, (socJ * rules.deployEfficiency) / dtS);
       }
-      const liftOff = mode === "harvest" && throttle === 0 ? rules.liftOffHarvestW : 0;
+      const liftOff =
+        mode === "harvest" && throttle === 0 && Math.abs(speedMps) >= MIN_HARVEST_SPEED_MPS
+          ? rules.liftOffHarvestW
+          : 0;
       const wanted = Math.min(rules.ersMaxPowerW, brakePowerW + liftOff);
       const roomJ = Math.min(
         (rules.socWindowJ - (socJ - (deployW * dtS) / rules.deployEfficiency)) /
@@ -76,10 +88,11 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
       const regenW = Math.max(0, Math.min(wanted, roomJ / dtS));
       // Regeneration serves the requested braking first; only braking beyond it is friction.
       const frictionBrakeW = Math.max(0, brakePowerW - Math.min(regenW, brakePowerW));
+      const engineBrakeW = Math.max(0, regenW - brakePowerW);
       socJ += regenW * dtS * rules.regenEfficiency - (deployW * dtS) / rules.deployEfficiency;
       socJ = Math.min(rules.socWindowJ, Math.max(0, socJ));
       lapRechargeJ += regenW * dtS;
-      return { deployW, regenW, frictionBrakeW, socJ, lapRechargeJ };
+      return { deployW, regenW, frictionBrakeW, engineBrakeW, socJ, lapRechargeJ };
     },
     newLap() {
       lapRechargeJ = 0;

@@ -2,7 +2,7 @@
 id: P3
 title: P3 — Time trial and energy
 type: phase
-status: in_progress
+status: done
 date: 2026-09-26
 updated: 2026-09-26
 summary: Complete lap rules and configurable 2026-inspired energy management.

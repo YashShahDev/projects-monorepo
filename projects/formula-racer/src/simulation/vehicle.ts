@@ -299,7 +299,9 @@ export function buildVehicleSimulation(
           limitW: rules.mgukMaxTorqueNm * ((drivetrain.rpm * 2 * Math.PI) / 60),
         });
         flow = result;
-        drive += result.deployW / v;
+        // Lift-off harvesting brakes through the drivetrain: the energy it stores must
+        // leave the car's motion.
+        drive += (result.deployW - result.engineBrakeW) / v;
       }
       if (options.gripAt) {
         for (let i = 0; i < 4; i += 1) {

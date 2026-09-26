@@ -2,7 +2,7 @@
 id: P4
 title: P4 — Blender content and presentation
 type: phase
-status: planned
+status: in_progress
 date: 2026-09-26
 updated: 2026-09-26
 summary: Add the detailed original car and circuit through a reproducible asset pipeline.

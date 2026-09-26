@@ -7,7 +7,7 @@ import { createTrackView } from "../rendering/track-view.ts";
 import { createKeyboard } from "./keyboard.ts";
 import type { HeldKeys } from "./keyboard.ts";
 import { formatLapTime } from "./format.ts";
-import { createLapStore, lapKey } from "./lap-store.ts";
+import { createLapStore, lapKey, storageNotice } from "./lap-store.ts";
 import type { StorageLike } from "./lap-store.ts";
 import { createDrivingSession } from "./session.ts";
 import type { SessionState } from "./session.ts";
@@ -103,13 +103,7 @@ export async function startGameApp(
   let storedLaps = 0;
   const keyOf = (assists: SessionState["assists"], physicsVersion: string) =>
     lapKey({ trackId: track.id, physicsVersion, assists });
-  const note = !store.status.persistent
-    ? "Best laps are not saved in this browser."
-    : store.status.recovered
-      ? "Saved lap times were unreadable and have been reset."
-      : "";
-  hud.storageNote.textContent = note;
-  hud.storageNote.hidden = note === "";
+
   const keyboard = createKeyboard(window, document);
   keyboard.onAction((action) => {
     session.action(action);
@@ -173,6 +167,10 @@ export async function startGameApp(
     for (const lap of s.laps.slice(storedLaps))
       store.record(keyOf(lap.assists, lap.physicsVersion), lap);
     storedLaps = s.laps.length;
+    // Recomputed every frame: a save can fail long after startup (quota).
+    const note = storageNotice(store.status);
+    hud.storageNote.textContent = note;
+    hud.storageNote.hidden = note === "";
     const best = store.best(keyOf(s.assists, s.physicsVersion));
     hud.bestLap.textContent = best ? formatLapTime(best.timeS) : "–";
     menu.steering.checked = s.assists.steering;

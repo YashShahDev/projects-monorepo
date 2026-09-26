@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { parseCar } from "../src/content/car.ts";
 import { parseEnergyRules } from "../src/content/energy-rules.ts";
 import { createVehicleSimulation } from "../src/simulation/vehicle.ts";
 import type { DriverControls, VehicleSimulation } from "../src/simulation/vehicle.ts";
@@ -95,6 +96,54 @@ describe("vehicle energy", () => {
     // Regeneration replaces part of the friction braking; the requested force is the
     // same, so the stopping distance matches to within a step's travel.
     expect(Math.abs(hybrid.distance - plain.distance)).toBeLessThan(1.5);
+  });
+
+  test("lift-off harvesting takes its energy from the car's motion", async () => {
+    // Codex P3 review: Harvest gained 216 kJ while coasting exactly as fast as Balanced.
+    // Near-zero drag, so the two cars' different speeds do not change their drag losses
+    // and the kinetic-energy gap is the harvesting brake alone.
+    const slippery = parseCar({
+      ...car,
+      aero: {
+        ...car.aero,
+        dragAreaM2: 0.02,
+        straightMode: { ...car.aero.straightMode, dragAreaM2: 0.01 },
+      },
+    });
+    const coast = async (mode: "balanced" | "harvest") => {
+      const sim = await createVehicleSimulation(slippery, {
+        start: { position: { x: 0, y: 0, z: 0 }, headingRad: 0 },
+        energy: rules,
+      });
+      run(sim, { throttle: 0, brake: 0, steer: 0 }, 1);
+      run(sim, { ...flatOut, deploy: true }, 6);
+      sim.setEnergyMode(mode);
+      const soc = sim.snapshot().energy?.socJ ?? 0;
+      const kinetic = 0.5 * car.massKg * sim.snapshot().speedMps ** 2;
+      run(sim, { throttle: 0, brake: 0, steer: 0 }, 2);
+      const result = {
+        gainedJ: (sim.snapshot().energy?.socJ ?? 0) - soc,
+        kineticJ: kinetic - 0.5 * car.massKg * sim.snapshot().speedMps ** 2,
+      };
+      sim.dispose();
+      return result;
+    };
+    const balanced = await coast("balanced");
+    const harvest = await coast("harvest");
+    expect(harvest.gainedJ).toBeGreaterThan(100_000);
+    // The extra kinetic energy lost must at least pay for what was stored.
+    expect(harvest.kineticJ - balanced.kineticJ).toBeGreaterThan(harvest.gainedJ);
+  });
+
+  test("a stationary car harvests nothing", async () => {
+    const sim = await vehicle();
+    run(sim, { ...flatOut, deploy: true }, 3);
+    run(sim, { throttle: 0, brake: 1, steer: 0 }, 6);
+    sim.setEnergyMode("harvest");
+    const soc = sim.snapshot().energy?.socJ ?? 0;
+    run(sim, { throttle: 0, brake: 0, steer: 0 }, 2);
+    expect(sim.snapshot().energy?.socJ ?? 0).toBeCloseTo(soc, -2);
+    sim.dispose();
   });
 
   test("Harvest mode charges on lift-off", async () => {

@@ -181,4 +181,15 @@ describe("energy system", () => {
     const flow = rolling().update(cruise({ deployRequest: true, limitW: 50_000 }));
     expect(flow.deployW).toBe(50_000);
   });
+
+  test("lift-off harvesting reports the drivetrain braking it needs, and stops near rest", () => {
+    const energy = rolling();
+    for (let i = 0; i < 120; i += 1) energy.update(cruise({ deployRequest: true }));
+    const coasting = energy.update(cruise({ mode: "harvest", throttle: 0 }));
+    expect(coasting.engineBrakeW).toBeCloseTo(120_000, 6);
+    const braking = energy.update(cruise({ mode: "harvest", throttle: 0, brakePowerW: 500_000 }));
+    // Up to the ERS limit: 350 kW, of which 500 kW of brake request covers all.
+    expect(braking.engineBrakeW).toBe(0);
+    expect(energy.update(cruise({ mode: "harvest", throttle: 0, speedMps: 2 })).regenW).toBe(0);
+  });
 });

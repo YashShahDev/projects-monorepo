@@ -5,7 +5,7 @@ type: status
 status: active
 date: 2026-09-26
 updated: 2026-09-26
-summary: P2 done and reviewed; P3 time trial and energy in progress.
+summary: P3 done and reviewed; P4 content and presentation in progress.
 ---
 
 # Current delivery status
@@ -14,18 +14,20 @@ summary: P2 done and reviewed; P3 time trial and energy in progress.
 - Base: `origin/main`, `ef7ad88` at creation.
 - Completed phases: P0 — documentation and prerequisites; P1 — browser technical
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
-  ([record](checkpoints/P2.md)).
-- Active phase: P3 — time trial and energy ([record](checkpoints/P3.md)).
-- Next: P3 phase review, then P4.
+  ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)).
+- Active phase: P4 — Blender content and presentation ([phase](phases/P4-content.md)).
+- Next checkpoint: P4-C1 Blender car source, export, anchors, LODs and validation.
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
 ## Next action
 
-P3-C1–C3 are done and the gate evidence is in the [P3 record](checkpoints/P3.md). Next:
-the P3 phase review of `09c6ec9^..HEAD` (Codex `gpt-6-astra`; if Codex is out of usage,
-`/antigravity:review`). Reproduce each finding, fix with a failing test first, record
-the outcome, then mark P3 done and start P4 from its phase document.
+P3 is done: all three Codex (`gpt-6-astra`) findings reproduced and fixed. Next, P4-C1:
+first verify the Git LFS upload/download path with a small source asset. Then, test-first:
+agree the car's interface node names (wheels, wings, camera anchors), a procedural
+Blender Python car at 2026 proportions with reproducible GLB export, collision and LODs,
+baked normal/AO textures, and asset validation (required nodes, scale, pivots,
+materials, missing textures).
 
 ## Checkpoints
 

@@ -24,6 +24,13 @@ export interface LapStore {
   record(key: string, lap: StoredLap & { valid: boolean; tuned: boolean }): { isBest: boolean };
 }
 
+/** What to tell the player about saving; empty when bests are being saved normally. */
+export function storageNotice(status: LapStoreStatus): string {
+  if (!status.persistent) return "Best laps are not saved in this browser.";
+  if (status.recovered) return "Saved lap times were unreadable and have been reset.";
+  return "";
+}
+
 const STORAGE_KEY = "formula-racer:laps";
 const SCHEMA = 1;
 

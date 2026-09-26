@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createLapStore, lapKey } from "../src/app/lap-store.ts";
+import { createLapStore, lapKey, storageNotice } from "../src/app/lap-store.ts";
 import type { StorageLike } from "../src/app/lap-store.ts";
 
 function memoryStorage(
@@ -110,5 +110,18 @@ describe("lap store", () => {
     store.record(key, lap(100));
     expect(store.best(key)?.timeS).toBe(100);
     expect(store.status.persistent).toBe(false);
+  });
+
+  test("the storage notice follows the store's current status", () => {
+    // Codex P3 review: a write failing after startup left the notice hidden.
+    const storage = memoryStorage();
+    const store = createLapStore(storage);
+    expect(storageNotice(store.status)).toBe("");
+    storage.setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    store.record(key, lap(100));
+    expect(storageNotice(store.status)).toContain("not saved");
+    expect(storageNotice({ persistent: true, recovered: true })).toContain("reset");
   });
 });

@@ -16,7 +16,8 @@ export interface LapTimerOptions {
   sectors: number;
   /**
    * Largest believable change in lap distance between two updates. A bigger jump means
-   * the nearest centreline point moved to another part of the track: a shortcut.
+   * the nearest centreline point moved to another part of the track: a shortcut, which
+   * invalidates the lap.
    */
   maxStepM?: number;
 }
@@ -73,10 +74,9 @@ export function createLapTimer({ lengthM, sectors, maxStepM = 30 }: LapTimerOpti
       const previousT = lap.lastT;
       lap.lastD = d;
       lap.lastT = t;
-      if (Math.abs(delta) > maxStepM) {
-        lap.valid = false;
-        return;
-      }
+      // The jump still counts as distance so lap boundaries stay on the real start line;
+      // the lap it happens in can never be valid.
+      if (Math.abs(delta) > maxStepM) lap.valid = false;
       if (!onTrack) lap.valid = false;
       lap.progress += delta;
       // Sector boundaries count only when reached driving forward, and only once.
