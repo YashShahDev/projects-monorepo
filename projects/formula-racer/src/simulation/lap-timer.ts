@@ -10,6 +10,9 @@ export interface CurrentLap {
   /** 1-based sector the car is in. */
   sector: number;
   valid: boolean;
+
+  /** Signed distance driven since the lap began; reversing subtracts. */
+  progressM: number;
 }
 
 export interface LapTimerOptions {
@@ -125,7 +128,7 @@ export function createLapTimer({ lengthM, sectors, maxStepM = 30 }: LapTimerOpti
         return undefined;
       }
 
-      return { elapsedS: lap.lastT - lap.startT, sector: lap.nextSector, valid: lap.valid };
+      return { elapsedS: lap.lastT - lap.startT, sector: lap.nextSector, valid: lap.valid, progressM: lap.progress };
     },
     laps: () => records.map((r) => ({ ...r, sectorsS: [...r.sectorsS] })),
   };

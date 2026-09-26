@@ -10,7 +10,12 @@ import { loadCatalogTrack } from "../content/track-catalog.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import { createTrackView } from "../rendering/track-view.ts";
+import { createGhostView } from "../rendering/ghost-view.ts";
+import type { GhostMode } from "../rendering/ghost-view.ts";
 import { createGuideView } from "../rendering/guide-view.ts";
+import { ghostDelta, ghostPoseAt } from "../simulation/ghost.ts";
+import type { Ghost } from "../simulation/ghost.ts";
+import { createGhostStore } from "./ghost-store.ts";
 import type { GuideState, GuideView } from "../rendering/guide-view.ts";
 import { buildRacingLine, lineLimits } from "../simulation/racing-line.ts";
 import { parseCarModelInterface } from "../content/car-model.ts";
@@ -43,6 +48,7 @@ export interface GameAppState extends SessionState {
 
   /** Undefined until the racing line is built, shortly after the first frame. */
   guide: GuideState | undefined;
+  ghost: { mode: GhostMode; visible: boolean; deltaS: number | undefined };
 }
 
 export interface GameApp {
@@ -52,6 +58,9 @@ export interface GameApp {
 
   /** Advances whole simulation steps with fixed input and renders once. */
   step(count: number, throttle: boolean): GameAppState;
+
+  /** Drives with the benchmark autopilot for `seconds` of simulation, then renders once. */
+  drive(seconds: number): GameAppState;
   state(): GameAppState;
   dispose(): void;
 }
@@ -69,6 +78,7 @@ export interface Hud {
   ers: HTMLElement;
   wing: HTMLElement;
   bestLap: HTMLElement;
+  delta: HTMLElement;
   storageNote: HTMLElement;
   trackName: HTMLElement;
   telemetry: HTMLElement;
@@ -86,6 +96,7 @@ export interface Menu {
   quality: HTMLSelectElement;
   gearbox: HTMLSelectElement;
   racingLine: HTMLSelectElement;
+  ghost: HTMLSelectElement;
   sound: HTMLInputElement;
   controls: HTMLButtonElement;
   help: HTMLElement;
@@ -167,6 +178,20 @@ export async function startGameApp(
     track.startDistanceM,
   );
   const store = createLapStore(browserStorage());
+  const ghosts = createGhostStore(browserStorage());
+  const ghostView = createGhostView(model);
+  view.add(ghostView);
+
+  // Decoded once per key; a new best replaces its entry.
+  const bestGhosts = new Map<string, Ghost | undefined>();
+  const bestGhost = (key: string) => {
+    if (!bestGhosts.has(key)) {
+      bestGhosts.set(key, ghosts.get(key));
+    }
+
+    return bestGhosts.get(key);
+  };
+
   const preferences = createPreferences(browserStorage(), liveries);
   menu.livery.replaceChildren(
     ...liveries.map((livery) => new Option(`${livery.name} #${String(livery.number)}`, livery.id)),
@@ -180,6 +205,7 @@ export async function startGameApp(
   menu.gearbox.value = preferences.gearboxMode();
   session.setGearboxMode(preferences.gearboxMode());
   menu.racingLine.value = preferences.racingLine();
+  menu.ghost.value = preferences.ghost();
   view.setQuality(qualitySettings(preferences.quality(), window.devicePixelRatio));
   let storedLaps = 0;
   const keyOf = (assists: SessionState["assists"], physicsVersion: string, gearboxMode: SessionState["gearboxMode"]) =>
@@ -362,6 +388,12 @@ export async function startGameApp(
   };
 
   menu.racingLine.addEventListener("change", onRacingLine);
+  const onGhost = () => {
+    preferences.setGhost(menu.ghost.value);
+    show();
+  };
+
+  menu.ghost.addEventListener("change", onGhost);
 
   // Building the line takes a noticeable fraction of a second, so it waits until the
   // game is already on screen.
@@ -399,7 +431,12 @@ export async function startGameApp(
     held: keyboard.held(),
     sound: { ...sound, enabled: preferences.sound(), output: audio?.state() ?? "none" },
     guide: guideState,
+    ghost: { mode: preferences.ghost(), visible: ghostView.object.visible, deltaS },
   });
+  let racing: Ghost | undefined;
+  let deltaS: number | undefined;
+  let furthestM = 0;
+  let lapElapsedS = 0;
   const show = (): SessionState => {
     const s = session.state();
     hud.speed.textContent = String(Math.round(Math.abs(s.speedKmh)));
@@ -423,7 +460,15 @@ export async function startGameApp(
 
     hud.wing.textContent = s.wing.mode === "straight" ? "Straight" : "Corner";
     for (const lap of s.laps.slice(storedLaps)) {
-      store.record(keyOf(lap.assists, lap.physicsVersion, lap.gearboxMode), lap);
+      const key = keyOf(lap.assists, lap.physicsVersion, lap.gearboxMode);
+      if (store.record(key, lap).isBest) {
+        // A ghost is stored only with its best time, so the two always agree. Encoding
+        // and writing it waits until after this frame.
+        bestGhosts.set(key, lap.ghost);
+        setTimeout(() => {
+          ghosts.save(key, lap.ghost);
+        }, 0);
+      }
     }
 
     storedLaps = s.laps.length;
@@ -440,6 +485,29 @@ export async function startGameApp(
     const last = s.laps.at(-1);
     hud.lastLap.textContent = last ? `${formatLapTime(last.timeS)}${last.valid ? "" : " ✕"}` : "–";
 
+    const mode = preferences.ghost();
+    racing = undefined;
+    if (mode === "best") {
+      racing = bestGhost(keyOf(s.assists, s.physicsVersion, s.gearboxMode));
+    } else if (mode === "last") {
+      racing = last?.ghost;
+    }
+
+    // First passage, as the ghost was recorded: only new ground moves the comparison.
+    if (!s.lap || s.lap.elapsedS < lapElapsedS) {
+      furthestM = 0;
+    }
+
+    lapElapsedS = s.lap?.elapsedS ?? 0;
+    furthestM = Math.max(furthestM, s.lap?.progressM ?? 0);
+    deltaS = racing && s.lap && furthestM > 0 ? ghostDelta(racing, s.lap.elapsedS, furthestM) : undefined;
+    hud.delta.hidden = deltaS === undefined;
+    if (deltaS !== undefined) {
+      hud.delta.textContent = `${deltaS < 0 ? "−" : "+"}${Math.abs(deltaS).toFixed(2)}`;
+      hud.delta.classList.toggle("ahead", deltaS < 0);
+      hud.delta.classList.toggle("behind", deltaS >= 0);
+    }
+
     return s;
   };
 
@@ -448,9 +516,10 @@ export async function startGameApp(
   let benchReported = false;
   const draw = (frameSeconds: number, held: HeldKeys | (() => HeldKeys)): void => {
     const t0 = performance.now();
-    const { car, camera } = session.frame(frameSeconds, held);
+    const { car, camera, lapTimeS } = session.frame(frameSeconds, held);
     const t1 = performance.now();
     guideState = guide?.update(car.position, car.speedMps, preferences.racingLine());
+    ghostView.update(racing && lapTimeS !== undefined ? ghostPoseAt(racing, lapTimeS) : undefined, car.position.y);
     view.render(car, camera);
     if (recorder && bench && !benchReported) {
       const stats = view.stats();
@@ -542,6 +611,7 @@ export async function startGameApp(
     menu.quality.removeEventListener("change", onQuality);
     menu.gearbox.removeEventListener("change", onGearbox);
     menu.racingLine.removeEventListener("change", onRacingLine);
+    menu.ghost.removeEventListener("change", onGhost);
     clearTimeout(guideTimer);
     menu.sound.removeEventListener("change", onSound);
     removeEventListener("keydown", onGesture);
@@ -570,6 +640,15 @@ export async function startGameApp(
       }
 
       draw(0, held);
+
+      return state();
+    },
+    drive(seconds) {
+      for (let t = 0; t < seconds; t += session.stepSeconds) {
+        session.frame(session.stepSeconds, () => autopilot(session));
+      }
+
+      draw(0, keyboard.held());
 
       return state();
     },

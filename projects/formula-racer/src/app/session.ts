@@ -26,12 +26,16 @@ import type { KeyAction } from "./keyboard.ts";
 import type { EnergyRules } from "../content/energy-rules.ts";
 import type { EnergyMode } from "../simulation/energy.ts";
 import type { GearboxMode, ShiftRequest } from "../simulation/gearbox.ts";
+import { createGhostRecorder } from "../simulation/ghost.ts";
+import type { Ghost, GhostSample } from "../simulation/ghost.ts";
 
 /** Key actions the session handles; help belongs to the page, not the car. */
 export type SessionAction = Exclude<KeyAction, "help">;
 
 /** A completed lap and the conditions it was driven under. */
 export interface SessionLap extends LapRecord {
+  /** Where the car was through the lap, for replaying it as a ghost. */
+  ghost: Ghost;
   physicsVersion: string;
   assists: DriverAssists;
   gearboxMode: GearboxMode;
@@ -77,6 +81,9 @@ export interface SessionOptions {
 export interface FrameView {
   car: VehicleSnapshot;
   camera: CameraView;
+
+  /** Lap time at the drawn pose (between the last two steps), while a lap is timed. */
+  lapTimeS: number | undefined;
 }
 
 export interface DrivingSession {
@@ -120,6 +127,17 @@ const COUNTDOWN_S = 3;
 const SECTORS = 3;
 
 const poseOf = (s: VehicleSnapshot): Pose => ({ position: s.position, rotation: s.rotation });
+
+const yawOf = (q: { x: number; y: number; z: number; w: number }) =>
+  Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y));
+
+const ghostSample = (pose: Pose, timeS: number, progressM: number): GhostSample => ({
+  timeS,
+  x: pose.position.x,
+  z: pose.position.z,
+  heading: yawOf(pose.rotation),
+  progressM,
+});
 
 /** Linear position and normalized-lerp rotation; steps are too short for nlerp to drift. */
 function blend(a: Pose, b: Pose, t: number): Pose {
@@ -229,6 +247,7 @@ export async function createDrivingSession(
   let paused = false;
   const lapTimer = createLapTimer({ lengthM: geometry.lengthM, sectors: SECTORS });
   const laps: SessionLap[] = [];
+  const recorder = createGhostRecorder();
 
   // Contact patches in the chassis frame, front-left first as physics orders them.
   const tyrePositions = (snapshot: VehicleSnapshot) => {
@@ -300,6 +319,7 @@ export async function createDrivingSession(
             countdownLeft -= 1;
             if (countdownLeft === 0) {
               lapTimer.start(sim.snapshot().simSeconds, locate().distanceM);
+              recorder.begin(ghostSample(poseOf(sim.snapshot()), 0, 0));
             }
 
             continue;
@@ -327,14 +347,26 @@ export async function createDrivingSession(
             sim.newLap();
           }
 
+          const now = poseOf(sim.snapshot());
+          const running = lapTimer.current();
           for (const record of done.slice(before)) {
+            // The line was crossed `elapsedS` into the new lap, inside this step.
+            const f = 1 - (running?.elapsedS ?? 0) / sim.stepSeconds;
+            const crossing = blend(previous, now, Math.max(0, Math.min(1, f)));
+            const ghost = recorder.finish(ghostSample(crossing, record.timeS, geometry.lengthM));
+            recorder.begin(ghostSample(crossing, 0, 0));
             laps.push({
               ...record,
+              ghost,
               physicsVersion: sim.snapshot().physicsVersion,
               gearboxMode,
               assists: sim.snapshot().assists,
               tuned: JSON.stringify(current) !== stock,
             });
+          }
+
+          if (running) {
+            recorder.sample(ghostSample(now, running.elapsedS, running.progressM));
           }
         }
 
@@ -344,7 +376,13 @@ export async function createDrivingSession(
       const latest = sim.snapshot();
       const pose = { ...latest, ...blend(previous, poseOf(latest), alpha) };
 
-      return { car: pose, camera: camera.update(pose, frameSeconds) };
+      const lap = lapTimer.current();
+
+      return {
+        car: pose,
+        camera: camera.update(pose, frameSeconds),
+        lapTimeS: lap && Math.max(0, lap.elapsedS - (1 - alpha) * sim.stepSeconds),
+      };
     },
     action(action) {
       if (action === "pause") {

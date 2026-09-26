@@ -53,3 +53,12 @@ test("the racing line defaults to off, is remembered, and ignores unknown values
   prefs.setRacingLine("rainbow");
   expect(createPreferences(storage, liveries).racingLine()).toBe("braking");
 });
+
+test("the ghost races the best lap by default, and the choice is remembered", () => {
+  const storage = memory();
+  const prefs = createPreferences(storage, liveries);
+  expect(prefs.ghost()).toBe("best");
+  prefs.setGhost("last");
+  prefs.setGhost("everyone");
+  expect(createPreferences(storage, liveries).ghost()).toBe("last");
+});

@@ -86,7 +86,36 @@ describe("session laps", () => {
     expect(lap?.physicsVersion).toBe(PHYSICS_VERSION);
     expect(lap?.assists).toEqual({ steering: true, abs: true, traction: true });
     expect(lap?.tuned).toBe(false);
+
+    // The lap's ghost runs from the grid to the line, in time and in progress.
+    const ghost = lap?.ghost;
+    expect(ghost?.lapTimeS).toBeCloseTo(lap?.timeS ?? 0, 6);
+    expect(ghost?.timeS[0]).toBe(0);
+    expect(ghost?.progressM.at(-1)).toBeCloseTo(session.geometry.lengthM, 6);
+    expect(ghost?.timeS.length ?? 0).toBeGreaterThan((lap?.timeS ?? 0) * 9);
+
+    // Its first pose is the car on the grid, and its last is on the start line.
+    const start = session.geometry.pointAt(track.startDistanceM);
+    const end = { x: ghost?.x.at(-1) ?? 0, z: ghost?.z.at(-1) ?? 0 };
+    expect(Math.hypot(end.x - start.x, end.z - start.z)).toBeLessThan(session.geometry.halfWidthM + 1);
+
+    // The next lap is already timed from the line, with the progress it has made.
+    const running = session.state().lap;
+    expect(running?.progressM ?? -1).toBeGreaterThanOrEqual(0);
+    expect(running?.progressM ?? 99).toBeLessThan(5);
   }, 30_000);
+
+  test("each frame reports the lap time at the moment it draws the car", async () => {
+    session = await createDrivingSession(car, track);
+    hold(session, idle, 3);
+    hold(session, throttle, 1);
+
+    // Half a step into the next one: the drawn car sits between the last two steps.
+    const view = session.frame(0.5 / 60, throttle);
+    const elapsed = session.state().lap?.elapsedS ?? 0;
+    expect(view.lapTimeS).toBeLessThan(elapsed);
+    expect(view.lapTimeS).toBeGreaterThan(elapsed - 1 / 60);
+  });
 });
 
 describe("session energy", () => {

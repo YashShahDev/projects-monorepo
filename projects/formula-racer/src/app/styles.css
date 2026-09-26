@@ -315,9 +315,31 @@ kbd {
   font-size: 18px;
 }
 
+/* On a small window the full timing row would run into the track map. */
+@media (max-width: 720px) {
+  #timing {
+    max-width: calc(100vw - 260px);
+    font-size: 13px;
+  }
+}
+
 #timing .label {
   opacity: 0.7;
   font-size: 14px;
+}
+
+#delta {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+#delta.ahead {
+  color: #4ade80;
+}
+
+#delta.behind {
+  color: #ff6b5e;
 }
 
 #lap-time.invalid {
@@ -489,13 +511,14 @@ kbd {
 
 #corner-preview {
   position: fixed;
-  top: 12px;
-  left: 50%;
+
+  /* Under the track map, clear of the road ahead and of the timing row. */
+  top: 172px;
+  left: 12px;
   display: grid;
   justify-items: center;
   gap: 4px;
   padding: 8px 12px;
-  transform: translateX(-50%);
   border-radius: 6px;
   background: rgb(0 0 0 / 55%);
   font-size: 14px;

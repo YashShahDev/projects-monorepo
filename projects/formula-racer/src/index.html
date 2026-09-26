@@ -27,6 +27,7 @@
       <span id="track-name"></span>
       <span class="label">Lap</span> <span id="lap-time">–</span> <span class="label">Last</span>
       <span id="last-lap">–</span> <span class="label">Best</span> <span id="best-lap">–</span>
+      <span id="delta" hidden></span>
       <p id="storage-note" hidden></p>
     </div>
     <div id="countdown" aria-live="assertive"></div>
@@ -56,6 +57,14 @@
             <option value="off">Off</option>
             <option value="braking">Braking zones</option>
             <option value="full">Full</option>
+          </select></label
+        >
+        <label class="row"
+          >Ghost
+          <select id="ghost">
+            <option value="off">Off</option>
+            <option value="best">Best lap</option>
+            <option value="last">Last lap</option>
           </select></label
         >
       </section>

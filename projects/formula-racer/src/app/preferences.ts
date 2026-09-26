@@ -1,5 +1,7 @@
 import type { Livery } from "../content/livery.ts";
 import { isRecord } from "../content/validate.ts";
+import { isGhostMode } from "../rendering/ghost-view.ts";
+import type { GhostMode } from "../rendering/ghost-view.ts";
 import { isGuideMode } from "../rendering/guide-view.ts";
 import type { GuideMode } from "../rendering/guide-view.ts";
 import { isQualityPreset } from "../rendering/quality.ts";
@@ -27,6 +29,10 @@ export interface Preferences {
 
   /** Ignores values that are not a racing-line mode. */
   setRacingLine(mode: string): void;
+  ghost(): GhostMode;
+
+  /** Ignores values that are not a ghost mode. */
+  setGhost(mode: string): void;
 }
 
 const STORAGE_KEY = "formula-racer:prefs";
@@ -49,6 +55,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
   let sound = true;
   let gearboxMode: GearboxMode = "automatic";
   let racingLine: GuideMode = "off";
+  let ghost: GhostMode = "best";
   let newerSave = false;
   try {
     const raw = storage?.getItem(STORAGE_KEY);
@@ -62,6 +69,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
       sound = typeof saved.sound === "boolean" ? saved.sound : sound;
       gearboxMode = isGearboxMode(saved.gearboxMode) ? saved.gearboxMode : gearboxMode;
       racingLine = isGuideMode(saved.racingLine) ? saved.racingLine : racingLine;
+      ghost = isGhostMode(saved.ghost) ? saved.ghost : ghost;
     }
 
     // A newer game version wrote this; keep it for that version rather than downgrade it.
@@ -78,7 +86,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
     try {
       storage?.setItem(
         STORAGE_KEY,
-        JSON.stringify({ version: SCHEMA, livery: current.id, quality, sound, gearboxMode, racingLine }),
+        JSON.stringify({ version: SCHEMA, livery: current.id, quality, sound, gearboxMode, racingLine, ghost }),
       );
     } catch {
       // Quota or revoked permission: the choice still holds for this visit.
@@ -126,6 +134,15 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
       }
 
       racingLine = mode;
+      save();
+    },
+    ghost: () => ghost,
+    setGhost(mode) {
+      if (!isGhostMode(mode)) {
+        return;
+      }
+
+      ghost = mode;
       save();
     },
   };
