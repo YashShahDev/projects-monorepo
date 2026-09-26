@@ -1,0 +1,167 @@
+{
+  "summary": {
+    "route": "harbour-autopilot-v1",
+    "quality": "low",
+    "passes": 3,
+    "p95Ms": 16.70000000001164,
+    "medianMs": 16.69999999999709,
+    "simP95Ms": 0.9000000059604645,
+    "renderP95Ms": 0.8999999910593033,
+    "worstP95Ms": 16.79999999998836,
+    "overBudget": 0,
+    "drawCalls": 33.174836828218304,
+    "triangles": 18329.50867935009,
+    "drawingBuffer": {
+      "width": 768,
+      "height": 432
+    },
+    "gl": {
+      "vendor": "Google Inc. (Intel)",
+      "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+    },
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+    "transferBytes": 6788903,
+    "hardware": true,
+    "meetsTarget": true
+  },
+  "passes": [
+    {
+      "route": "harbour-autopilot-v1",
+      "quality": "low",
+      "pixelRatio": 0.6,
+      "drawingBuffer": {
+        "width": 768,
+        "height": 432
+      },
+      "gl": {
+        "vendor": "Google Inc. (Intel)",
+        "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+      },
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "transferBytes": 6788903,
+      "measuredSeconds": 120.0119,
+      "frames": {
+        "frames": 7201,
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.70000000001164,
+        "p99Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "simMs": {
+        "frames": 7201,
+        "medianMs": 0.5,
+        "p95Ms": 1,
+        "p99Ms": 1.1000000089406967,
+        "maxMs": 3.2999999970197678,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "renderMs": {
+        "frames": 7201,
+        "medianMs": 0.4000000059604645,
+        "p95Ms": 0.9000000059604645,
+        "p99Ms": 1,
+        "maxMs": 2.7999999970197678,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "drawCalls": 33.1713650881822,
+      "triangles": 18328.30884599361,
+      "distanceM": 4257.823465064425
+    },
+    {
+      "route": "harbour-autopilot-v1",
+      "quality": "low",
+      "pixelRatio": 0.6,
+      "drawingBuffer": {
+        "width": 768,
+        "height": 432
+      },
+      "gl": {
+        "vendor": "Google Inc. (Intel)",
+        "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+      },
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "transferBytes": 6788903,
+      "measuredSeconds": 120.0118,
+      "frames": {
+        "frames": 7201,
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.79999999998836,
+        "p99Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "simMs": {
+        "frames": 7201,
+        "medianMs": 0.4000000059604645,
+        "p95Ms": 0.9000000059604645,
+        "p99Ms": 1,
+        "maxMs": 4.799999997019768,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "renderMs": {
+        "frames": 7201,
+        "medianMs": 0.29999999701976776,
+        "p95Ms": 0.7999999970197678,
+        "p99Ms": 0.9000000059604645,
+        "maxMs": 2.7000000029802322,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "drawCalls": 33.17497569781975,
+      "triangles": 18329.53756422719,
+      "distanceM": 4258.196273964682
+    },
+    {
+      "route": "harbour-autopilot-v1",
+      "quality": "low",
+      "pixelRatio": 0.6,
+      "drawingBuffer": {
+        "width": 768,
+        "height": 432
+      },
+      "gl": {
+        "vendor": "Google Inc. (Intel)",
+        "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+      },
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "transferBytes": 6788903,
+      "measuredSeconds": 120.0119,
+      "frames": {
+        "frames": 7201,
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.70000000001164,
+        "p99Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "simMs": {
+        "frames": 7201,
+        "medianMs": 0.5999999940395355,
+        "p95Ms": 0.9000000059604645,
+        "p99Ms": 1.0999999940395355,
+        "maxMs": 4.700000002980232,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "renderMs": {
+        "frames": 7201,
+        "medianMs": 0.4000000059604645,
+        "p95Ms": 0.8999999910593033,
+        "p99Ms": 0.9000000059604645,
+        "maxMs": 2.5999999940395355,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "drawCalls": 33.174836828218304,
+      "triangles": 18329.50867935009,
+      "distanceM": 4258.200005201056
+    }
+  ]
+}
