@@ -140,3 +140,40 @@ describe("vehicle simulation", () => {
     expect(() => sim.snapshot()).toThrow("vehicle simulation used after dispose()");
   });
 });
+
+describe("reverse", () => {
+  const backwards = { throttle: 1, brake: 0, steer: 0 };
+
+  test("selecting R at a standstill and holding throttle drives the car backwards, capped", async () => {
+    const sim = await settledVehicle();
+    sim.step({ throttle: 0, brake: 0, steer: 0, shift: "down" });
+    expect(sim.snapshot().gear).toBe(-1);
+    const startZ = sim.snapshot().position.z;
+    run(sim, backwards, 10);
+    const after = sim.snapshot();
+
+    // Facing +z, so reversing moves the car to lower z.
+    expect(after.position.z).toBeLessThan(startZ - 20);
+    expect(after.speedMps * 3.6).toBeLessThan(-20);
+    expect(after.speedMps * 3.6).toBeGreaterThan(-31);
+    sim.dispose();
+  });
+
+  test("braking while reversing stops the car without driving it forwards", async () => {
+    const sim = await settledVehicle();
+    sim.step({ throttle: 0, brake: 0, steer: 0, shift: "down" });
+    run(sim, backwards, 4);
+    run(sim, { throttle: 0, brake: 1, steer: 0 }, 3);
+    const speed = sim.snapshot().speedMps;
+    expect(Math.abs(speed)).toBeLessThan(0.3);
+    sim.dispose();
+  });
+
+  test("R is refused while the car is rolling forwards", async () => {
+    const sim = await settledVehicle();
+    run(sim, backwards, 2);
+    sim.step({ throttle: 1, brake: 0, steer: 0, shift: "down" });
+    expect(sim.snapshot().gear).toBeGreaterThanOrEqual(1);
+    sim.dispose();
+  });
+});

@@ -2,6 +2,8 @@ import * as RAPIER from "@dimforge/rapier3d-compat";
 import type { CarDefinition } from "../content/car.ts";
 import type { Vec3 } from "../content/validate.ts";
 import { initPhysics } from "./physics.ts";
+import { REVERSE } from "./gearbox.ts";
+import type { GearboxMode, ShiftRequest } from "./gearbox.ts";
 import { createPowertrain } from "./powertrain.ts";
 import { createEnergySystem } from "./energy.ts";
 import type { EnergyMode } from "./energy.ts";
@@ -17,6 +19,9 @@ export interface DriverControls {
 
   /** Request the full permitted ERS deployment (held Shift). */
   deploy?: boolean;
+
+  /** A gear change requested on this step (a key press, not a held key). */
+  shift?: ShiftRequest;
 }
 
 export const NO_CONTROLS: Readonly<DriverControls> = Object.freeze({
@@ -102,6 +107,7 @@ export interface VehicleSimulation {
   step(controls: DriverControls): void;
   setAssists(assists: DriverAssists): void;
   setEnergyMode(mode: EnergyMode): void;
+  setGearboxMode(mode: GearboxMode): void;
 
   /** Commands the wings; Straight Mode is refused while braking. */
   setWingMode(mode: WingMode): void;
@@ -363,8 +369,13 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         brake: clamp(controls.brake, 0, 1),
         steer: clamp(controls.steer, -1, 1),
       };
-      const speed = Math.abs(vehicle.currentVehicleSpeed());
-      drivetrain = powertrain.update(applied.throttle, speed, stepSeconds);
+      const signedSpeed = vehicle.currentVehicleSpeed();
+      const speed = Math.abs(signedSpeed);
+      if (controls.shift) {
+        powertrain.request(controls.shift);
+      }
+
+      drivetrain = powertrain.update(applied.throttle, signedSpeed, stepSeconds);
       if (options.gripAt) {
         for (let i = 0; i < 4; i += 1) {
           const p = wheelPoints[i] ?? { x: 0, y: 0, z: 0 };
@@ -383,7 +394,10 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         return assists.abs ? Math.min(wanted, longitudinalBudgetN(i)) : wanted;
       });
       let drive = drivetrain.driveForceN;
-      if (energy && rules) {
+
+      // The ERS is not used in reverse: it neither deploys nor harvests.
+      flow = { deployW: 0, regenW: 0 };
+      if (energy && rules && drivetrain.gear !== REVERSE) {
         const v = Math.max(speed, 1);
 
         // The MGU-K drives the rear axle, so it can only take over braking the rear tyres
@@ -451,7 +465,8 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         // Rapier ignores a wheel's brake while it has engine force, so braking cuts drive.
         let engine = !front && brakeN === 0 ? drive / 2 : 0;
         if (assists.traction) {
-          engine = Math.min(engine, longitudinalBudgetN(i));
+          // Limit the size of the force, so reverse and engine braking are held too.
+          engine = Math.sign(engine) * Math.min(Math.abs(engine), longitudinalBudgetN(i));
         }
 
         vehicle.setWheelEngineForce(i, engine);
@@ -473,6 +488,9 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
     },
     setEnergyMode(mode) {
       energyMode = mode;
+    },
+    setGearboxMode(mode) {
+      powertrain.setMode(mode);
     },
     setWingMode(mode) {
       wingMode = mode === "straight" && applied.brake > 0 ? "corner" : mode;
