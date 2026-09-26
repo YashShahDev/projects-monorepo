@@ -77,9 +77,9 @@ test("@smoke the chosen livery repaints the car and is remembered", async ({ pag
   await livery.selectOption({ label: "Tidewater #12" });
   await page.keyboard.press("Escape");
 
-  // The red-car pixel class stops matching the body once the paint is teal; a few
-  // red-kerb edge pixels still count.
-  await expect.poll(async () => (await scenePixels(page)).car).toBeLessThan(red / 10);
+  // The red-car pixel class stops matching the body once the paint is teal. Red kerb
+  // edges still count: about 100 pixels, 13% of the small real car's count at the grid.
+  await expect.poll(async () => (await scenePixels(page)).car).toBeLessThan(red / 5);
   await page.reload();
   await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });
   await expect(page.locator("#livery")).toHaveValue("tidewater");

@@ -93,6 +93,11 @@ test("@smoke a battery meter shows the charge the readout gives", async ({ page 
 });
 
 test("@smoke running wide onto the grass marks the lap invalid", async ({ page }) => {
+  // This test renders 12 s of frames; software GL draws the real car model slowly, and
+  // the preset only changes rendering, not where the car goes.
+  await page.addInitScript(() =>
+    localStorage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, quality: "low" })),
+  );
   await freezeFrames(page);
   await openGame(page);
   await page.clock.runFor(3_000);
