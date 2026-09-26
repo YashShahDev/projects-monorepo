@@ -37,8 +37,9 @@ P5-C1 is closed. On the reference laptop, every preset holds a locked 60 Hz: p95
 
 Next:
 
-1. P5-C3: final verification with `make test` and `make lint` (Chromium only; no full
-   matrix, user 2026-09-26), setup check, screenshots, limitations, PR description.
+1. P5-C3: known limitations and the PR description are done. Remaining: fresh screenshots
+   of the scenery and HUD, then `make test` and `make lint` (Chromium only; user,
+   2026-09-26). Paused: no test runs until the user resumes.
 2. P5 phase review (Codex `gpt-6-astra`).
 
 Cloud sessions: set `PW_CHROMIUM_PATH` (see [SETUP](SETUP.md)). LFS works through the
