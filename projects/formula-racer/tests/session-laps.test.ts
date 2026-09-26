@@ -6,7 +6,7 @@ import type { DrivingSession } from "../src/app/session.ts";
 import { parseTrack } from "../src/content/track.ts";
 import { parseEnergyRules } from "../src/content/energy-rules.ts";
 import { PHYSICS_VERSION } from "../src/simulation/version.ts";
-import { autopilot } from "./support/autopilot.ts";
+import { autopilot } from "../src/app/autopilot.ts";
 import { car } from "./support/vehicle.ts";
 
 const track = parseTrack(

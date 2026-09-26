@@ -1,11 +1,11 @@
-import type { DrivingSession } from "../../src/app/session.ts";
-import type { DigitalInput } from "../../src/simulation/input-smoothing.ts";
+import type { DrivingSession } from "./session.ts";
+import type { DigitalInput } from "../simulation/input-smoothing.ts";
 
 const yaw = (q: { y: number; w: number; x: number; z: number }) =>
   Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y));
 
 /**
- * Keyboard-only driver for tests: steers from lateral offset and heading error, and
+ * Keyboard-only driver for tests and the benchmark route: steers from lateral offset and heading error, and
  * brakes for the tightest curvature in the next stretch. Deliberately cautious; it
  * proves a layout is drivable end to end, not how fast.
  */
