@@ -16,7 +16,8 @@ Prerequisite: P4 done. Use PERF-001.
   production runs on the reference laptop and identify CPU/GPU/asset bottlenecks.
 - P5-C2: optimize evidenced bottlenecks (LOD, texture/material cost, scenery instancing,
   shadows, bounded adaptive resolution) with before/after numbers and regression checks.
-- P5-C3: full test/build/lint/browser/asset checks, setup reproduction, final screenshots,
+- P5-C3: test/build/lint, Chromium browser and asset checks (no Firefox or full matrix;
+  user, 2026-09-26), setup reproduction, final screenshots,
   known limitations and PR description aligned with the delivered game.
 
 Gate: report 1280×720/60 FPS target result honestly, including p95 timing and backend.

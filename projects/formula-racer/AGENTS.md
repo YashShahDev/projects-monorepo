@@ -51,8 +51,9 @@ This guidance does not itself authorize spawning agents.
 - `make test PROJECT=formula-racer` and `make lint PROJECT=formula-racer` must pass
   before committing; also run build and relevant browser/asset checks when applicable.
 - Browser checks (user, 2026-09-26): run only the Chromium tests (`make test`) per change
-  and commit; the full matrix (`make test-browser-full`, Firefox and production variants)
-  is not required. Run `make assets-verify` when the car source or its inputs change.
+  and commit, and at checkpoint and phase close. Never run the full matrix
+  (`make test-full`, `make test-browser-full`, Firefox); browser testing is Chromium-only
+  for now (user, 2026-09-26). Run `make assets-verify` when the car source or its inputs change.
 - Commits (user, 2026-09-26): commit after each red → green subtask, with a one-line
   message (`P4-C3: add graphics presets`); no body beyond the attribution trailers.
 - Benchmark before claiming performance improvements. Record before/after data,
