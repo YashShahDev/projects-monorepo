@@ -10,6 +10,9 @@ import { loadCatalogTrack } from "../content/track-catalog.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import { createTrackView } from "../rendering/track-view.ts";
+import { parseCarModelInterface } from "../content/car-model.ts";
+import { loadCarModel } from "../rendering/car-model-loader.ts";
+import modelInterface from "../../content/cars/model-interface.json";
 import { QUALITY_PRESETS, qualitySettings } from "../rendering/quality.ts";
 import { createKeyboard } from "./keyboard.ts";
 import type { HeldKeys } from "./keyboard.ts";
@@ -110,10 +113,15 @@ export async function startGameApp(
       fetchLiveries(asset("assets/cars/liveries.json")),
     ]),
   );
+  const model = await stage("Could not load the car model", () =>
+    loadCarModel(asset("assets/cars/fr26.glb"), parseCarModelInterface(modelInterface), car),
+  );
   await stage("Physics engine (WebAssembly) failed to start", initPhysics);
-  const session = await stage("Could not start the simulation", () => createDrivingSession(car, track, { energy }));
+  const session = await stage("Could not start the simulation", () =>
+    createDrivingSession(car, track, { energy, cameraAnchors: model.anchors }),
+  );
   const view = await stage("Renderer failed to start", () =>
-    createTrackView(canvas, context, session.geometry, track.startDistanceM, car),
+    createTrackView(canvas, context, session.geometry, track.startDistanceM, model),
   ).catch((error: unknown) => {
     session.dispose();
     throw error;

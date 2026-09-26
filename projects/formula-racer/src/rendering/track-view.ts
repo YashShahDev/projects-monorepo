@@ -1,9 +1,9 @@
 import * as THREE from "three";
-import type { CarDefinition } from "../content/car.ts";
 import type { Livery } from "../content/livery.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
 import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import type { CameraView } from "./camera-rig.ts";
+import type { BoundCarModel } from "./car-model-view.ts";
 import type { QualitySettings } from "./quality.ts";
 
 export interface TrackView {
@@ -20,8 +20,6 @@ const GRASS = 0x4f8a3a;
 const ROAD = 0x6b6f73;
 const KERB_RED = 0xd05a4a;
 const KERB_WHITE = 0xeeeeee;
-const CAR = 0xd9352b;
-const TYRE = 0x222222;
 const KERB_STRIPE_M = 5;
 
 /**
@@ -73,7 +71,7 @@ export function createTrackView(
   context: WebGL2RenderingContext,
   track: TrackGeometry,
   startDistanceM: number,
-  car: CarDefinition,
+  car: BoundCarModel,
 ): TrackView {
   const renderer = new THREE.WebGLRenderer({ canvas, context });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -125,27 +123,7 @@ export function createTrackView(
   line.position.set(start.x, 0.01, start.z);
   scene.add(line);
 
-  const body = new THREE.Group();
-  const h = car.chassisHalfExtents;
-  const paint = flat(CAR);
-  body.add(new THREE.Mesh(own(new THREE.BoxGeometry(h.x * 2, h.y * 2, h.z * 2)), paint));
-  const w = car.wheels;
-  const tyre = own(new THREE.CylinderGeometry(w.radius, w.radius, 0.4, 20));
-  tyre.rotateZ(Math.PI / 2);
-  const tyreMaterial = flat(TYRE);
-  const wheels = [
-    [w.halfTrack, w.frontAxleZ],
-    [-w.halfTrack, w.frontAxleZ],
-    [w.halfTrack, w.rearAxleZ],
-    [-w.halfTrack, w.rearAxleZ],
-  ].map(([x, z]) => {
-    const wheel = new THREE.Mesh(tyre, tyreMaterial);
-    wheel.position.set(x ?? 0, 0, z ?? 0);
-    body.add(wheel);
-
-    return wheel;
-  });
-  scene.add(body);
+  scene.add(car.root);
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 4000);
   const size = new THREE.Vector2();
@@ -159,29 +137,19 @@ export function createTrackView(
         camera.updateProjectionMatrix();
       }
 
-      const { position: p, rotation: r } = snapshot;
-      body.position.set(p.x, p.y, p.z);
-      body.quaternion.set(r.x, r.y, r.z, r.w);
-      snapshot.wheels.forEach((state, i) => {
-        const wheel = wheels[i];
-        if (!wheel) {
-          return;
-        }
-
-        wheel.position.y = w.connectionY - state.suspensionLength;
-        wheel.rotation.set(state.spinRad, state.steerRad, 0, "YXZ");
-      });
+      car.pose(snapshot);
       camera.position.set(view.position.x, view.position.y, view.position.z);
       camera.lookAt(view.target.x, view.target.y, view.target.z);
       renderer.render(scene, camera);
     },
     setLivery(livery) {
-      paint.color.set(livery.paint);
+      car.setLivery(livery);
     },
     setQuality(settings) {
       // Changing the ratio resizes the drawing buffer; render() keeps the CSS size.
       renderer.setPixelRatio(settings.pixelRatio);
       camera.far = settings.drawDistanceM;
+      car.setLod(settings.carLod);
       camera.updateProjectionMatrix();
     },
     dispose() {
@@ -189,6 +157,22 @@ export function createTrackView(
         resource.dispose();
       }
 
+      // The loaded model owns its geometry, materials and textures.
+      car.root.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          object.geometry.dispose();
+          const materials: THREE.Material[] = Array.isArray(object.material) ? object.material : [object.material];
+          for (const material of materials) {
+            for (const value of Object.values(material)) {
+              if (value instanceof THREE.Texture) {
+                value.dispose();
+              }
+            }
+
+            material.dispose();
+          }
+        }
+      });
       renderer.dispose();
     },
   };
