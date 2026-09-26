@@ -44,6 +44,8 @@ a bigger corner preview, manual gears and reverse, a physics and assists check, 
 more cameras, F1-style scenery, a racing line with a braking guide, and a ghost. The
 plan is in [P6](phases/P6-polish.md), reviewed by Codex. It lands in PR #7 (user).
 C1–C10 are done; next is P6-C11.
+P7 (user, 2026-09-27) follows the P6 review: energy modes, a correct and dynamic 3D
+racing line, a headless control API, and AI drivers ([plan](phases/P7-ai.md)).
 The PR is ready for the user's review; don't merge. The open items listed in that
 review are optional follow-ups.
 
@@ -78,6 +80,7 @@ repository sources.
 | P5 review | done    | Independent agent, 5 fixed; [P5](checkpoints/P5.md#phase-review)              |
 | P6-C1–C10 | done    | [P6 record](checkpoints/P6.md)                                                |
 | P6-C11    | planned | [P6](phases/P6-polish.md)                                                     |
+| P7-C1–C9  | planned | [P7](phases/P7-ai.md)                                                         |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
