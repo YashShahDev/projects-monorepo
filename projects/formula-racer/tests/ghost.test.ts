@@ -5,6 +5,7 @@ import {
   encodeGhost,
   ghostDelta,
   ghostPoseAt,
+  MAX_GHOST_LAP_S,
   MAX_GHOST_SAMPLES,
 } from "../src/simulation/ghost.ts";
 import type { Ghost } from "../src/simulation/ghost.ts";
@@ -56,6 +57,25 @@ describe("recording", () => {
     }
   });
 
+  test("a lap too long for the sample cap is thinned evenly, not cut short", () => {
+    const recorder = createGhostRecorder();
+    recorder.begin({ timeS: 0, x: 0, z: 0, heading: 0, progressM: 0 });
+
+    // A 209 s lap sampled every frame, driving 10 m/s along z.
+    for (let i = 1; i < 209 * 60; i += 1) {
+      recorder.sample({ timeS: i / 60, x: 0, z: i / 6, heading: 0, progressM: i / 6 });
+    }
+
+    const ghost = recorder.finish({ timeS: 209, x: 0, z: 2090, heading: 0, progressM: 2090 });
+    expect(ghost.timeS.length).toBeLessThanOrEqual(MAX_GHOST_SAMPLES);
+    for (let i = 1; i < ghost.timeS.length; i += 1) {
+      expect((ghost.timeS[i] ?? 0) - (ghost.timeS[i - 1] ?? 0)).toBeLessThan(0.5);
+    }
+
+    expect(ghostPoseAt(ghost, 180).z).toBeCloseTo(1800, 0);
+    expect(decodeGhost(encodeGhost(ghost))?.lapTimeS).toBeCloseTo(209, 3);
+  });
+
   test("stops keeping samples past the cap", () => {
     const recorder = createGhostRecorder();
     recorder.begin({ timeS: 0, x: 0, z: 0, heading: 0, progressM: 0 });
@@ -91,6 +111,22 @@ describe("playback", () => {
     expect(ghostDelta(ghost, 5.5, 150)).toBeCloseTo(0.5, 2);
     expect(ghostDelta(ghost, 4.6, 150)).toBeCloseTo(-0.4, 2);
   });
+
+  test("where the ghost stopped, the delta counts from when it first got there", () => {
+    const column = (values: number[]) => Float64Array.from(values);
+    const ghost: Ghost = {
+      lapTimeS: 4,
+      timeS: column([0, 1, 2, 3, 4]),
+      x: column([0, 0, 0, 0, 0]),
+      z: column([0, 10, 10, 10, 20]),
+      heading: column([0, 0, 0, 0, 0]),
+      progressM: column([0, 10, 10, 10, 20]),
+      marks: [],
+    };
+    expect(ghostDelta(ghost, 1, 10)).toBeCloseTo(0, 6);
+    expect(ghostDelta(ghost, 1, 5)).toBeCloseTo(0.5, 6);
+    expect(ghostDelta(ghost, 4, 15)).toBeCloseTo(0.5, 6);
+  });
 });
 
 describe("storage format", () => {
@@ -121,8 +157,9 @@ describe("storage format", () => {
     }
 
     // Laps over the time cap are not stored.
+    const overCapS = MAX_GHOST_LAP_S + 10;
     expect(
-      decodeGhost(encodeGhost(huge.finish({ timeS: 160, x: 0, z: 1400, heading: 0, progressM: 1400 }))),
+      decodeGhost(encodeGhost(huge.finish({ timeS: overCapS, x: 0, z: 1400, heading: 0, progressM: 1400 }))),
     ).toBeUndefined();
   });
 

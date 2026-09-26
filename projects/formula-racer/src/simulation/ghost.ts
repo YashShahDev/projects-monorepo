@@ -39,13 +39,15 @@ export interface GhostRecorder {
 
 const INTERVAL_S = 0.1;
 
-// A 150 s lap at 10 Hz. Samples past the cap are dropped, and a lap over the time cap
-// is not stored at all (see `decodeGhost`).
+// A 150 s lap at 10 Hz. A longer lap is thinned to fit (see `sample`). A lap over the
+// time cap, which the stored centiseconds could not hold, is not stored at all (see
+// `decodeGhost`).
 export const MAX_GHOST_SAMPLES = 1500;
-export const MAX_GHOST_LAP_S = 150;
+export const MAX_GHOST_LAP_S = 600;
 
 export function createGhostRecorder(): GhostRecorder {
   let samples: GhostSample[] = [];
+  let intervalS = INTERVAL_S;
   let nextS = 0;
   let furthestM = 0;
 
@@ -54,20 +56,33 @@ export function createGhostRecorder(): GhostRecorder {
   const keep = (s: GhostSample) => {
     furthestM = Math.max(furthestM, s.progressM);
     samples.push({ ...s, progressM: furthestM });
-    nextS = s.timeS + INTERVAL_S - 1e-9;
+    nextS = s.timeS + intervalS - 1e-9;
   };
 
   return {
     begin(first) {
       samples = [];
+      intervalS = INTERVAL_S;
       furthestM = first.progressM;
       keep(first);
     },
     sample(s) {
-      // Leave room for the finishing sample.
-      if (s.timeS >= nextS && samples.length < MAX_GHOST_SAMPLES - 1) {
-        keep(s);
+      if (s.timeS < nextS) {
+        return;
       }
+
+      // Full, leaving room for the finishing sample: keep every other sample and record
+      // at half the rate, so the whole lap stays evenly covered however long it runs.
+      if (samples.length >= MAX_GHOST_SAMPLES - 1) {
+        samples = samples.filter((_, i) => i % 2 === 0);
+        intervalS *= 2;
+        nextS = (samples.at(-1)?.timeS ?? 0) + intervalS - 1e-9;
+        if (s.timeS < nextS) {
+          return;
+        }
+      }
+
+      keep(s);
     },
     finish(last, marks = []) {
       keep(last);
@@ -134,7 +149,19 @@ export function ghostDelta(ghost: Ghost, lapTimeS: number, progressM: number): n
     return lapTimeS - ghost.lapTimeS;
   }
 
-  const i = segment(ghost.progressM, progressM);
+  // Progress holds still where the ghost stopped or reversed, so search for the first
+  // sample to reach it, rather than the last one below it as `segment` would.
+  let [lo, hi] = [0, n - 1];
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if ((ghost.progressM[mid] ?? 0) < progressM) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+
+  const i = lo;
   const [p0, p1] = [ghost.progressM[i] ?? 0, ghost.progressM[i + 1] ?? 0];
   const f = p1 > p0 ? Math.max(0, Math.min(1, (progressM - p0) / (p1 - p0))) : 0;
   const ghostS = (ghost.timeS[i] ?? 0) + ((ghost.timeS[i + 1] ?? 0) - (ghost.timeS[i] ?? 0)) * f;
