@@ -21,6 +21,7 @@ test("@dev the engine sound follows the throttle", async ({ page }) => {
   expect(idle.enabled).toBe(true);
   expect(driving.engineGain).toBeGreaterThan(idle.engineGain);
   expect(driving.engineHz).toBeGreaterThan(idle.engineHz);
+  expect(driving.output).toBe("running");
   expect(errors).toEqual([]);
 });
 
@@ -32,6 +33,11 @@ test("@dev the Sound option mutes the car and is remembered", async ({ page }) =
   await expect(sound).toBeChecked();
   await sound.uncheck();
   expect((await hooks(page, 1, false)).sound.enabled).toBe(false);
+
+  // The output fades before it suspends, so muting does not click.
+  expect((await hooks(page, 1, false)).sound.output).not.toBe("suspended");
+  await page.clock.runFor(500);
+  await expect.poll(async () => (await hooks(page, 1, false)).sound.output).toBe("suspended");
   await page.reload();
   await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });
   await expect(page.locator("#sound")).not.toBeChecked();

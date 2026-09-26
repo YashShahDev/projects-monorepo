@@ -32,7 +32,7 @@ export interface GameAppState extends SessionState {
   held: HeldKeys;
 
   /** The mix the audio was last given, whether or not sound is on. */
-  sound: SoundMix & { enabled: boolean };
+  sound: SoundMix & { enabled: boolean; output: AudioContextState | "none" };
 }
 
 export interface GameApp {
@@ -268,7 +268,7 @@ export async function startGameApp(
     ...session.state(),
     frames,
     held: keyboard.held(),
-    sound: { ...sound, enabled: preferences.sound() },
+    sound: { ...sound, enabled: preferences.sound(), output: audio?.state() ?? "none" },
   });
   const show = (): void => {
     const s = session.state();

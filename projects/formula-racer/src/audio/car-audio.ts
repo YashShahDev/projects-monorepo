@@ -5,6 +5,9 @@ export interface CarAudio {
   resume(): void;
   setEnabled(on: boolean): void;
   update(mix: SoundMix): void;
+
+  /** The output's state as the browser reports it. */
+  state(): AudioContextState;
   dispose(): void;
 }
 
@@ -12,6 +15,7 @@ const MASTER_GAIN = 0.35;
 
 // Short time constants smooth per-frame steps without audibly lagging the car.
 const SMOOTH_S = 0.03;
+const SUSPEND_AFTER_MS = 5 * SMOOTH_S * 1000;
 
 /**
  * Engine: a sawtooth at the firing frequency plus its sub-octave, low-passed so it
@@ -82,6 +86,7 @@ export function createCarAudio(): CarAudio {
   }
 
   let enabled = true;
+  let suspendTimer: ReturnType<typeof setTimeout> | undefined;
 
   return {
     resume() {
@@ -91,9 +96,12 @@ export function createCarAudio(): CarAudio {
     },
     setEnabled(on) {
       enabled = on;
+      clearTimeout(suspendTimer);
       master.gain.setTargetAtTime(on ? MASTER_GAIN : 0, context.currentTime, SMOOTH_S);
+
+      // Suspend only once the fade has played out, or muting clicks.
       if (!on) {
-        void context.suspend();
+        suspendTimer = setTimeout(() => void context.suspend(), SUSPEND_AFTER_MS);
       }
     },
     update(mix) {
@@ -105,7 +113,9 @@ export function createCarAudio(): CarAudio {
       kerbGain.gain.setTargetAtTime(mix.kerbGain, t, SMOOTH_S);
       stripes.frequency.setTargetAtTime(Math.max(mix.kerbRateHz, 0.1), t, SMOOTH_S);
     },
+    state: () => context.state,
     dispose() {
+      clearTimeout(suspendTimer);
       void context.close();
     },
   };
