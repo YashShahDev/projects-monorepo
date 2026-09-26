@@ -35,6 +35,10 @@ describe("graphics quality presets", () => {
     expect(qualitySettings("high", 3).pixelRatio).toBe(2);
   });
 
+  test("draw the car at a coarser level of detail on lower presets", () => {
+    expect(QUALITY_PRESETS.map((q) => qualitySettings(q, 1).carLod)).toEqual([2, 1, 0]);
+  });
+
   test("keep the whole of Harbour Park in view on high", () => {
     expect(qualitySettings("high", 1).drawDistanceM).toBeGreaterThanOrEqual(4000);
   });
