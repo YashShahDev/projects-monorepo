@@ -10,7 +10,9 @@ import type { CurrentLap, LapRecord } from "../simulation/lap-timer.ts";
 import { createInputSmoother } from "../simulation/input-smoothing.ts";
 import type { DigitalInput } from "../simulation/input-smoothing.ts";
 import { buildTrackGeometry } from "../simulation/track-geometry.ts";
-import type { Surface, TrackGeometry } from "../simulation/track-geometry.ts";
+import type { TrackGeometry } from "../simulation/track-geometry.ts";
+import { buildTrackside, GRAVEL_DRAG_N } from "../simulation/trackside.ts";
+import type { GroundSurface, Trackside } from "../simulation/trackside.ts";
 import { buildVehicleSimulation, createVehicleSimulation } from "../simulation/vehicle.ts";
 import type { VehicleOptions } from "../simulation/vehicle.ts";
 import type { DriverAssists, VehicleSnapshot } from "../simulation/vehicle.ts";
@@ -34,7 +36,7 @@ export interface SessionState {
   gear: number;
   rpm: number;
   lapDistanceM: number;
-  surface: Surface;
+  surface: GroundSurface;
   camera: CameraMode;
   assists: DriverAssists;
   physicsVersion: string;
@@ -69,6 +71,9 @@ export interface FrameView {
 
 export interface DrivingSession {
   readonly geometry: TrackGeometry;
+
+  /** Runoff and barriers, shared with the renderer so what is drawn is what is felt. */
+  readonly trackside: Trackside;
   readonly stepSeconds: number;
 
   /**
@@ -149,9 +154,13 @@ export async function createDrivingSession(
     }
   });
   const start = geometry.pointAt(track.startDistanceM);
+  const trackside = buildTrackside(geometry);
 
   // One lookup hint per wheel keeps each locate to a short windowed search.
   const wheelHints: (number | undefined)[] = [undefined, undefined, undefined, undefined];
+
+  // Grip is looked up first each step; drag reuses its surface rather than locating again.
+  const wheelSurfaces: GroundSurface[] = ["road", "road", "road", "road"];
   const options: VehicleOptions = {
     ...(sessionOptions.energy ? { energy: sessionOptions.energy } : {}),
     start: {
@@ -161,9 +170,14 @@ export async function createDrivingSession(
     gripAt: (x, z, wheel) => {
       const location = geometry.locate(x, z, wheelHints[wheel]);
       wheelHints[wheel] = location.index;
+      const surface = trackside.surfaceAt(location);
+      wheelSurfaces[wheel] = surface;
 
-      return track.surfaceGrip[location.surface];
+      // Asphalt runoff is road surface, only outside the white lines.
+      return track.surfaceGrip[surface === "asphalt" ? "road" : surface];
     },
+    dragAt: (_x, _z, wheel) => (wheelSurfaces[wheel] === "gravel" ? GRAVEL_DRAG_N : 0),
+    barriers: trackside.barriers,
   };
   let sim = await createVehicleSimulation(car, options);
   const stock = JSON.stringify(car);
@@ -204,6 +218,7 @@ export async function createDrivingSession(
 
   const session: DrivingSession = {
     geometry,
+    trackside,
     stepSeconds: sim.stepSeconds,
     frame(frameSeconds, held) {
       if (skipNextFrame) {
@@ -322,7 +337,7 @@ export async function createDrivingSession(
         gear: snapshot.gear,
         rpm: snapshot.rpm,
         lapDistanceM: location.distanceM,
-        surface: location.surface,
+        surface: trackside.surfaceAt(location),
         camera: cameraMode,
         assists: snapshot.assists,
         physicsVersion: snapshot.physicsVersion,

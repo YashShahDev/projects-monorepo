@@ -127,7 +127,16 @@ export interface VehicleOptions {
 
   /** Multiplier on tyre friction for the surface at a ground position; default 1. */
   gripAt?: (x: number, z: number, wheel: number) => number;
+
+  /** Rolling resistance a loose surface (gravel) puts on a wheel there, N; default 0. */
+  dragAt?: (x: number, z: number, wheel: number) => number;
+
+  /** Solid walls along these ground lines, 1.2 m tall. */
+  barriers?: { points: { x: number; z: number }[]; closed: boolean }[];
 }
+
+const BARRIER_HALF_HEIGHT_M = 0.6;
+const BARRIER_HALF_THICKNESS_M = 0.3;
 
 // Share of the tyre's grip budget the assists allow before intervening.
 const ASSIST_GRIP_MARGIN = 0.9;
@@ -155,6 +164,27 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
   const stepSeconds = world.timestep;
   const ground = options.groundHalfExtentM ?? 3000;
   world.createCollider(RAPIER.ColliderDesc.cuboid(ground, 1, ground).setTranslation(0, -1, 0));
+
+  for (const barrier of options.barriers ?? []) {
+    const { points } = barrier;
+    const segments = barrier.closed ? points.length : points.length - 1;
+    for (let i = 0; i < segments; i += 1) {
+      const a = points[i] ?? { x: 0, z: 0 };
+      const b = points[(i + 1) % points.length] ?? a;
+      const length = Math.hypot(b.x - a.x, b.z - a.z);
+      if (length < 1e-3) {
+        continue;
+      }
+
+      world.createCollider(
+        RAPIER.ColliderDesc.cuboid(BARRIER_HALF_THICKNESS_M, BARRIER_HALF_HEIGHT_M, length / 2)
+          .setTranslation((a.x + b.x) / 2, BARRIER_HALF_HEIGHT_M, (a.z + b.z) / 2)
+          .setRotation(headingQuat(Math.atan2(b.x - a.x, b.z - a.z)))
+          .setFriction(0.3)
+          .setRestitution(0.1),
+      );
+    }
+  }
 
   const w = car.wheels;
   const rideHeight = w.suspensionRestLength + w.radius - w.connectionY;
@@ -286,6 +316,32 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
     }
   };
 
+  // Loose surfaces pull on each wheel touching them, against the car's ground motion,
+  // but never enough to push it backwards.
+  const applySurfaceDrag = (): void => {
+    if (!options.dragAt) {
+      return;
+    }
+
+    let dragN = 0;
+    for (let i = 0; i < 4; i += 1) {
+      if (vehicle.wheelIsInContact(i)) {
+        const p = wheelPoints[i] ?? { x: 0, y: 0, z: 0 };
+        const at = localPoint(p.x, p.y, p.z);
+        dragN += options.dragAt(at.x, at.z, i);
+      }
+    }
+
+    const v = body.linvel();
+    const speed = Math.hypot(v.x, v.z);
+    if (dragN <= 0 || speed < 1e-3) {
+      return;
+    }
+
+    const impulse = Math.min(dragN * stepSeconds, car.massKg * speed) / speed;
+    body.applyImpulse({ x: -v.x * impulse, y: 0, z: -v.z * impulse }, true);
+  };
+
   return {
     stepSeconds,
     car,
@@ -396,6 +452,7 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
 
       vehicle.updateVehicle(stepSeconds);
       applyAero(dynamicPressure, downforceN);
+      applySurfaceDrag();
       world.step();
       simSeconds += stepSeconds;
     },

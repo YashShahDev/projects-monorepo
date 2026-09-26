@@ -7,7 +7,8 @@
   "surfaceGrip": {
     "road": 1,
     "kerb": 0.85,
-    "grass": 0.45
+    "grass": 0.45,
+    "gravel": 0.5
   },
   "activeAeroZones": [
     {

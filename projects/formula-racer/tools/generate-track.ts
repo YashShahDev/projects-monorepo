@@ -13,7 +13,7 @@ export interface Layout {
   widthM: number;
   kerbWidthM: number;
   startDistanceM: number;
-  surfaceGrip: { road: number; kerb: number; grass: number };
+  surfaceGrip: { road: number; kerb: number; grass: number; gravel: number };
   activeAeroZones: { startM: number; endM: number }[];
   segments: Segment[];
 }

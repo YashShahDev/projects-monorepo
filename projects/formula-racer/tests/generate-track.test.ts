@@ -12,7 +12,7 @@ const base = {
   widthM: 12,
   kerbWidthM: 1.5,
   startDistanceM: 10,
-  surfaceGrip: { road: 1, kerb: 0.85, grass: 0.45 },
+  surfaceGrip: { road: 1, kerb: 0.85, grass: 0.45, gravel: 0.5 },
   activeAeroZones: [],
 };
 // A rounded square: two adjacent (perpendicular) solved sides close it against the two

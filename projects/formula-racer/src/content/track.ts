@@ -15,7 +15,7 @@ export interface TrackDefinition {
   startDistanceM: number;
 
   /** Multipliers on the car's tyre friction coefficient. */
-  surfaceGrip: { road: number; kerb: number; grass: number };
+  surfaceGrip: { road: number; kerb: number; grass: number; gravel: number };
 
   /** Lap-distance spans where the wings may run in Straight Mode. */
   activeAeroZones: { startM: number; endM: number }[];
@@ -52,7 +52,12 @@ export function parseTrack(value: unknown, source = "track"): TrackDefinition {
     kerbWidthM: positive(root.kerbWidthM, `${source}.kerbWidthM`),
     controlPoints: points,
     startDistanceM: inRange(root.startDistanceM, `${source}.startDistanceM`, 0, 1e6),
-    surfaceGrip: { road: multiplier("road"), kerb: multiplier("kerb"), grass: multiplier("grass") },
+    surfaceGrip: {
+      road: multiplier("road"),
+      kerb: multiplier("kerb"),
+      grass: multiplier("grass"),
+      gravel: multiplier("gravel"),
+    },
     activeAeroZones: array(root.activeAeroZones, `${source}.activeAeroZones`, 0).map((zone, i) => {
       const field = `${source}.activeAeroZones[${String(i)}]`;
       const z = object(zone, field);
