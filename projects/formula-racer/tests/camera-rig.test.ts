@@ -59,13 +59,38 @@ describe("chase camera", () => {
     expect(view.position.z).toBeGreaterThan(104);
   });
 
-  test("C cycles to a rigid nose camera and back", () => {
+  test("C cycles to a rigid cockpit camera and back", () => {
     const rig = createCameraRig();
     settle(rig, facing(0), 3);
-    expect(rig.cycle()).toBe("nose");
+    expect(rig.cycle()).toBe("cockpit");
     const view = rig.update(facing(Math.PI / 2, 5, 5), 1 / 60);
     expect(view.position.x).toBeGreaterThan(5);
     expect(view.position.z).toBeCloseTo(5, 3);
     expect(rig.cycle()).toBe("chase");
+  });
+});
+
+describe("model anchors", () => {
+  const anchors = { chase: { x: 0, y: 0.9, z: -1 }, cockpit: { x: 0.1, y: 0.7, z: 0.3 } };
+
+  test("the cockpit camera sits at the cockpit anchor, carried by the car", () => {
+    const rig = createCameraRig(anchors);
+    rig.cycle();
+
+    // Facing +x, the car's +z axis maps to world +x and its +x axis to world -z.
+    const view = rig.update(facing(Math.PI / 2, 5, 5), 1 / 60);
+    expect(view.position.x).toBeCloseTo(5.3, 6);
+    expect(view.position.y).toBeCloseTo(1.2, 6);
+    expect(view.position.z).toBeCloseTo(4.9, 6);
+    expect(view.target.x).toBeGreaterThan(20);
+    expect(view.target.z).toBeCloseTo(4.9, 6);
+  });
+
+  test("the chase camera aims just ahead of the chase anchor", () => {
+    const rig = createCameraRig(anchors);
+    const view = settle(rig, facing(0), 3);
+    expect(view.target.x).toBeCloseTo(0, 6);
+    expect(view.target.y).toBeCloseTo(1.4, 6);
+    expect(view.target.z).toBeCloseTo(3, 6);
   });
 });

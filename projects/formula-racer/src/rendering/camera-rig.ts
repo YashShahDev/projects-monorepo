@@ -11,7 +11,19 @@ export interface CameraView {
   target: Vec3;
 }
 
-export type CameraMode = "chase" | "nose";
+export type CameraMode = "chase" | "cockpit";
+
+/** Camera points in the chassis frame, from the car model's anchor nodes. */
+export interface CameraAnchors {
+  /** Where the chase camera aims: above the engine cover. */
+  chase: Vec3;
+
+  /** The driver's eye point. */
+  cockpit: Vec3;
+}
+
+// Used until a model supplies its own anchors, e.g. in simulation-only tests.
+export const DEFAULT_ANCHORS: CameraAnchors = { chase: { x: 0, y: 0.5, z: 0 }, cockpit: { x: 0, y: 0.6, z: 1.2 } };
 
 export interface CameraRig {
   update(car: CarPose, dtSeconds: number): CameraView;
@@ -23,7 +35,7 @@ export interface CameraRig {
   reset(): void;
 }
 
-const MODES: CameraMode[] = ["chase", "nose"];
+const MODES: CameraMode[] = ["chase", "cockpit"];
 const CHASE_DISTANCE_M = 6;
 const CHASE_HEIGHT_M = 2.2;
 const LOOK_AHEAD_M = 4;
@@ -36,7 +48,23 @@ function headingOf(q: Quat): number {
   return Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y));
 }
 
-export function createCameraRig(): CameraRig {
+/** Rotates `v` by the unit quaternion `q`. */
+function rotate(q: Quat, v: Vec3): Vec3 {
+  // t = 2 (q × v); v' = v + w t + q × t
+  const tx = 2 * (q.y * v.z - q.z * v.y);
+  const ty = 2 * (q.z * v.x - q.x * v.z);
+  const tz = 2 * (q.x * v.y - q.y * v.x);
+
+  return {
+    x: v.x + q.w * tx + (q.y * tz - q.z * ty),
+    y: v.y + q.w * ty + (q.z * tx - q.x * tz),
+    z: v.z + q.w * tz + (q.x * ty - q.y * tx),
+  };
+}
+
+const COCKPIT_LOOK_M = 20;
+
+export function createCameraRig(anchors: CameraAnchors = DEFAULT_ANCHORS): CameraRig {
   let mode: CameraMode = "chase";
   let heading: number | undefined;
 
@@ -53,18 +81,24 @@ export function createCameraRig(): CameraRig {
       // Exponential decay per elapsed time, so the path does not depend on frame rate.
       heading += delta * (1 - Math.exp(-dtSeconds / HEADING_LAG_S));
       const p = car.position;
-      if (mode === "nose") {
-        const fx = Math.sin(actual);
-        const fz = Math.cos(actual);
+      if (mode === "cockpit") {
+        // Rigid with the chassis, so pitch and roll show as they do to a driver.
+        const eye = rotate(car.rotation, anchors.cockpit);
+        const ahead = rotate(car.rotation, { ...anchors.cockpit, z: anchors.cockpit.z + COCKPIT_LOOK_M });
 
         return {
-          position: { x: p.x + fx * 1.2, y: p.y + 0.6, z: p.z + fz * 1.2 },
-          target: { x: p.x + fx * 20, y: p.y + 0.4, z: p.z + fz * 20 },
+          position: { x: p.x + eye.x, y: p.y + eye.y, z: p.z + eye.z },
+          target: { x: p.x + ahead.x, y: p.y + ahead.y, z: p.z + ahead.z },
         };
       }
 
       const fx = Math.sin(heading);
       const fz = Math.cos(heading);
+
+      // The chase anchor turns with the lagged heading, like the camera itself.
+      const a = anchors.chase;
+      const ax = a.x * fz + a.z * fx;
+      const az = -a.x * fx + a.z * fz;
 
       return {
         position: {
@@ -72,7 +106,7 @@ export function createCameraRig(): CameraRig {
           y: p.y + CHASE_HEIGHT_M,
           z: p.z - fz * CHASE_DISTANCE_M,
         },
-        target: { x: p.x + fx * LOOK_AHEAD_M, y: p.y + 0.5, z: p.z + fz * LOOK_AHEAD_M },
+        target: { x: p.x + ax + fx * LOOK_AHEAD_M, y: p.y + a.y, z: p.z + az + fz * LOOK_AHEAD_M },
       };
     },
     cycle() {

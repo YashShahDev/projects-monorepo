@@ -97,10 +97,25 @@ describe("driving session", () => {
     expect(state.gear).toBe(1);
   });
 
+  test("the cockpit camera uses the model's anchor", async () => {
+    session = await createDrivingSession(car, track, {
+      cameraAnchors: { chase: { x: 0, y: 0.5, z: 0 }, cockpit: { x: 0, y: 3, z: 0 } },
+    });
+    session.action("camera");
+    const { car: pose, camera } = session.frame(0, {
+      throttle: false,
+      brake: false,
+      left: false,
+      right: false,
+      deploy: false,
+    });
+    expect(camera.position.y).toBeCloseTo(pose.position.y + 3, 1);
+  });
+
   test("C switches camera", async () => {
     const s = await start();
     s.action("camera");
-    expect(s.state().camera).toBe("nose");
+    expect(s.state().camera).toBe("cockpit");
   });
 
   test("render rate does not change where the car ends up", async () => {

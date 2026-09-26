@@ -2,7 +2,7 @@ import { parseCar } from "../content/car.ts";
 import type { CarDefinition } from "../content/car.ts";
 import type { TrackDefinition } from "../content/track.ts";
 import { createCameraRig } from "../rendering/camera-rig.ts";
-import type { CameraMode, CameraView } from "../rendering/camera-rig.ts";
+import type { CameraAnchors, CameraMode, CameraView } from "../rendering/camera-rig.ts";
 import { FixedStepper } from "../simulation/fixed-step.ts";
 import { createLapTimer } from "../simulation/lap-timer.ts";
 import type { CurrentLap, LapRecord } from "../simulation/lap-timer.ts";
@@ -56,6 +56,9 @@ export interface SessionState {
 
 export interface SessionOptions {
   energy?: EnergyRules;
+
+  /** From the car model; the rig's defaults stand in when there is none. */
+  cameraAnchors?: CameraAnchors;
 }
 
 export interface FrameView {
@@ -155,7 +158,7 @@ export async function createDrivingSession(
   let pending: CarDefinition | undefined;
   const stepper = new FixedStepper(sim.stepSeconds, MAX_STEPS_PER_FRAME);
   const smoother = createInputSmoother();
-  const camera = createCameraRig();
+  const camera = createCameraRig(sessionOptions.cameraAnchors);
   let paused = false;
   const lapTimer = createLapTimer({ lengthM: geometry.lengthM, sectors: SECTORS });
   const laps: SessionLap[] = [];
