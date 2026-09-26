@@ -76,3 +76,14 @@ test("@smoke E switches the energy mode and Shift deploys from the battery", asy
   await expect(page.locator("#wing")).toHaveText("Straight");
   expect(Number((await page.locator("#charge").textContent())?.replace("%", ""))).toBeLessThan(97);
 });
+
+test("@smoke running wide onto the grass marks the lap invalid", async ({ page }) => {
+  await freezeFrames(page);
+  await openGame(page);
+  await page.clock.runFor(3_000);
+  await expect(page.locator("#lap-time")).not.toHaveClass(/invalid/);
+  // Flat out without steering: straight on at turn 1 and onto the grass.
+  await page.keyboard.down("ArrowUp");
+  await page.clock.runFor(9_000);
+  await expect(page.locator("#lap-time")).toHaveClass(/invalid/);
+});

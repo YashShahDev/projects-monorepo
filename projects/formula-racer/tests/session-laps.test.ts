@@ -59,6 +59,18 @@ describe("session laps", () => {
     expect(state.countdownS).toBeCloseTo(3, 5);
   });
 
+  test("changing assists mid-lap restarts on the grid, so no lap mixes assist sets", async () => {
+    session = await createDrivingSession(car, track);
+    hold(session, idle, 3);
+    hold(session, throttle, 3);
+    session.setAssists({ steering: true, abs: true, traction: false });
+    const state = session.state();
+    expect(state.lap).toBeUndefined();
+    expect(state.countdownS).toBeCloseTo(3, 5);
+    expect(state.assists.traction).toBe(false);
+    expect(Math.abs(state.speedKmh)).toBeLessThan(1);
+  });
+
   test("a clean lap is recorded with its physics version, assists and tuning", async () => {
     session = await createDrivingSession(car, track);
     hold(session, idle, 3);

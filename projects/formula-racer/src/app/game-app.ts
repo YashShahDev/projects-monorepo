@@ -7,6 +7,8 @@ import { createTrackView } from "../rendering/track-view.ts";
 import { createKeyboard } from "./keyboard.ts";
 import type { HeldKeys } from "./keyboard.ts";
 import { formatLapTime } from "./format.ts";
+import { createLapStore, lapKey } from "./lap-store.ts";
+import type { StorageLike } from "./lap-store.ts";
 import { createDrivingSession } from "./session.ts";
 import type { SessionState } from "./session.ts";
 
@@ -40,6 +42,16 @@ export interface Hud {
   charge: HTMLElement;
   ers: HTMLElement;
   wing: HTMLElement;
+  bestLap: HTMLElement;
+  storageNote: HTMLElement;
+}
+
+export interface Menu {
+  resume: HTMLButtonElement;
+  restart: HTMLButtonElement;
+  steering: HTMLInputElement;
+  abs: HTMLInputElement;
+  traction: HTMLInputElement;
 }
 
 async function stage<T>(label: string, work: () => T | Promise<T>): Promise<T> {
@@ -51,9 +63,19 @@ async function stage<T>(label: string, work: () => T | Promise<T>): Promise<T> {
   }
 }
 
+/** `localStorage`, or nothing when the browser refuses access to it. */
+function browserStorage(): StorageLike | undefined {
+  try {
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function startGameApp(
   canvas: HTMLCanvasElement,
   hud: Hud,
+  menu: Menu,
   onFatal: (message: string) => void,
 ): Promise<GameApp> {
   const context = canvas.getContext("webgl2", { antialias: true });
@@ -77,6 +99,17 @@ export async function startGameApp(
     session.dispose();
     throw error;
   });
+  const store = createLapStore(browserStorage());
+  let storedLaps = 0;
+  const keyOf = (assists: SessionState["assists"], physicsVersion: string) =>
+    lapKey({ trackId: track.id, physicsVersion, assists });
+  const note = !store.status.persistent
+    ? "Best laps are not saved in this browser."
+    : store.status.recovered
+      ? "Saved lap times were unreadable and have been reset."
+      : "";
+  hud.storageNote.textContent = note;
+  hud.storageNote.hidden = note === "";
   const keyboard = createKeyboard(window, document);
   keyboard.onAction((action) => {
     session.action(action);
@@ -90,6 +123,26 @@ export async function startGameApp(
   const onVisibility = () => {
     if (document.visibilityState === "hidden") onBlur();
   };
+  const onResume = () => {
+    if (session.state().paused) session.action("pause");
+    show();
+  };
+  const onRestart = () => {
+    session.action("reset");
+    onResume();
+  };
+  const onAssists = () => {
+    session.setAssists({
+      steering: menu.steering.checked,
+      abs: menu.abs.checked,
+      traction: menu.traction.checked,
+    });
+    show();
+  };
+  menu.resume.addEventListener("click", onResume);
+  menu.restart.addEventListener("click", onRestart);
+  for (const box of [menu.steering, menu.abs, menu.traction])
+    box.addEventListener("change", onAssists);
   addEventListener("blur", onBlur);
   document.addEventListener("visibilitychange", onVisibility);
 
@@ -117,6 +170,14 @@ export async function startGameApp(
       hud.ers.textContent = `${netKw > 0 ? "+" : ""}${String(netKw)} kW`;
     }
     hud.wing.textContent = s.wing.mode === "straight" ? "Straight" : "Corner";
+    for (const lap of s.laps.slice(storedLaps))
+      store.record(keyOf(lap.assists, lap.physicsVersion), lap);
+    storedLaps = s.laps.length;
+    const best = store.best(keyOf(s.assists, s.physicsVersion));
+    hud.bestLap.textContent = best ? formatLapTime(best.timeS) : "–";
+    menu.steering.checked = s.assists.steering;
+    menu.abs.checked = s.assists.abs;
+    menu.traction.checked = s.assists.traction;
     const last = s.laps.at(-1);
     hud.lastLap.textContent = last ? `${formatLapTime(last.timeS)}${last.valid ? "" : " ✕"}` : "–";
   };
@@ -154,6 +215,11 @@ export async function startGameApp(
     cancelAnimationFrame(frameRequest);
     canvas.removeEventListener("webglcontextlost", onContextLost);
     removeEventListener("blur", onBlur);
+    menu.resume.removeEventListener("click", onResume);
+    menu.restart.removeEventListener("click", onRestart);
+    for (const box of [menu.steering, menu.abs, menu.traction]) {
+      box.removeEventListener("change", onAssists);
+    }
     document.removeEventListener("visibilitychange", onVisibility);
     keyboard.dispose();
     view.dispose();

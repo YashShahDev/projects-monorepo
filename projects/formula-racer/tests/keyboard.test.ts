@@ -114,4 +114,23 @@ describe("keyboard input", () => {
     key("keydown", "KeyE");
     expect(actions).toEqual(["energyMode"]);
   });
+
+  test("a focused checkbox or button still lets game keys through", () => {
+    const { window, document } = page();
+    const keyboard = createKeyboard(window, document);
+    const actions: string[] = [];
+    keyboard.onAction((action) => actions.push(action));
+    for (const target of [
+      { tagName: "INPUT", type: "checkbox" },
+      { tagName: "BUTTON", type: "button" },
+    ]) {
+      const event = Object.assign(new Event("keydown", { cancelable: true }), {
+        code: "Escape",
+        repeat: false,
+      });
+      Object.defineProperty(event, "target", { value: Object.assign(new EventTarget(), target) });
+      window.dispatchEvent(event);
+    }
+    expect(actions).toEqual(["pause", "pause"]);
+  });
 });

@@ -16,17 +16,16 @@ summary: P2 done and reviewed; P3 time trial and energy in progress.
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)).
 - Active phase: P3 — time trial and energy ([record](checkpoints/P3.md)).
-- Next checkpoint: P3-C3 HUD, session menu and persistence.
+- Next: P3 phase review, then P4.
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
 ## Next action
 
-P3-C2 is done. Next, P3-C3, test-first: session menu (start, resume, restart,
-assist toggles), fuller HUD (sectors, best lap, deltas), and local persistence of best
-laps keyed by track id, physics version and assists, with graceful recovery from
-unavailable or corrupt storage. Then close P3 with `make test-full` and the phase review
-(Codex `gpt-6-astra`, falling back to `/antigravity:review`).
+P3-C1–C3 are done and the gate evidence is in the [P3 record](checkpoints/P3.md). Next:
+the P3 phase review of `09c6ec9^..HEAD` (Codex `gpt-6-astra`; if Codex is out of usage,
+`/antigravity:review`). Reproduce each finding, fix with a failing test first, record
+the outcome, then mark P3 done and start P4 from its phase document.
 
 ## Checkpoints
 
@@ -49,6 +48,10 @@ unavailable or corrupt storage. Then close P3 with `make test-full` and the phas
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
 ## Verified
+
+P3-C3: pause menu with assist toggles (restart on change), best laps per track/physics/
+assists in versioned local storage with recovery from blocked, corrupt or full storage;
+203 unit tests; `make test-full` 73/73.
 
 P3-C2: Section C Iss 18 energy rules (sourced file), ICE + ERS deployment with MGU-K
 torque limit, regeneration blended with friction braking, Balanced/Harvest and Shift

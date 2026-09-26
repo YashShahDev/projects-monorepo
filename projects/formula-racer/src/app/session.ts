@@ -170,7 +170,7 @@ export async function createDrivingSession(
     return location;
   };
 
-  return {
+  const session: DrivingSession = {
     geometry,
     stepSeconds: sim.stepSeconds,
     frame(frameSeconds, held) {
@@ -260,6 +260,8 @@ export async function createDrivingSession(
     },
     setAssists(assists) {
       sim.setAssists(assists);
+      // A lap must be driven under one assist set to be compared fairly.
+      session.action("reset");
     },
     retune(patch) {
       pending = parseCar({ ...(pending ?? current), ...patch });
@@ -293,4 +295,5 @@ export async function createDrivingSession(
       sim.dispose();
     },
   };
+  return session;
 }

@@ -21,6 +21,15 @@ const hud = {
   charge: element("#charge"),
   ers: element("#ers"),
   wing: element("#wing"),
+  bestLap: element("#best-lap"),
+  storageNote: element("#storage-note"),
+};
+const menu = {
+  resume: element<HTMLButtonElement>("#resume"),
+  restart: element<HTMLButtonElement>("#restart"),
+  steering: element<HTMLInputElement>("#assist-steering"),
+  abs: element<HTMLInputElement>("#assist-abs"),
+  traction: element<HTMLInputElement>("#assist-traction"),
 };
 
 function showFatal(message: string): void {
@@ -37,7 +46,7 @@ function showFatal(message: string): void {
 }
 
 try {
-  const app = await startGameApp(canvas, hud, showFatal);
+  const app = await startGameApp(canvas, hud, menu, showFatal);
   status.hidden = true;
   // A persisted page may be restored from the back/forward cache and keep running.
   addEventListener("pagehide", (event) => {

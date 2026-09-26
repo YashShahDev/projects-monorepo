@@ -4,15 +4,20 @@ interface KeyFields {
   repeat: boolean;
 }
 
-const EDITABLE = new Set(["INPUT", "TEXTAREA", "SELECT"]);
+// Inputs that take typed text. A focused checkbox or button (the pause menu) must still
+// let Escape and the driving keys through.
+const TEXT_INPUTS = new Set(["text", "number", "search", "email", "password", "tel", "url"]);
 
-// Typing into a form field (the dev tuning panel) must not steer the car.
+// Typing into a text field (the dev tuning panel) must not steer the car.
 const isEditable = (target: EventTarget | null): boolean => {
-  const element = target as { tagName?: unknown; isContentEditable?: unknown } | null;
-  return (
-    element?.isContentEditable === true ||
-    (typeof element?.tagName === "string" && EDITABLE.has(element.tagName))
-  );
+  const element = target as {
+    tagName?: unknown;
+    type?: unknown;
+    isContentEditable?: unknown;
+  } | null;
+  if (element?.isContentEditable === true) return true;
+  if (element?.tagName === "TEXTAREA" || element?.tagName === "SELECT") return true;
+  return element?.tagName === "INPUT" && TEXT_INPUTS.has(String(element.type ?? "text"));
 };
 
 const keyFields = (event: Event): KeyFields => {
