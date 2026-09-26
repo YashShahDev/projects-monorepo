@@ -26,7 +26,11 @@ the findings are recorded at the end.
     A reset returns the car to 1st.
   - Automatic (the default): the box shifts itself. `Z` at a standstill (below
     1 km/h) selects R, and `X` in R, or throttle from R when stopped, returns to 1.
-  - Manual (a Pause-menu toggle): only the keys shift. A downshift is refused if it
+  - Hybrid (user, 2026-09-26): the driver can shift at any time, and the automatic
+    takes over only at the edges. It upshifts at the limiter, and it downshifts when
+    engine speed falls below the downshift point, so the car never bogs down or sits
+    on the limiter.
+  - Manual: only the keys shift. A downshift is refused if it
     would put the engine over the redline. Each shift is followed by a
     `shiftTimeS` cooldown with drive cut. At the redline the limiter cuts drive, with
     hysteresis. Engine speed comes from road speed and there is no clutch, so there is
@@ -37,7 +41,15 @@ the findings are recorded at the end.
     of the force, so negative force (engine braking, reverse) is limited too. In
     reverse ERS neither deploys nor harvests. Rapier's brake-as-impulse units stay,
     and so does the rule that braking cuts drive.
-  - The HUD shows `R`, and `M` in Manual mode. Best laps are stored per gearbox mode,
+  - A Pause-menu choice selects Automatic, Hybrid or Manual. The HUD shows `R`, and
+    `A`, `H` or `M` next to the gear.
+  - Gearing from F1 data (user asked for better numbers). Automatic upshifts where the
+    next gear gives more wheel force at the same road speed, taken from the power
+    curve, instead of at a fixed rpm. Downshifts happen where the lower gear would
+    still land below that point. The car's gearing is retuned to published 2026
+    figures: 8 speeds, 8th at about 360 km/h at 13,000 rpm (reported 2026 McLaren
+    gearing); a 15,000 rpm regulation limit; racing upshifts around 12,000–12,500
+    rpm, just past the power peak. Best laps are stored per gearbox mode,
     like assists.
   - Seams: `createGearbox` and `createPowertrain` (shift requests, refusals, cut and
     limiter, R only when stopped); `createVehicleSimulation` (throttle in R moves the
@@ -166,6 +178,35 @@ the findings are recorded at the end.
     - the rendered triangle count and draw calls (`createScenery`);
     - `make bench` on High with the ghost, the ribbon and far chase all enabled:
       frame and CPU percentiles, triangles, draw calls and JS heap, before and after.
+
+- **P6-C9 Tyre marks (user, 2026-09-26).** When a tyre locks, spins or slides past a
+  slip threshold, it leaves a dark mark on the surface it is on. Marks fade over a
+  lap and are kept in a bounded ring buffer (about 4,000 segments), drawn as one
+  batched mesh. Each lap's marks are recorded with its ghost, so replaying a saved
+  lap (ghost on) shows where it slid.
+  - Seams: the vehicle snapshot's per-wheel slip (locked under hard braking with ABS
+    off; spinning under full throttle on low grip with traction control off; none when
+    cruising); a mark recorder (threshold, segment joining, ring bound, round-trip
+    with the ghost); a browser test (marks appear after a lock-up).
+- **P6-C10 Three real-layout circuits (user, 2026-09-26).** They use centrelines from
+  `bacinger/f1-circuits` (MIT, GeoJSON), so the layouts match the real ones:
+  - a street circuit from Monaco (`mc-1929`);
+  - a fast, flowing circuit from Spa-Francorchamps (`be-1925`);
+  - a power circuit from Monza (`it-1922`).
+
+  The in-game names are our own, and the dataset is credited in the docs.
+  `tools/import-circuit.ts` converts latitude and longitude to metres (local
+  equirectangular), resamples and smooths to the game's spacing, orients the lap in
+  race direction, and places the start line. Each track gets its own width (Monaco
+  narrower), active-aero zones on its main straights, and scenery suited to it:
+  Monaco gets barriers close to the track with little run-off.
+  - Limitation: the game's tracks are flat, so Spa's elevation (Eau Rouge) is not
+    reproduced. Adding height is a larger physics and rendering change, left out of
+    P6.
+  - Seams: the importer (closed loop; lap length within 2% of the published length:
+    Monaco 3.337 km, Spa 7.004 km, Monza 5.793 km; no self-intersection; curvature
+    within what the car can turn); catalog and `?track=` load for each; the
+    autopilot completes a lap of each in the session.
 
 ## Risks and decisions
 
