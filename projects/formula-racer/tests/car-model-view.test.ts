@@ -137,4 +137,16 @@ describe("posing a car model", () => {
     bound.pose(snapshot());
     expect(flap?.rotation.x).toBeCloseTo(0, 6);
   });
+
+  test("opens both flaps from their modelled rest angle", () => {
+    const { root } = modelTree();
+    const front = root.getObjectByName("wing_front_flap");
+    const rear = root.getObjectByName("wing_rear_flap");
+    front?.rotation.set(0.1, 0, 0);
+    rear?.rotation.set(0.2, 0, 0);
+    const bound = bindCarModel(root, spec, car);
+    bound.pose(snapshot({ wing: { mode: "straight", opening: 1 } }));
+    expect(front?.rotation.x).toBeCloseTo(0.1 - FLAP_OPEN_RAD, 6);
+    expect(rear?.rotation.x).toBeCloseTo(0.2 - FLAP_OPEN_RAD, 6);
+  });
 });

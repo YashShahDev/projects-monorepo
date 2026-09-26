@@ -96,7 +96,8 @@ export function bindCarModel(root: THREE.Object3D, spec: CarModelInterface, car:
         }
       });
 
-      // Opening lays the flap flatter: its trailing edge rises, a negative turn about x.
+      // Opening lays the flap flatter: its trailing edge drops toward the chord line, a
+      // negative turn about x.
       flaps.forEach((flap, i) => {
         flap.rotation.x = (flapRest[i] ?? 0) - snapshot.wing.opening * FLAP_OPEN_RAD;
       });

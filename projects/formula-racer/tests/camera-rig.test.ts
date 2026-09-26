@@ -93,4 +93,14 @@ describe("model anchors", () => {
     expect(view.target.y).toBeCloseTo(1.4, 6);
     expect(view.target.z).toBeCloseTo(3, 6);
   });
+
+  test("the chase anchor turns with the car's heading", () => {
+    const offset = { chase: { x: 0.5, y: 0.9, z: -1 }, cockpit: anchors.cockpit };
+    const view = settle(createCameraRig(offset), facing(Math.PI / 2), 3);
+
+    // Facing +x: the anchor's +x (the car's left) is world -z and its +z is world +x;
+    // the target then sits 4 m further ahead along +x.
+    expect(view.target.x).toBeCloseTo(-1 + 4, 3);
+    expect(view.target.z).toBeCloseTo(-0.5, 3);
+  });
 });
