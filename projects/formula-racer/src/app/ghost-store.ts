@@ -52,13 +52,25 @@ export function createGhostStore(storage: StorageLike | undefined): GhostStore {
         saved.delete(oldest);
       }
 
-      try {
+      const write = (ghosts: Map<string, string>) => {
         storage?.setItem(
           STORAGE_KEY,
-          JSON.stringify({ version: SCHEMA, order: [...saved.keys()], ghosts: Object.fromEntries(saved) }),
+          JSON.stringify({ version: SCHEMA, order: [...ghosts.keys()], ghosts: Object.fromEntries(ghosts) }),
         );
+      };
+
+      try {
+        write(saved);
       } catch {
-        // Quota or a revoked permission: the ghost still races this visit.
+        // Quota or a revoked permission: the ghost still races this visit. The stored one
+        // for this key belongs to an older best, so it must not come back after a reload.
+        const others = new Map(saved);
+        others.delete(key);
+        try {
+          write(others);
+        } catch {
+          // Storage is refusing all writes (revoked, say); nothing more can be done here.
+        }
       }
     },
   };

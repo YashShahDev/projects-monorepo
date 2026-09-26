@@ -70,3 +70,36 @@ test("keeps ghosts for this visit when storage refuses to save them", () => {
   expect(store.get("harbour")?.lapTimeS).toBeCloseTo(70, 3);
   expect(createGhostStore(undefined).get("harbour")).toBeUndefined();
 });
+
+test("when a newer ghost cannot be saved, the older one for its key is not left behind", () => {
+  const storage = memory();
+  const store = createGhostStore(storage);
+  store.save("harbour", lap(100));
+  store.save("riviera", lap(120));
+
+  // Storage now refuses anything larger than it holds, as when a quota is reached.
+  const full = storage.data.get("formula-racer:ghosts")?.length ?? 0;
+  const tight: StorageLike = {
+    getItem: (k) => storage.getItem(k),
+    setItem: (k, v) => {
+      if (v.length > full) {
+        throw new Error("QuotaExceededError");
+      }
+
+      storage.setItem(k, v);
+    },
+  };
+  const again = createGhostStore(tight);
+  const longer = createGhostRecorder();
+  longer.begin({ timeS: 0, x: 0, z: 0, heading: 0, progressM: 0 });
+  for (let i = 1; i < 900; i += 1) {
+    longer.sample({ timeS: i * 0.1, x: 0, z: i, heading: 0, progressM: i });
+  }
+
+  again.save("harbour", longer.finish({ timeS: 90, x: 0, z: 900, heading: 0, progressM: 900 }));
+  expect(again.get("harbour")?.lapTimeS).toBeCloseTo(90, 3);
+
+  const reloaded = createGhostStore(storage);
+  expect(reloaded.get("harbour")).toBeUndefined();
+  expect(reloaded.get("riviera")?.lapTimeS).toBeCloseTo(120, 3);
+});
