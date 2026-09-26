@@ -1,7 +1,7 @@
 import type { CarDefinition } from "../content/car.ts";
 import type { TrackGeometry } from "./track-geometry.ts";
 
-const GRAVITY = 9.81;
+export const GRAVITY = 9.81;
 const AIR_DENSITY_KG_M3 = 1.225;
 
 // The profile uses this share of the tyre's quoted friction. With it, every corner
@@ -54,11 +54,6 @@ export function lineLimits(car: CarDefinition): LineLimits {
 
 /** Total grip the tyres give at a speed, as an acceleration, m/s². */
 const gripMps2 = (l: LineLimits, v: number): number => l.mu * (GRAVITY + (l.downforceK * v * v) / l.massKg);
-
-/** Deceleration the profile plans on when braking in a straight line at `v`, m/s². */
-export function brakingDecelMps2(l: LineLimits, v: number): number {
-  return Math.min(gripMps2(l, v), l.maxBrakeForceN / l.massKg) + (l.dragK * v * v) / l.massKg;
-}
 
 export type GuidePhase = "go" | "lift" | "brake";
 
@@ -740,41 +735,6 @@ export function buildRacingLine(
     phase: phases(speedMps, stepM),
     lapTimesS,
   };
-}
-
-export interface GuideInput {
-  /** The car's speed now. */
-  speedMps: number;
-
-  /** How far ahead of the car this point of the line is. */
-  aheadM: number;
-
-  /** The profile's speed at this point. */
-  targetMps: number;
-  decelMps2: number;
-  liftS: number;
-
-  /** The profile's own phase at this point. */
-  phase: GuidePhase;
-}
-
-/**
- * Colour of one point of the guide ahead of the car: the profile's own phase, raised
- * to "brake" when the car is too fast to reach the point's speed without braking now,
- * and to "lift" when it will be within `liftS` of having to.
- */
-export function guideColour(input: GuideInput): GuidePhase {
-  const { speedMps: v, targetMps: target } = input;
-  const needM = v > target ? (v * v - target * target) / (2 * input.decelMps2) : 0;
-  if (needM > 0 && needM >= input.aheadM) {
-    return "brake";
-  }
-
-  if (needM > 0 && needM >= input.aheadM - v * input.liftS && input.phase === "go") {
-    return "lift";
-  }
-
-  return input.phase;
 }
 
 /** The slowest the profile goes between two lap distances (either may pass the lap line). */

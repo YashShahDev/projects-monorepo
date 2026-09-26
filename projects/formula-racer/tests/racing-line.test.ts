@@ -4,13 +4,7 @@ import { resolve } from "node:path";
 import { parseTrack } from "../src/content/track.ts";
 import { findCorners } from "../src/app/track-map.ts";
 import type { TrackDefinition } from "../src/content/track.ts";
-import {
-  buildRacingLine,
-  estimatedLapTimeS,
-  guideColour,
-  lineLimits,
-  slowestBetween,
-} from "../src/simulation/racing-line.ts";
+import { buildRacingLine, estimatedLapTimeS, lineLimits, slowestBetween } from "../src/simulation/racing-line.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 import { car } from "./support/vehicle.ts";
 
@@ -170,30 +164,6 @@ describe("speed profile", () => {
 
     const firstBrake = line.phase.findIndex((p, i) => p === "brake" && line.phase[(i + n - 1) % n] !== "brake");
     expect(line.phase[(firstBrake + n - 1) % n]).toBe("lift");
-  });
-});
-
-describe("guide colour", () => {
-  const base = { aheadM: 100, targetMps: 30, decelMps2: 20, liftS: 0.6 };
-
-  test("follows the profile when the car is on its speed", () => {
-    expect(guideColour({ ...base, speedMps: 30, phase: "go" })).toBe("go");
-    expect(guideColour({ ...base, speedMps: 30, phase: "lift" })).toBe("lift");
-    expect(guideColour({ ...base, speedMps: 30, phase: "brake" })).toBe("brake");
-  });
-
-  test("turns red where a car arriving too fast can only just stop in time", () => {
-    // From 70 m/s to 30 at 20 m/s² takes 100 m: this point needs braking now.
-    expect(guideColour({ ...base, speedMps: 70, phase: "go" })).toBe("brake");
-  });
-
-  test("warns to lift just before that", () => {
-    // 90 m is needed; 100 m ahead is within 0.6 s at 64 m/s.
-    expect(guideColour({ ...base, speedMps: Math.sqrt(900 + 2 * 20 * 90), phase: "go" })).toBe("lift");
-  });
-
-  test("a slower car is never told to brake by a point it can already make", () => {
-    expect(guideColour({ ...base, speedMps: 20, phase: "go" })).toBe("go");
   });
 });
 

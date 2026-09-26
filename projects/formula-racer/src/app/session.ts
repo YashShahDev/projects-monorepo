@@ -5,6 +5,7 @@ import { ContentError } from "../content/validate.ts";
 import { createCameraRig } from "../rendering/camera-rig.ts";
 import type { CameraAnchors, CameraMode, CameraView } from "../rendering/camera-rig.ts";
 import { FixedStepper } from "../simulation/fixed-step.ts";
+import { gripShare } from "../simulation/guidance.ts";
 import { createLapTimer } from "../simulation/lap-timer.ts";
 import type { CurrentLap, LapRecord } from "../simulation/lap-timer.ts";
 import { createInputSmoother } from "../simulation/input-smoothing.ts";
@@ -87,6 +88,9 @@ export interface FrameView {
 
   /** Lap time at the drawn pose (between the last two steps), while a lap is timed. */
   lapTimeS: number | undefined;
+
+  /** The grip the tyres have now against clean road, for the guide. */
+  gripShare: number;
 }
 
 export interface DrivingSession {
@@ -404,6 +408,11 @@ export async function createDrivingSession(
         car: pose,
         camera: camera.update(pose, frameSeconds),
         lapTimeS: lap && Math.max(0, lap.elapsedS - (1 - alpha) * sim.stepSeconds),
+        gripShare: gripShare(
+          wheelSurfaces,
+          latest.wheels.map((wheel) => wheel.slip),
+          track.surfaceGrip,
+        ),
       };
     },
     action(action) {

@@ -160,6 +160,22 @@ describe("surface grip in a session", () => {
     expect(ice.shed).toBeLessThan(asRoad.shed * 0.5);
   });
 
+  test("each frame reports the grip under the tyres: full on the grid, lower in the gravel", async () => {
+    const s = await createDrivingSession(car, track);
+    sessions.push(s);
+    const held = { throttle: true, brake: false, left: false, right: false, deploy: false };
+    expect(s.frame(1 / 60, held).gripShare).toBe(1);
+    let inGravel = 1;
+    for (let t = 0; t < 16; t += 1 / 60) {
+      const { gripShare } = s.frame(1 / 60, held);
+      if (s.state().surface === "gravel") {
+        inGravel = Math.min(inGravel, gripShare);
+      }
+    }
+
+    expect(inGravel).toBeLessThanOrEqual(track.surfaceGrip.gravel + 1e-9);
+  });
+
   test("running straight on at turn 1 ends in the gravel, held by the barrier", async () => {
     const s = await createDrivingSession(car, track);
     sessions.push(s);

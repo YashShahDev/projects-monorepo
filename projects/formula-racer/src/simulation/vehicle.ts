@@ -164,7 +164,7 @@ const ASSIST_GRIP_MARGIN = 0.9;
 // when the driver brakes into a turn.
 const ABS_REAR_GRIP_SHARE = 0.7;
 // A locked or spinning slick carries about three quarters of its peak grip.
-const SLIDING_GRIP = 0.75;
+export const SLIDING_GRIP = 0.75;
 
 // A tyre sliding sideways enough to mark. Assisted cornering at the limit peaks near 6°
 // at the front (100 km/h) and 2° at the rear; full lock at 150 km/h without the assist

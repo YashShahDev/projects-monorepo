@@ -546,9 +546,9 @@ export async function startGameApp(
   let benchReported = false;
   const draw = (frameSeconds: number, held: HeldKeys | (() => HeldKeys)): void => {
     const t0 = performance.now();
-    const { car, camera, lapTimeS } = session.frame(frameSeconds, held);
+    const { car, camera, lapTimeS, gripShare } = session.frame(frameSeconds, held);
     const t1 = performance.now();
-    guideState = guide?.update(car.position, car.speedMps, preferences.racingLine());
+    guideState = guide?.update({ position: car.position, speedMps: car.speedMps, gripShare }, preferences.racingLine());
     ghostView.update(racing && lapTimeS !== undefined ? ghostPoseAt(racing, lapTimeS) : undefined, car.position.y);
     const laid = session.marks(markSerial);
     markSerial = laid.serial;
