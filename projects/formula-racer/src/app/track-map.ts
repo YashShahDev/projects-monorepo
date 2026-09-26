@@ -123,27 +123,62 @@ export function mapProjection(track: TrackGeometry, width: number, height: numbe
   return { toMap, scale, path: `${parts.join("")}Z` };
 }
 
+/** The next `count` corners in the order the car meets them, each with its distance. */
+export function nextCorners(
+  corners: readonly Corner[],
+  lengthM: number,
+  distanceM: number,
+  count: number,
+): { corner: Corner; inM: number }[] {
+  const first = nextCorner(corners, lengthM, distanceM);
+  if (!first) {
+    return [];
+  }
+
+  const start = corners.indexOf(first.corner);
+  const out = [first];
+  for (let k = 1; k < Math.min(count, corners.length); k += 1) {
+    const corner = corners[(start + k) % corners.length];
+    if (corner) {
+      out.push({ corner, inM: (((corner.startM - distanceM) % lengthM) + lengthM) % lengthM });
+    }
+  }
+
+  return out;
+}
+
 /**
  * The road from `behindM` before to `aheadM` after a lap distance, drawn heading-up in a
  * 100×100 box: the car sits at the bottom centre and the road ahead runs up the box.
+ * The scale grows as needed so a long look-ahead that bends away still fits.
  */
 export function previewPath(track: TrackGeometry, distanceM: number, aheadM: number, behindM: number) {
   const car = track.pointAt(distanceM);
-
-  // Metres of road per box unit, so the whole look-ahead fits above the car.
-  const unit = aheadM / 85;
-  const points: { u: number; v: number }[] = [];
-  for (let d = 0; d <= aheadM + behindM; d += track.spacingM) {
-    const p = track.pointAt(distanceM - behindM + d);
+  const frame = (d: number) => {
+    const p = track.pointAt(d);
     const dx = p.x - car.x;
     const dz = p.z - car.z;
-    const forward = dx * car.tx + dz * car.tz;
-    const left = dx * car.tz - dz * car.tx;
-    points.push({ u: 50 - left / unit, v: 90 - forward / unit });
+
+    return { forward: dx * car.tx + dz * car.tz, left: dx * car.tz - dz * car.tx };
+  };
+
+  const raw: { forward: number; left: number }[] = [];
+  for (let d = 0; d <= aheadM + behindM; d += track.spacingM) {
+    raw.push(frame(distanceM - behindM + d));
   }
 
-  // The first point drawn is the car's own position.
+  // Metres per box unit: at least the look-ahead over 85 units, and enough that the road
+  // ahead stays inside the box around the car at (50, 90). The faded road behind may
+  // run off the bottom.
   const start = Math.round(behindM / track.spacingM);
+  const unit = Math.max(
+    aheadM / 85,
+    ...raw.slice(start).map((r) => Math.max(r.forward / 90, -r.forward / 10, Math.abs(r.left) / 50)),
+  );
+  const toBox = (r: { forward: number; left: number }) => ({ u: 50 - r.left / unit, v: 90 - r.forward / unit });
+  const points = raw.map(toBox);
+
+  // The first point drawn is the car's own position.
   const ordered = [...points.slice(start), ...points.slice(0, start).reverse()];
   const ahead = points.slice(start);
   const path = ahead.map((p, i) => `${i === 0 ? "M" : "L"}${p.u.toFixed(1)} ${p.v.toFixed(1)}`).join("");
@@ -152,5 +187,5 @@ export function previewPath(track: TrackGeometry, distanceM: number, aheadM: num
     .map((p, i) => `${i === 0 ? "M" : "L"}${p.u.toFixed(1)} ${p.v.toFixed(1)}`)
     .join("");
 
-  return { points: ordered.slice(0, ahead.length), path, behind };
+  return { points: ordered.slice(0, ahead.length), path, behind, at: (d: number) => toBox(frame(d)) };
 }

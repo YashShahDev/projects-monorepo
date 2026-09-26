@@ -1,16 +1,16 @@
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
 import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import { createGMeter, shiftLights } from "./telemetry.ts";
-import { findCorners, mapProjection, nextCorner, previewPath } from "./track-map.ts";
+import { findCorners, mapProjection, nextCorners, previewPath } from "./track-map.ts";
 
 const SVG = "http://www.w3.org/2000/svg";
 const SHIFT_LIGHTS = 8;
 const MAP_SIZE = { width: 220, height: 150, padding: 10 };
 
 // The preview shows the corner ahead once it is this close, and this much road.
-const PREVIEW_FROM_M = 320;
-const PREVIEW_AHEAD_M = 260;
-const PREVIEW_BEHIND_M = 40;
+const PREVIEW_FROM_M = 600;
+const PREVIEW_AHEAD_M = 600;
+const PREVIEW_BEHIND_M = 60;
 
 // The g-force dot reaches the ring's edge at this many g.
 const G_RING = 5;
@@ -123,9 +123,11 @@ export function createDashboard(
   const previewSvg = svg("svg", { viewBox: "0 0 100 100", "aria-hidden": "true" });
   const behind = svg("path", { class: "behind" });
   const ahead = svg("path", { class: "ahead" });
-  previewSvg.append(behind, ahead, svg("circle", { cx: "50", cy: "90", r: "3.5", class: "car" }));
+  const turnMarks = [0, 1].map(() => svg("text", { class: "turn", "text-anchor": "middle" }));
+  previewSvg.append(behind, ahead, svg("circle", { cx: "50", cy: "90", r: "3", class: "car" }), ...turnMarks);
   const label = html("span", { id: "corner-label" });
-  elements.preview.replaceChildren(previewSvg, label);
+  const then = html("span", { id: "corner-then" });
+  elements.preview.replaceChildren(previewSvg, label, then);
   elements.preview.hidden = true;
   let shownCorner = -1;
 
@@ -160,7 +162,8 @@ export function createDashboard(
       carDot.setAttribute("cx", u.toFixed(1));
       carDot.setAttribute("cy", v.toFixed(1));
 
-      const next = nextCorner(corners, track.lengthM, lapDistanceM);
+      const coming = nextCorners(corners, track.lengthM, lapDistanceM, 2);
+      const next = coming[0];
       const show = next !== undefined && next.inM < PREVIEW_FROM_M;
       elements.preview.hidden = !show;
       if (show) {
@@ -168,12 +171,34 @@ export function createDashboard(
         ahead.setAttribute("d", preview.path);
         behind.setAttribute("d", preview.behind);
         const { corner, inM } = next;
-        const text = `Turn ${String(corner.number)} · ${corner.direction === "left" ? "Left" : "Right"} · ${
-          inM > 0 ? `${String(Math.round(inM / 10) * 10)} m` : "now"
-        }`;
+        const describe = (c: typeof corner, metres: number) =>
+          `Turn ${String(c.number)} · ${c.direction === "left" ? "Left" : "Right"} · ${
+            metres > 0 ? `${String(Math.round(metres / 10) * 10)} m` : "now"
+          }`;
+        const text = describe(corner, inM);
         if (label.textContent !== text) {
           label.textContent = text;
         }
+
+        // The corner after it, and both turn numbers drawn at their apexes on the road.
+        const after = coming[1];
+        const thenText = after ? `then ${describe(after.corner, after.inM)}` : "";
+        if (then.textContent !== thenText) {
+          then.textContent = thenText;
+        }
+
+        turnMarks.forEach((mark, i) => {
+          const c = coming[i];
+          const aheadM = c ? (((c.corner.apexM - lapDistanceM) % track.lengthM) + track.lengthM) % track.lengthM : 0;
+          const visible = c !== undefined && aheadM <= PREVIEW_AHEAD_M;
+          mark.setAttribute("visibility", visible ? "visible" : "hidden");
+          if (c && visible) {
+            const p = preview.at(lapDistanceM + aheadM);
+            mark.setAttribute("x", p.u.toFixed(1));
+            mark.setAttribute("y", (p.v - 5).toFixed(1));
+            mark.textContent = String(c.corner.number);
+          }
+        });
 
         if (shownCorner !== corner.number) {
           shownCorner = corner.number;

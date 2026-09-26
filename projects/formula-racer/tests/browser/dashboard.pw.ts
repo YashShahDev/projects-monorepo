@@ -21,6 +21,16 @@ test("@smoke the map tracks the car and the next corner is previewed on approach
   // Harbour's turn 1 is a right-hander a few hundred metres from the grid.
   await expect(page.locator("#corner-preview")).toBeVisible();
   await expect(page.locator("#corner-label")).toHaveText(/^Turn 1 · Right · (\d+ m|now)$/u);
+
+  // The bigger preview also names the corner after it and numbers both on the road.
+  await expect(page.locator("#corner-then")).toHaveText(/^then Turn 2 · (Left|Right) · \d+ m$/u);
+  await expect(page.locator("#corner-preview text.turn")).toHaveText(["1", "2"]);
+
+  // It scales with the screen: small enough to keep clear of the car on a small one.
+  const svg = page.locator("#corner-preview svg");
+  expect((await svg.boundingBox())?.height ?? Infinity).toBeLessThan(360 / 3);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  expect((await svg.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(190);
   expect(Number(await page.locator("#rpm").textContent())).toBeGreaterThan(4000);
   expect(errors).toEqual([]);
 });

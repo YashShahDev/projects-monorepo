@@ -506,14 +506,30 @@ kbd {
   display: none;
 }
 
+/* Sized by the screen's short side so it stays clear of the car on a small window. */
 #corner-preview svg {
-  width: 120px;
-  height: 120px;
+  width: clamp(96px, 28vmin, 200px);
+  height: clamp(96px, 28vmin, 200px);
+}
+
+#corner-preview .turn {
+  fill: #ffd84a;
+  font-size: 9px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: rgb(0 0 0 / 70%);
+  stroke-width: 2px;
+}
+
+#corner-then {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 #corner-preview path {
   fill: none;
-  stroke-width: 7;
+  stroke-width: 5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseTrack } from "../src/content/track.ts";
-import { findCorners, mapProjection, nextCorner, previewPath } from "../src/app/track-map.ts";
+import { findCorners, mapProjection, nextCorner, nextCorners, previewPath } from "../src/app/track-map.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 
 const harbour = buildTrackGeometry(
@@ -70,6 +70,29 @@ describe("corners", () => {
   });
 });
 
+describe("next corners", () => {
+  const corners = findCorners(harbour);
+
+  test("lists the corners ahead in the order the car meets them, the first being nextCorner's", () => {
+    const at = (corners[2]?.startM ?? 0) - 30;
+    const ahead = nextCorners(corners, harbour.lengthM, at, 2);
+    expect(ahead).toHaveLength(2);
+    expect(ahead[0]).toEqual(nextCorner(corners, harbour.lengthM, at));
+    expect(ahead[1]?.corner.number).toBe(4);
+    expect(ahead[1]?.inM ?? 0).toBeGreaterThan(ahead[0]?.inM ?? 0);
+  });
+
+  test("wraps past the last corner to turn 1", () => {
+    const last = corners.at(-1);
+    const ahead = nextCorners(corners, harbour.lengthM, (last?.startM ?? 0) - 10, 2);
+    expect(ahead.map((a) => a.corner.number)).toEqual([corners.length, 1]);
+  });
+
+  test("never lists more corners than the track has", () => {
+    expect(nextCorners(corners.slice(0, 1), harbour.lengthM, 0, 3)).toHaveLength(1);
+  });
+});
+
 describe("map projection", () => {
   test("fits the circuit in the box with padding, keeping its proportions", () => {
     const map = mapProjection(harbour, 200, 120, 8);
@@ -101,6 +124,28 @@ describe("map projection", () => {
 });
 
 describe("corner preview", () => {
+  test("a long look-ahead is scaled to fit the box, with the car still at the bottom centre", () => {
+    for (let d = 0; d < harbour.lengthM; d += 97) {
+      const preview = previewPath(harbour, d, 600, 60);
+      for (const p of preview.points) {
+        expect(p.u).toBeGreaterThanOrEqual(-1e-6);
+        expect(p.u).toBeLessThanOrEqual(100 + 1e-6);
+        expect(p.v).toBeGreaterThanOrEqual(-1e-6);
+        expect(p.v).toBeLessThanOrEqual(100 + 1e-6);
+      }
+
+      expect(preview.points[0]?.u).toBeCloseTo(50, 0);
+      expect(preview.points[0]?.v).toBeCloseTo(90, 0);
+    }
+  });
+
+  test("places a lap distance ahead on the drawn road, for turn labels", () => {
+    const preview = previewPath(harbour, 1000, 600, 60);
+    const p = preview.at(1300);
+    const nearest = Math.min(...preview.points.map((q) => Math.hypot(q.u - p.u, q.v - p.v)));
+    expect(nearest).toBeLessThan(1);
+  });
+
   test("draws the road ahead heading-up: forward is up, a right-hander bends right", () => {
     const corners = findCorners(harbour);
     const hairpin = corners.reduce((a, b) => (b.radiusM < a.radiusM ? b : a));
