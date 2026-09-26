@@ -4,10 +4,12 @@ import type { Livery } from "../content/livery.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
 import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import type { CameraView } from "./camera-rig.ts";
+import type { QualitySettings } from "./quality.ts";
 
 export interface TrackView {
   render(car: VehicleSnapshot, view: CameraView): void;
   setLivery(livery: Livery): void;
+  setQuality(settings: QualitySettings): void;
   dispose(): void;
 }
 
@@ -175,6 +177,12 @@ export function createTrackView(
     },
     setLivery(livery) {
       paint.color.set(livery.paint);
+    },
+    setQuality(settings) {
+      // Changing the ratio resizes the drawing buffer; render() keeps the CSS size.
+      renderer.setPixelRatio(settings.pixelRatio);
+      camera.far = settings.drawDistanceM;
+      camera.updateProjectionMatrix();
     },
     dispose() {
       for (const resource of disposables) {

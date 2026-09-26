@@ -84,3 +84,23 @@ test("@smoke the chosen livery repaints the car and is remembered", async ({ pag
   await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });
   await expect(page.locator("#livery")).toHaveValue("tidewater");
 });
+
+test("@smoke the graphics preset changes the render resolution and is remembered", async ({ page }) => {
+  await openGame(page);
+  const bufferWidth = () => page.locator("#view").evaluate((canvas: HTMLCanvasElement) => canvas.width);
+  const cssWidth = await page.locator("#view").evaluate((canvas: HTMLCanvasElement) => canvas.clientWidth);
+  await expect.poll(bufferWidth).toBe(cssWidth);
+  await page.keyboard.press("Escape");
+  const quality = page.getByRole("dialog", { name: "Paused" }).getByLabel("Graphics");
+  await expect(quality).toHaveValue("medium");
+  await quality.selectOption({ label: "Low" });
+  await page.keyboard.press("Escape");
+  await expect.poll(bufferWidth).toBe(Math.floor(cssWidth * 0.6));
+
+  // Upscaling blurs colour edges, so fewer pixels classify than at native size.
+  expect((await scenePixels(page)).road).toBeGreaterThan(5_000);
+  await page.reload();
+  await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });
+  await expect(page.locator("#quality")).toHaveValue("low");
+  await expect.poll(bufferWidth).toBe(Math.floor(cssWidth * 0.6));
+});

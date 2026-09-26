@@ -5,6 +5,7 @@ import { fetchLiveries } from "../content/livery.ts";
 import { loadCatalogTrack } from "../content/track-catalog.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import { createTrackView } from "../rendering/track-view.ts";
+import { QUALITY_PRESETS, qualitySettings } from "../rendering/quality.ts";
 import { createKeyboard } from "./keyboard.ts";
 import type { HeldKeys } from "./keyboard.ts";
 import { formatLapTime } from "./format.ts";
@@ -57,6 +58,7 @@ export interface Menu {
   abs: HTMLInputElement;
   traction: HTMLInputElement;
   livery: HTMLSelectElement;
+  quality: HTMLSelectElement;
 }
 
 async function stage<T>(label: string, work: () => T | Promise<T>): Promise<T> {
@@ -115,6 +117,10 @@ export async function startGameApp(
   menu.livery.value = preferences.livery().id;
   hud.trackName.textContent = track.name;
   view.setLivery(preferences.livery());
+  const presetNames = { low: "Low", medium: "Medium", high: "High" };
+  menu.quality.replaceChildren(...QUALITY_PRESETS.map((preset) => new Option(presetNames[preset], preset)));
+  menu.quality.value = preferences.quality();
+  view.setQuality(qualitySettings(preferences.quality(), window.devicePixelRatio));
   let storedLaps = 0;
   const keyOf = (assists: SessionState["assists"], physicsVersion: string) =>
     lapKey({ trackId: track.id, physicsVersion, assists });
@@ -165,7 +171,13 @@ export async function startGameApp(
     view.setLivery(preferences.livery());
   };
 
+  const onQuality = () => {
+    preferences.setQuality(menu.quality.value);
+    view.setQuality(qualitySettings(preferences.quality(), window.devicePixelRatio));
+  };
+
   menu.livery.addEventListener("change", onLivery);
+  menu.quality.addEventListener("change", onQuality);
   menu.resume.addEventListener("click", onResume);
   menu.restart.addEventListener("click", onRestart);
   for (const box of [menu.steering, menu.abs, menu.traction]) {
@@ -264,6 +276,7 @@ export async function startGameApp(
     menu.resume.removeEventListener("click", onResume);
     menu.restart.removeEventListener("click", onRestart);
     menu.livery.removeEventListener("change", onLivery);
+    menu.quality.removeEventListener("change", onQuality);
     for (const box of [menu.steering, menu.abs, menu.traction]) {
       box.removeEventListener("change", onAssists);
     }
