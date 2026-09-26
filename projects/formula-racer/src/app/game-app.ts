@@ -2,7 +2,7 @@ import { fetchCar } from "../content/car.ts";
 import type { CarDefinition } from "../content/car.ts";
 import { fetchEnergyRules } from "../content/energy-rules.ts";
 import { fetchLiveries } from "../content/livery.ts";
-import { fetchTrack } from "../content/track.ts";
+import { loadCatalogTrack } from "../content/track-catalog.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import { createTrackView } from "../rendering/track-view.ts";
 import { createKeyboard } from "./keyboard.ts";
@@ -47,6 +47,7 @@ export interface Hud {
   wing: HTMLElement;
   bestLap: HTMLElement;
   storageNote: HTMLElement;
+  trackName: HTMLElement;
 }
 
 export interface Menu {
@@ -81,6 +82,7 @@ export async function startGameApp(
   hud: Hud,
   menu: Menu,
   onFatal: (message: string) => void,
+  requestedTrack: string | null = null,
 ): Promise<GameApp> {
   const context = canvas.getContext("webgl2", { antialias: true });
   if (!context) {
@@ -92,7 +94,7 @@ export async function startGameApp(
   const [car, track, energy, liveries] = await stage("Could not load game content", () =>
     Promise.all([
       fetchCar(asset("assets/cars/fr26.json")),
-      fetchTrack(asset("assets/tracks/harbour.json")),
+      loadCatalogTrack(asset, requestedTrack),
       fetchEnergyRules(asset("assets/rules/energy-2026-c18.json")),
       fetchLiveries(asset("assets/cars/liveries.json")),
     ]),
@@ -111,6 +113,7 @@ export async function startGameApp(
     ...liveries.map((livery) => new Option(`${livery.name} #${String(livery.number)}`, livery.id)),
   );
   menu.livery.value = preferences.livery().id;
+  hud.trackName.textContent = track.name;
   view.setLivery(preferences.livery());
   let storedLaps = 0;
   const keyOf = (assists: SessionState["assists"], physicsVersion: string) =>

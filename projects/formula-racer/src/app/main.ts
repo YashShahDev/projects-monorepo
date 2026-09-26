@@ -26,6 +26,7 @@ const hud = {
   wing: element("#wing"),
   bestLap: element("#best-lap"),
   storageNote: element("#storage-note"),
+  trackName: element("#track-name"),
 };
 const menu = {
   resume: element<HTMLButtonElement>("#resume"),
@@ -50,7 +51,7 @@ function showFatal(message: string): void {
 }
 
 try {
-  const app = await startGameApp(canvas, hud, menu, showFatal);
+  const app = await startGameApp(canvas, hud, menu, showFatal, new URLSearchParams(location.search).get("track"));
   status.hidden = true;
 
   // A persisted page may be restored from the back/forward cache and keep running.

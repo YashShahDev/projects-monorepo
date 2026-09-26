@@ -23,8 +23,8 @@ export async function freezeFrames(page: Page): Promise<void> {
   await page.clock.pauseAt(new Date("2026-01-01T00:00:01Z"));
 }
 
-export async function openGame(page: Page): Promise<void> {
-  await page.goto("./");
+export async function openGame(page: Page, path = "./"): Promise<void> {
+  await page.goto(path);
   await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });
 }
 
