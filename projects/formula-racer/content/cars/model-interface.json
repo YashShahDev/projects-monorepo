@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "lodCount": 3,
+  "wheels": ["wheel_FL", "wheel_FR", "wheel_RL", "wheel_RR"],
+  "flaps": ["wing_front_flap", "wing_rear_flap"],
+  "body": "body",
+  "anchors": ["camera_chase", "camera_cockpit"],
+  "collision": "collision",
+  "trianglesPerLod": [60000, 16000, 4000],
+  "collisionMaxTriangles": 200,
+  "envelopeM": {
+    "length": [4.8, 5.4],
+    "width": [1.8, 1.9],
+    "height": [0.9, 1.0]
+  }
+}
