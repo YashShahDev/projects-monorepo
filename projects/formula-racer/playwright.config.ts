@@ -10,6 +10,14 @@ const subpath = "http://localhost:4312/games/formula-racer/";
 // worker); clock-driven tests render every frame, so the smaller view halves their time.
 const viewport = { width: 640, height: 360 };
 
+// Machines that cannot download Playwright's pinned browser (such as sandboxed CI or
+// cloud sessions) can point Chromium at a preinstalled build instead.
+const chromium = {
+  ...devices["Desktop Chrome"],
+  viewport,
+  ...(process.env.PW_CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } } : {}),
+};
+
 export default defineConfig({
   testDir: "tests/browser",
   testMatch: "**/*.pw.ts",
@@ -30,17 +38,17 @@ export default defineConfig({
     {
       name: "chromium-dev",
       grep: /@smoke|@dev/u,
-      use: { ...devices["Desktop Chrome"], viewport, baseURL: dev },
+      use: { ...chromium, baseURL: dev },
     },
     {
       name: "chromium-prod",
       grepInvert: /@dev/u,
-      use: { ...devices["Desktop Chrome"], viewport, baseURL: root },
+      use: { ...chromium, baseURL: root },
     },
     {
       name: "chromium-prod-subpath",
       grepInvert: /@dev/u,
-      use: { ...devices["Desktop Chrome"], viewport, baseURL: subpath },
+      use: { ...chromium, baseURL: subpath },
     },
     {
       name: "firefox-dev",

@@ -58,6 +58,10 @@ native libraries. If launch reports a missing library, map that error to the Arc
 package and install only the required dependency with `pkexec pacman -S --needed ...`.
 Do not run the Debian-oriented `install-deps` helper blindly on this machine.
 
+Where Playwright's pinned Chromium cannot be downloaded, set `PW_CHROMIUM_PATH` to a
+preinstalled Chromium executable; every Chromium project then launches it. For example,
+in the Claude Code cloud container: `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome bun run test:browser`.
+
 ## Portable Blender, KTX and Git LFS
 
 Native tools live under `~/.local/share/formula-racer/toolchains`, exposed through
