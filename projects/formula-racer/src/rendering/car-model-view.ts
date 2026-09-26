@@ -16,6 +16,9 @@ export interface BoundCarModel {
   setLod(level: number): void;
   setLivery(livery: Livery): void;
   pose(car: VehicleSnapshot): void;
+
+  /** Frees the model's geometry, materials and textures, including decoded images. */
+  dispose(): void;
 }
 
 /**
@@ -100,6 +103,36 @@ export function bindCarModel(root: THREE.Object3D, spec: CarModelInterface, car:
       // negative turn about x.
       flaps.forEach((flap, i) => {
         flap.rotation.x = (flapRest[i] ?? 0) - snapshot.wing.opening * FLAP_OPEN_RAD;
+      });
+    },
+    dispose() {
+      root.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) {
+          return;
+        }
+
+        (object.geometry as THREE.BufferGeometry).dispose();
+        const list: THREE.Material[] = Array.isArray(object.material) ? object.material : [object.material];
+        for (const material of list) {
+          for (const value of Object.values(material)) {
+            if (value instanceof THREE.Texture) {
+              // The loader decodes images to ImageBitmaps, which hold memory until closed.
+              const image: unknown = value.source.data;
+              if (
+                typeof image === "object" &&
+                image !== null &&
+                "close" in image &&
+                typeof image.close === "function"
+              ) {
+                (image as { close(): void }).close();
+              }
+
+              value.dispose();
+            }
+          }
+
+          material.dispose();
+        }
       });
     },
   };

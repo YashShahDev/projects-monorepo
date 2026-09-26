@@ -157,22 +157,7 @@ export function createTrackView(
         resource.dispose();
       }
 
-      // The loaded model owns its geometry, materials and textures.
-      car.root.traverse((object) => {
-        if (object instanceof THREE.Mesh) {
-          object.geometry.dispose();
-          const materials: THREE.Material[] = Array.isArray(object.material) ? object.material : [object.material];
-          for (const material of materials) {
-            for (const value of Object.values(material)) {
-              if (value instanceof THREE.Texture) {
-                value.dispose();
-              }
-            }
-
-            material.dispose();
-          }
-        }
-      });
+      car.dispose();
       renderer.dispose();
     },
   };

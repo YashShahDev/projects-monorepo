@@ -150,3 +150,32 @@ describe("posing a car model", () => {
     expect(rear?.rotation.x).toBeCloseTo(0.2 - FLAP_OPEN_RAD, 6);
   });
 });
+
+test("dispose frees every geometry, material and texture the model owns", () => {
+  const { root, paint } = modelTree();
+  const bitmap = {
+    closed: false,
+    close() {
+      this.closed = true;
+    },
+  };
+  const texture = new THREE.Texture();
+  texture.source.data = bitmap;
+  paint.normalMap = texture;
+  const disposed = new Set<unknown>();
+  const watch = (resource: THREE.EventDispatcher<{ dispose: object }>) =>
+    resource.addEventListener("dispose", () => disposed.add(resource));
+  const geometries = new Set<THREE.BufferGeometry>();
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh) {
+      geometries.add(object.geometry as THREE.BufferGeometry);
+    }
+  });
+  for (const resource of [...geometries, paint, texture]) {
+    watch(resource);
+  }
+
+  bindCarModel(root, spec, car).dispose();
+  expect([...geometries, paint, texture].every((resource) => disposed.has(resource))).toBe(true);
+  expect(bitmap.closed).toBe(true);
+});

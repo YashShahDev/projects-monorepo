@@ -117,14 +117,21 @@ export async function startGameApp(
   const model = await stage("Could not load the car model", () =>
     loadCarModel(asset("assets/cars/fr26.glb"), parseCarModelInterface(modelInterface), car),
   );
-  await stage("Physics engine (WebAssembly) failed to start", initPhysics);
-  const session = await stage("Could not start the simulation", () =>
-    createDrivingSession(car, track, { energy, cameraAnchors: model.anchors }),
-  );
+  const session = await (async () => {
+    await stage("Physics engine (WebAssembly) failed to start", initPhysics);
+
+    return stage("Could not start the simulation", () =>
+      createDrivingSession(car, track, { energy, cameraAnchors: model.anchors }),
+    );
+  })().catch((error: unknown) => {
+    model.dispose();
+    throw error;
+  });
   const view = await stage("Renderer failed to start", () =>
     createTrackView(canvas, context, session.geometry, track.startDistanceM, model),
   ).catch((error: unknown) => {
     session.dispose();
+    model.dispose();
     throw error;
   });
   const store = createLapStore(browserStorage());
