@@ -5,7 +5,7 @@ type: status
 status: active
 date: 2026-09-26
 updated: 2026-09-26
-summary: P4 implemented and reviewed, pending the real-model check; P5-C1 benchmark tooling built.
+summary: P4 done and verified on the real model; P5-C1 benchmark tooling built, hardware runs pending.
 ---
 
 # Current delivery status
@@ -14,29 +14,28 @@ summary: P4 implemented and reviewed, pending the real-model check; P5-C1 benchm
 - Base: `origin/main`, `ef7ad88` at creation.
 - Completed phases: P0 — documentation and prerequisites; P1 — browser technical
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
-  ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)).
-- Active phase: P4 — Blender content and presentation ([phase](phases/P4-content.md)).
-- Next checkpoint: P4-C3 real-model verification, then the P5-C1 hardware baseline ([P4](checkpoints/P4.md), [P5](checkpoints/P5.md)).
+  ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)); P4 — content and presentation ([record](checkpoints/P4.md)).
+- Active phase: P5 — performance and release verification ([phase](phases/P5-release.md)).
+- Next checkpoint: P5-C1 hardware baseline ([P5](checkpoints/P5.md)).
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
 ## Next action
 
-All work that can be done without the real car model or the reference laptop is done.
-P4 is implemented and reviewed: 11 findings, 9 fixed and 2 rejected with reasons
-([record](checkpoints/P4.md#phase-review)). The P5-C1 benchmark route and `make bench`
-runner are built ([record](checkpoints/P5.md)).
+P4 is done: implemented, reviewed (9 findings fixed, 2 rejected) and verified against
+the real `fr26.glb` with chase and cockpit screenshots ([record](checkpoints/P4.md)).
+The P5-C1 benchmark route and `make bench` runner are built ([record](checkpoints/P5.md)).
 
-Next, on the reference laptop with LFS objects (`git lfs pull`):
+Next, on the reference laptop:
 
-1. `make test` and `make test-full` against the real `fr26.glb`; record chase/cockpit
-   screenshots, then close P4-C3 and P4.
-2. `make bench QUALITY=low|medium|high` (headed, AC power noted); commit the summaries,
+1. `make bench QUALITY=low|medium|high` (headed, AC power noted); commit the summaries,
    and name the limiting stage to close P5-C1.
-3. P5-C2 optimizations driven by that evidence, then P5-C3 final verification.
+2. P5-C2 optimizations driven by that evidence.
+3. P5-C3: `make test-full` (the full browser matrix) and the final verification.
 
-Cloud sessions: set `PW_CHROMIUM_PATH` (see [SETUP](SETUP.md)); LFS fetches loop on
-redirects since the repository rename, so the browser suite needs a local stand-in model.
+Cloud sessions: set `PW_CHROMIUM_PATH` (see [SETUP](SETUP.md)). LFS works through the
+root `.lfsconfig`, provided `YashShahDev/projects-monorepo` is in the session's
+repository sources.
 
 ## Checkpoints
 
@@ -64,6 +63,9 @@ redirects since the repository rename, so the browser suite needs a local stand-
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
 ## Verified
+
+P4 on the real model: LFS object fetched (oid matches); 293/293 unit tests; Chromium
+browser 29/29 twice; chase (two liveries) and cockpit screenshots recorded.
 
 P4 review and P5-C1 tooling: 9 review fixes with tests; bench route, frame/run summaries
 and `make bench` verified headless (software GL, not a performance result); unit tests

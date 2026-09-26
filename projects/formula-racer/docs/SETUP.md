@@ -58,6 +58,11 @@ native libraries. If launch reports a missing library, map that error to the Arc
 package and install only the required dependency with `pkexec pacman -S --needed ...`.
 Do not run the Debian-oriented `install-deps` helper blindly on this machine.
 
+Git LFS uses the endpoint in the repository's root `.lfsconfig`. The repository was
+renamed to `projects-monorepo`, and the old name's LFS endpoint redirects to itself. In
+a Claude Code cloud session, the session's sources must also include
+`YashShahDev/projects-monorepo`, or the git proxy refuses to authenticate the fetch.
+
 Where Playwright's pinned Chromium cannot be downloaded, set `PW_CHROMIUM_PATH` to a
 preinstalled Chromium executable; every Chromium project then launches it. For example,
 in the Claude Code cloud container: `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome bun run test:browser`.
