@@ -16,6 +16,7 @@ Read [STATUS](STATUS.md) first when resuming.
 - [Workflow](WORKFLOW.md): state transitions, commits and multi-agent handoffs.
 - [Setup](SETUP.md): tools, installation and verification.
 - [Architecture](ARCHITECTURE.md): interfaces, data flow and folder responsibilities.
+- [External control API](CONTROL.md): drive the car from scripts and trainers.
 - [Phase 0](phases/P0-foundation.md), [Phase 1](phases/P1-technical.md),
   [Phase 2](phases/P2-driving.md), [Phase 3](phases/P3-time-trial.md),
   [Phase 4](phases/P4-content.md), [Phase 5](phases/P5-release.md).

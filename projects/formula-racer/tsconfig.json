@@ -24,6 +24,6 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["*.ts", "tools/**/*.ts", "tests/**/*.ts"],
+  "include": ["*.ts", "tools/**/*.ts", "tests/**/*.ts", "examples/**/*.ts"],
   "exclude": ["tests/browser/**"]
 }

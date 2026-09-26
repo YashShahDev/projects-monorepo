@@ -269,3 +269,48 @@ describe("driving session", () => {
     expect(Math.max(...moves) / Math.min(...moves)).toBeLessThan(1.3);
   });
 });
+
+describe("analog driving for outside controllers", () => {
+  const speedAfter = async (throttleShare: number) => {
+    const s = await start();
+    const hold = Math.round(s.state().countdownS / s.stepSeconds);
+    for (let i = 0; i < hold; i += 1) {
+      s.drive({ throttle: 1, brake: 0, steer: 0 });
+    }
+
+    // Held on the brakes through the countdown, whatever it is asked.
+    expect(Math.abs(s.state().speedKmh)).toBeLessThan(2);
+    expect(s.state().countdownS).toBe(0);
+    for (let i = 0; i < 120; i += 1) {
+      s.drive({ throttle: throttleShare, brake: 0, steer: 0 });
+    }
+
+    const { speedKmh, simSeconds } = s.state();
+    s.dispose();
+    session = undefined;
+
+    return { speedKmh, simSeconds };
+  };
+
+  test("each call is one simulation step, with the throttle as given", async () => {
+    const full = await speedAfter(1);
+    const half = await speedAfter(0.5);
+    expect(full.simSeconds).toBeCloseTo(3 + 120 / 60, 6);
+    expect(full.speedKmh).toBeGreaterThan(40);
+    expect(half.speedKmh).toBeLessThan(full.speedKmh * 0.8);
+    expect(half.speedKmh).toBeGreaterThan(5);
+  });
+
+  test("a drawn frame of zero seconds shows the latest step without simulating", async () => {
+    const s = await start();
+    ready(s);
+    for (let i = 0; i < 60; i += 1) {
+      s.drive({ throttle: 1, brake: 0, steer: 0 });
+    }
+
+    const before = s.state().simSeconds;
+    const { car: pose } = s.frame(0, idle);
+    expect(s.state().simSeconds).toBe(before);
+    expect(pose.position).toEqual(s.snapshot().position);
+  });
+});

@@ -99,6 +99,7 @@ try {
     showFatal,
     new URLSearchParams(location.search).get("track"),
     bench(),
+    new URLSearchParams(location.search).has("control"),
   );
   status.hidden = true;
 

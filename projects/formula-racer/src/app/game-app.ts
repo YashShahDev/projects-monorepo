@@ -33,6 +33,7 @@ import { createPreferences } from "./preferences.ts";
 import { createDrivingSession, TYRE_HALF_WIDTH_M } from "./session.ts";
 import { autopilot } from "./autopilot.ts";
 import { createBenchRecorder } from "./bench.ts";
+import { installBrowserControl } from "../control/browser.ts";
 import { createDashboard } from "./dashboard.ts";
 import type { BenchOptions, BenchReport } from "./bench.ts";
 import type { SessionState } from "./session.ts";
@@ -133,6 +134,7 @@ export async function startGameApp(
   onFatal: (message: string) => void,
   requestedTrack: string | null = null,
   bench?: { options: BenchOptions; onDone: (report: BenchReport) => void },
+  controlled = false,
 ): Promise<GameApp> {
   // Checked before anything is created, so failing here leaves nothing to dispose.
   const map = hud.map;
@@ -612,6 +614,11 @@ export async function startGameApp(
     onFatal(message);
   };
 
+  // `?control` hands the car to outside software, which steps the simulation itself;
+  // frames then only draw it.
+  const control = controlled ? installBrowserControl(session, track.id) : undefined;
+  const coasting = { throttle: false, brake: false, left: false, right: false, deploy: false };
+
   const frame = (time: number): void => {
     frameRequest = requestAnimationFrame(frame);
     try {
@@ -620,7 +627,11 @@ export async function startGameApp(
 
       // The benchmark route drives itself, deciding every simulation step, so every run
       // sees the same inputs whatever its frame rate.
-      draw(frameSeconds, recorder && !benchReported ? () => autopilot(session) : keyboard.held());
+      if (control?.driving() === true) {
+        draw(0, coasting);
+      } else {
+        draw(frameSeconds, recorder && !benchReported ? () => autopilot(session) : keyboard.held());
+      }
     } catch (error) {
       fail(`Frame failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -661,6 +672,7 @@ export async function startGameApp(
 
     document.removeEventListener("visibilitychange", onVisibility);
     keyboard.dispose();
+    control?.dispose();
     view.dispose();
     session.dispose();
   }

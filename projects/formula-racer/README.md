@@ -33,6 +33,10 @@ From the repository root, use `make test PROJECT=formula-racer` and
 `make lint PROJECT=formula-racer`. `make build` writes a static site to `dist/`;
 `make preview` serves it. Asset exports and benchmarks are added in later phases.
 
+Outside software can drive the car: `bun run tools/sim-server.ts` headless over
+stdin/stdout, or `?control` in the page. See [docs/CONTROL.md](docs/CONTROL.md);
+`bun run examples/control-client.ts` drives a lap.
+
 ## Credits
 
 The Riviera Streets, Ardennes Ring, Royal Park and Corniche Night layouts are converted from centrelines

@@ -17,6 +17,7 @@ import type { GroundSurface, Trackside } from "../simulation/trackside.ts";
 import { buildVehicleSimulation, createVehicleSimulation } from "../simulation/vehicle.ts";
 import type {
   VehicleOptions,
+  DriverControls,
   DriverAssists,
   VehicleSnapshot,
   EnergyTelemetry,
@@ -109,6 +110,16 @@ export interface DrivingSession {
    * to the car (the benchmark autopilot) then drives the same at any frame rate.
    */
   frame(frameSeconds: number, held: DigitalInput | (() => DigitalInput)): FrameView;
+
+  /**
+   * One simulation step with analog controls as given, for AI drivers and outside
+   * software: no input smoothing and no frame clock. A frame of zero seconds then draws
+   * the result.
+   */
+  drive(controls: DriverControls): void;
+
+  /** The ground under each tyre after the last step, front-left first. */
+  wheelSurfaces(): readonly GroundSurface[];
   action(action: SessionAction): void;
   focusLost(): void;
   setAssists(assists: DriverAssists): void;
@@ -311,6 +322,66 @@ export async function createDrivingSession(
     return location;
   };
 
+  // One simulation step with the given controls: the countdown hold, active aero, lap
+  // timing, the ghost and tyre marks. Keyboard frames and outside controllers share it.
+  const stepOnce = (controls: DriverControls) => {
+    previous = poseOf(sim.snapshot());
+    if (countdownLeft > 0) {
+      // Held on the brakes; steering still responds so the grid feels live.
+      sim.step({ throttle: 0, brake: 1, steer: controls.steer });
+      pendingShift = undefined;
+      countdownLeft -= 1;
+      if (countdownLeft === 0) {
+        lapTimer.start(sim.snapshot().simSeconds, locate().distanceM);
+        recorder.begin(ghostSample(poseOf(sim.snapshot()), 0, 0));
+      }
+
+      return;
+    }
+
+    // Straight Mode only on throttle, off the brakes, inside an activation zone.
+    const here = locate().distanceM;
+    const inZone = track.activeAeroZones.some((z) => here >= z.startM && here <= z.endM);
+    sim.setWingMode(inZone && controls.throttle > 0 && controls.brake === 0 ? "straight" : "corner");
+    sim.step(pendingShift ? { ...controls, shift: pendingShift } : controls);
+    pendingShift = undefined;
+    const location = locate();
+    const before = lapTimer.laps().length;
+
+    // Track limits: the lap stays valid until all four tyres are past the kerb.
+    const withinLimits = tyresWithinLimits(geometry, tyrePositions(sim.snapshot()), TYRE_HALF_WIDTH_M, wheelHints);
+    lapTimer.update(sim.snapshot().simSeconds, location.distanceM, withinLimits);
+    const done = lapTimer.laps();
+    if (done.length > before) {
+      sim.newLap();
+    }
+
+    const now = poseOf(sim.snapshot());
+    const running = lapTimer.current();
+    for (const record of done.slice(before)) {
+      // The line was crossed `elapsedS` into the new lap, inside this step.
+      const f = 1 - (running?.elapsedS ?? 0) / sim.stepSeconds;
+      const crossing = blend(previous, now, Math.max(0, Math.min(1, f)));
+      const ghost = recorder.finish(ghostSample(crossing, record.timeS, geometry.lengthM), markRecorder.takeLap());
+      recorder.begin(ghostSample(crossing, 0, 0));
+      laps.push({
+        ...record,
+        ghost,
+        physicsVersion: sim.snapshot().physicsVersion,
+        gearboxMode,
+        assists: sim.snapshot().assists,
+        tuned: JSON.stringify(current) !== stock,
+      });
+    }
+
+    if (running) {
+      recorder.sample(ghostSample(now, running.elapsedS, running.progressM));
+    }
+
+    const snapshot = sim.snapshot();
+    markRecorder.step(snapshot.wheels, clockOffsetS + snapshot.simSeconds, running?.elapsedS);
+  };
+
   const session: DrivingSession = {
     geometry,
     trackside,
@@ -318,78 +389,15 @@ export async function createDrivingSession(
     frame(frameSeconds, held) {
       if (skipNextFrame) {
         skipNextFrame = false;
-      } else if (!paused) {
+      } else if (!paused && frameSeconds > 0) {
         const plan = stepper.advance(frameSeconds);
 
         // Input is smoothed per simulation step, not per frame, so the render rate
         // cannot change what the car does.
         for (let i = 0; i < plan.steps; i += 1) {
-          previous = poseOf(sim.snapshot());
           const speed = sim.snapshot().speedMps;
           const input = typeof held === "function" ? held() : held;
-          const controls = smoother.update(input, speed, sim.stepSeconds);
-          if (countdownLeft > 0) {
-            // Held on the brakes; steering still responds so the grid feels live.
-            sim.step({ throttle: 0, brake: 1, steer: controls.steer });
-            pendingShift = undefined;
-            countdownLeft -= 1;
-            if (countdownLeft === 0) {
-              lapTimer.start(sim.snapshot().simSeconds, locate().distanceM);
-              recorder.begin(ghostSample(poseOf(sim.snapshot()), 0, 0));
-            }
-
-            continue;
-          }
-
-          // Straight Mode only on throttle, off the brakes, inside an activation zone.
-          const here = locate().distanceM;
-          const inZone = track.activeAeroZones.some((z) => here >= z.startM && here <= z.endM);
-          sim.setWingMode(inZone && controls.throttle > 0 && controls.brake === 0 ? "straight" : "corner");
-          sim.step(pendingShift ? { ...controls, shift: pendingShift } : controls);
-          pendingShift = undefined;
-          const location = locate();
-          const before = lapTimer.laps().length;
-
-          // Track limits: the lap stays valid until all four tyres are past the kerb.
-          const withinLimits = tyresWithinLimits(
-            geometry,
-            tyrePositions(sim.snapshot()),
-            TYRE_HALF_WIDTH_M,
-            wheelHints,
-          );
-          lapTimer.update(sim.snapshot().simSeconds, location.distanceM, withinLimits);
-          const done = lapTimer.laps();
-          if (done.length > before) {
-            sim.newLap();
-          }
-
-          const now = poseOf(sim.snapshot());
-          const running = lapTimer.current();
-          for (const record of done.slice(before)) {
-            // The line was crossed `elapsedS` into the new lap, inside this step.
-            const f = 1 - (running?.elapsedS ?? 0) / sim.stepSeconds;
-            const crossing = blend(previous, now, Math.max(0, Math.min(1, f)));
-            const ghost = recorder.finish(
-              ghostSample(crossing, record.timeS, geometry.lengthM),
-              markRecorder.takeLap(),
-            );
-            recorder.begin(ghostSample(crossing, 0, 0));
-            laps.push({
-              ...record,
-              ghost,
-              physicsVersion: sim.snapshot().physicsVersion,
-              gearboxMode,
-              assists: sim.snapshot().assists,
-              tuned: JSON.stringify(current) !== stock,
-            });
-          }
-
-          if (running) {
-            recorder.sample(ghostSample(now, running.elapsedS, running.progressM));
-          }
-
-          const snapshot = sim.snapshot();
-          markRecorder.step(snapshot.wheels, clockOffsetS + snapshot.simSeconds, running?.elapsedS);
+          stepOnce(smoother.update(input, speed, sim.stepSeconds));
         }
 
         alpha = plan.alpha;
@@ -414,6 +422,13 @@ export async function createDrivingSession(
           track.surfaceGrip,
         ),
       };
+    },
+    drive(controls) {
+      stepOnce(controls);
+      alpha = 1;
+    },
+    wheelSurfaces() {
+      return [...wheelSurfaces];
     },
     action(action) {
       if (action === "pause") {
