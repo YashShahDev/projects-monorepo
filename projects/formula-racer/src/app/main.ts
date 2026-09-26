@@ -31,6 +31,7 @@ const hud = {
   wing: element("#wing"),
   bestLap: element("#best-lap"),
   delta: element("#delta"),
+  aiDriving: element("#ai-driving"),
   storageNote: element("#storage-note"),
   trackName: element("#track-name"),
   telemetry: element("#telemetry"),

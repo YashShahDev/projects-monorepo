@@ -19,6 +19,12 @@ const SPARE_SOFTENING = 0.5;
 // The profile never plans above this; power and drag cap the car well below it.
 const TOP_SPEED_MPS = 120;
 
+// The line plans within this share of the tightest turn the steering lock gives (the
+// rest is for slip and correction). Past it the planned speed falls away steeply, so
+// the lap-time descent never trades a slower corner for a kink the car cannot steer.
+const LOCK_USE = 0.9;
+const LOCK_PENALTY_POWER = 6;
+
 // Seconds of travel before a braking zone that count as the lift warning.
 export const LIFT_WARNING_S = 0.6;
 
@@ -37,6 +43,9 @@ export interface LineLimits {
 
   /** How far the line's centre stays from the track edge, metres. */
   clearanceM: number;
+
+  /** Tightest curvature the line may plan, 1/m, from the steering lock. */
+  maxCurvature: number;
 }
 
 export function lineLimits(car: CarDefinition): LineLimits {
@@ -49,6 +58,7 @@ export function lineLimits(car: CarDefinition): LineLimits {
     maxDriveForceN: car.powertrain.maxDriveForceN,
     maxBrakeForceN: car.brakes.maxForceN,
     clearanceM: car.wheels.halfTrack + TYRE_HALF_WIDTH_M + EDGE_MARGIN_M,
+    maxCurvature: (LOCK_USE * Math.tan(car.steering.maxAngleRad)) / (car.wheels.frontAxleZ - car.wheels.rearAxleZ),
   };
 }
 
@@ -392,8 +402,9 @@ function lapProfile(l: LineLimits, curvature: Float64Array, stepM: Float64Array)
   const limitAt = (k: number) => {
     // v²·|κ| ≤ μ(g + k_df·v²/m), solved for v.
     const denominator = k - (l.mu * l.downforceK) / m;
+    const grip = denominator <= 0 ? TOP_SPEED_MPS : Math.min(TOP_SPEED_MPS, Math.sqrt((l.mu * GRAVITY) / denominator));
 
-    return denominator <= 0 ? TOP_SPEED_MPS : Math.min(TOP_SPEED_MPS, Math.sqrt((l.mu * GRAVITY) / denominator));
+    return k > l.maxCurvature ? grip * (l.maxCurvature / k) ** LOCK_PENALTY_POWER : grip;
   };
 
   // Longitudinal grip left over from cornering, on a friction circle. Its square root

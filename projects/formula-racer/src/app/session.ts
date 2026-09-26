@@ -35,7 +35,7 @@ import { createMarkRecorder } from "../simulation/tyre-marks.ts";
 import type { TyreMark } from "../simulation/tyre-marks.ts";
 
 /** Key actions the session handles; help belongs to the page, not the car. */
-export type SessionAction = Exclude<KeyAction, "help">;
+export type SessionAction = Exclude<KeyAction, "help" | "aiDriver">;
 
 /** A completed lap and the conditions it was driven under. */
 export interface SessionLap extends LapRecord {
@@ -109,7 +109,11 @@ export interface DrivingSession {
    * `held` may be a function, called once per simulation step: a controller that reacts
    * to the car (the benchmark autopilot) then drives the same at any frame rate.
    */
-  frame(frameSeconds: number, held: DigitalInput | (() => DigitalInput)): FrameView;
+  /**
+   * `driver`, when given, is asked for analog controls every simulation step in place of
+   * the smoothed keys: an AI driver at the wheel.
+   */
+  frame(frameSeconds: number, held: DigitalInput | (() => DigitalInput), driver?: () => DriverControls): FrameView;
 
   /**
    * One simulation step with analog controls as given, for AI drivers and outside
@@ -386,7 +390,7 @@ export async function createDrivingSession(
     geometry,
     trackside,
     stepSeconds: sim.stepSeconds,
-    frame(frameSeconds, held) {
+    frame(frameSeconds, held, driver) {
       if (skipNextFrame) {
         skipNextFrame = false;
       } else if (!paused && frameSeconds > 0) {
@@ -395,6 +399,11 @@ export async function createDrivingSession(
         // Input is smoothed per simulation step, not per frame, so the render rate
         // cannot change what the car does.
         for (let i = 0; i < plan.steps; i += 1) {
+          if (driver) {
+            stepOnce(driver());
+            continue;
+          }
+
           const speed = sim.snapshot().speedMps;
           const input = typeof held === "function" ? held() : held;
           stepOnce(smoother.update(input, speed, sim.stepSeconds));

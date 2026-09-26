@@ -342,6 +342,15 @@ kbd {
   color: #ff6b5e;
 }
 
+#ai-driving {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #2563eb;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 #lap-time.invalid {
   color: #ff8a80;
 }

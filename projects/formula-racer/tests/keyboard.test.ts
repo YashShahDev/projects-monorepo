@@ -146,7 +146,7 @@ describe("keyboard input", () => {
       expect(codes).toContain(code);
     }
 
-    for (const code of ["KeyX", "KeyZ", "KeyH"]) {
+    for (const code of ["KeyX", "KeyZ", "KeyH", "KeyI"]) {
       expect(codes).toContain(code);
     }
 

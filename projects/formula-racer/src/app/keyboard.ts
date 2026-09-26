@@ -58,7 +58,7 @@ const DRIVE_KEYS: Record<string, keyof HeldKeys> = {
   ShiftRight: "deploy",
 };
 
-export type KeyAction = "reset" | "camera" | "pause" | "energyMode" | "shiftUp" | "shiftDown" | "help";
+export type KeyAction = "reset" | "camera" | "pause" | "energyMode" | "shiftUp" | "shiftDown" | "help" | "aiDriver";
 
 const ACTION_KEYS: Record<string, KeyAction> = {
   KeyR: "reset",
@@ -68,6 +68,7 @@ const ACTION_KEYS: Record<string, KeyAction> = {
   KeyX: "shiftUp",
   KeyZ: "shiftDown",
   KeyH: "help",
+  KeyI: "aiDriver",
 };
 
 const LABELS: Record<keyof HeldKeys | KeyAction, string> = {
@@ -83,6 +84,7 @@ const LABELS: Record<keyof HeldKeys | KeyAction, string> = {
   reset: "Restart from the grid",
   pause: "Pause menu",
   help: "This help",
+  aiDriver: "AI driver: take over / hand back",
 };
 
 const keycap = (code: string): string =>

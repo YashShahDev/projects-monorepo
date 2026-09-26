@@ -314,3 +314,20 @@ describe("analog driving for outside controllers", () => {
     expect(pose.position).toEqual(s.snapshot().position);
   });
 });
+
+test("a frame can take analog controls per step from a driver instead of the keys", async () => {
+  const s = await start();
+  ready(s);
+  let asked = 0;
+  for (let i = 0; i < 60; i += 1) {
+    s.frame(1 / 60, idle, () => {
+      asked += 1;
+
+      return { throttle: 0.5, brake: 0, steer: 0 };
+    });
+  }
+
+  // The keys say coast; the driver's half throttle is what moved the car.
+  expect(asked).toBe(60);
+  expect(s.state().speedKmh).toBeGreaterThan(20);
+});

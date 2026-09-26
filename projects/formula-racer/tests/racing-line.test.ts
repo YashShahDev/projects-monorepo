@@ -369,6 +369,22 @@ describe("minimum-time refinement", () => {
     });
   }
 
+  // The point-mass profile alone would happily plan a slow kink tighter than the wheels
+  // can turn; Riviera's hairpin came out at a 4.8 m radius against the car's 8.5 m.
+  const lockRadiusM = (car.wheels.frontAxleZ - car.wheels.rearAxleZ) / Math.tan(car.steering.maxAngleRad);
+  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "corniche", "test-loop"]) {
+    test(`on ${id}, the line never turns tighter than the car can steer`, () => {
+      const geometry = buildTrackGeometry(
+        parseTrack(
+          JSON.parse(readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8")),
+        ),
+      );
+      const refined = buildRacingLine(geometry, limits);
+      const tightest = Math.max(...refined.curvature.map(Math.abs));
+      expect(1 / tightest).toBeGreaterThanOrEqual(lockRadiusM);
+    });
+  }
+
   // On a symmetric corner this model moves the apex barely later (0.5 m); what the time
   // gradient buys is the classic geometric line, clipping the inside at the apex.
   test("clips the apex that the minimum-curvature line leaves open", () => {

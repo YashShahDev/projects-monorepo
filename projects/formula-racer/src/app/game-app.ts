@@ -8,7 +8,7 @@ import { fetchEnergyRules } from "../content/energy-rules.ts";
 import { fetchLiveries } from "../content/livery.ts";
 import { loadCatalogTrack } from "../content/track-catalog.ts";
 import { initPhysics } from "../simulation/physics.ts";
-import type { VehicleSnapshot } from "../simulation/vehicle.ts";
+import type { DriverControls, VehicleSnapshot } from "../simulation/vehicle.ts";
 import { createTrackView } from "../rendering/track-view.ts";
 import { createGhostView } from "../rendering/ghost-view.ts";
 import type { GhostMode } from "../rendering/ghost-view.ts";
@@ -20,6 +20,7 @@ import type { Ghost } from "../simulation/ghost.ts";
 import { createGhostStore } from "./ghost-store.ts";
 import type { GuideState, GuideView } from "../rendering/guide-view.ts";
 import { buildRacingLine, lineLimits } from "../simulation/racing-line.ts";
+import type { RacingLine } from "../simulation/racing-line.ts";
 import { parseCarModelInterface } from "../content/car-model.ts";
 import { loadCarModel } from "../rendering/car-model-loader.ts";
 import modelInterface from "../../content/cars/model-interface.json";
@@ -34,6 +35,10 @@ import { createDrivingSession, TYRE_HALF_WIDTH_M } from "./session.ts";
 import { autopilot } from "./autopilot.ts";
 import { createBenchRecorder } from "./bench.ts";
 import { installBrowserControl } from "../control/browser.ts";
+import { createControlLink } from "../control/link.ts";
+import type { ControlLink } from "../control/link.ts";
+import { createAiDriver } from "../ai/driver.ts";
+import type { AiDriver } from "../ai/driver.ts";
 import { createDashboard } from "./dashboard.ts";
 import type { BenchOptions, BenchReport } from "./bench.ts";
 import type { SessionState } from "./session.ts";
@@ -53,6 +58,9 @@ export interface GameAppState extends SessionState {
   guide: GuideState | undefined;
   ghost: { mode: GhostMode; visible: boolean; deltaS: number | undefined };
   marks: TyreMarksState;
+
+  /** The AI driver has the car (I hands it over and takes it back). */
+  aiDriving: boolean;
 }
 
 export interface GameApp {
@@ -83,6 +91,7 @@ export interface Hud {
   wing: HTMLElement;
   bestLap: HTMLElement;
   delta: HTMLElement;
+  aiDriving: HTMLElement;
   storageNote: HTMLElement;
   trackName: HTMLElement;
   telemetry: HTMLElement;
@@ -271,6 +280,27 @@ export async function startGameApp(
     }
   };
 
+  // I hands the car to an Ace-level AI driver, on the same racing line the guide shows,
+  // and takes it back. It sees the car through the control API's observation.
+  let racingLine: RacingLine | undefined;
+  let ai: { driver: AiDriver; link: ControlLink } | undefined;
+  let aiDriving = false;
+  const toggleAi = () => {
+    aiDriving = !aiDriving;
+    if (!aiDriving) {
+      return;
+    }
+
+    const car = session.car();
+    const line = racingLine ?? buildRacingLine(session.geometry, lineLimits(car));
+    racingLine = line;
+    ai ??= {
+      driver: createAiDriver({ car, track, geometry: session.geometry, level: "ace", seed: 1, line }),
+      link: createControlLink(session, track.id),
+    };
+    ai.driver.reset();
+  };
+
   keyboard.onAction((action) => {
     if (menu.help.hidden !== true) {
       if (action === "help" || action === "pause") {
@@ -284,6 +314,17 @@ export async function startGameApp(
       openHelp();
 
       return;
+    }
+
+    if (action === "aiDriver") {
+      toggleAi();
+      show();
+
+      return;
+    }
+
+    if (action === "reset") {
+      ai?.driver.reset();
     }
 
     session.action(action);
@@ -426,6 +467,7 @@ export async function startGameApp(
   const guideTimer = setTimeout(() => {
     const limits = lineLimits(carDefinition);
     const line = buildRacingLine(session.geometry, limits);
+    racingLine = line;
     guide = createGuideView(session.geometry, line, limits);
     view.add(guide);
     dashboard.setRacingLine(line);
@@ -457,6 +499,7 @@ export async function startGameApp(
     guide: guideState,
     ghost: { mode: preferences.ghost(), visible: ghostView.object.visible, deltaS },
     marks: marksState,
+    aiDriving,
   });
   let racing: Ghost | undefined;
   let deltaS: number | undefined;
@@ -534,6 +577,7 @@ export async function startGameApp(
     furthestM = Math.max(furthestM, s.lap?.progressM ?? 0);
     deltaS = racing && s.lap && furthestM > 0 ? ghostDelta(racing, s.lap.elapsedS, furthestM) : undefined;
     hud.delta.hidden = deltaS === undefined;
+    hud.aiDriving.hidden = !aiDriving;
     if (deltaS !== undefined) {
       hud.delta.textContent = `${deltaS < 0 ? "−" : "+"}${Math.abs(deltaS).toFixed(2)}`;
       hud.delta.classList.toggle("ahead", deltaS < 0);
@@ -546,9 +590,9 @@ export async function startGameApp(
   let lastCountdownS = Number.POSITIVE_INFINITY;
   const recorder = bench ? createBenchRecorder(bench.options) : undefined;
   let benchReported = false;
-  const draw = (frameSeconds: number, held: HeldKeys | (() => HeldKeys)): void => {
+  const draw = (frameSeconds: number, held: HeldKeys | (() => HeldKeys), driver?: () => DriverControls): void => {
     const t0 = performance.now();
-    const { car, camera, lapTimeS, gripShare } = session.frame(frameSeconds, held);
+    const { car, camera, lapTimeS, gripShare } = session.frame(frameSeconds, held, driver);
     const t1 = performance.now();
     guideState = guide?.update({ position: car.position, speedMps: car.speedMps, gripShare }, preferences.racingLine());
     ghostView.update(racing && lapTimeS !== undefined ? ghostPoseAt(racing, lapTimeS) : undefined, car.position.y);
@@ -630,7 +674,12 @@ export async function startGameApp(
       if (control?.driving() === true) {
         draw(0, coasting);
       } else {
-        draw(frameSeconds, recorder && !benchReported ? () => autopilot(session) : keyboard.held());
+        const at = aiDriving ? ai : undefined;
+        draw(
+          frameSeconds,
+          recorder && !benchReported ? () => autopilot(session) : keyboard.held(),
+          at && (() => at.driver.decide(at.link.observe())),
+        );
       }
     } catch (error) {
       fail(`Frame failed: ${error instanceof Error ? error.message : String(error)}`);
