@@ -23,6 +23,7 @@ import { createPreferences } from "./preferences.ts";
 import { createDrivingSession, TYRE_HALF_WIDTH_M } from "./session.ts";
 import { autopilot } from "./autopilot.ts";
 import { createBenchRecorder } from "./bench.ts";
+import { createDashboard } from "./dashboard.ts";
 import type { BenchOptions, BenchReport } from "./bench.ts";
 import type { SessionState } from "./session.ts";
 
@@ -64,6 +65,9 @@ export interface Hud {
   bestLap: HTMLElement;
   storageNote: HTMLElement;
   trackName: HTMLElement;
+  telemetry: HTMLElement;
+  map: SVGSVGElement | undefined;
+  preview: HTMLElement;
 }
 
 export interface Menu {
@@ -132,12 +136,22 @@ export async function startGameApp(
     throw error;
   });
   const view = await stage("Renderer failed to start", () =>
-    createTrackView(canvas, context, session.geometry, track.startDistanceM, model),
+    createTrackView(canvas, context, session.geometry, track.startDistanceM, model, session.trackside),
   ).catch((error: unknown) => {
     session.dispose();
     model.dispose();
     throw error;
   });
+  if (!hud.map) {
+    throw new StartupError("index.html is missing #track-map");
+  }
+
+  const dashboard = createDashboard(
+    { telemetry: hud.telemetry, map: hud.map, preview: hud.preview },
+    session.geometry,
+    car.powertrain.gearbox,
+    track.startDistanceM,
+  );
   const store = createLapStore(browserStorage());
   const preferences = createPreferences(browserStorage(), liveries);
   menu.livery.replaceChildren(
@@ -363,6 +377,7 @@ export async function startGameApp(
 
     listen(car);
     show();
+    dashboard.update(car, frameSeconds);
     frames += 1;
     if (frames === 1) {
       performance.mark("formula-racer:first-frame");

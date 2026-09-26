@@ -23,6 +23,17 @@ export async function freezeFrames(page: Page): Promise<void> {
   await page.clock.pauseAt(new Date("2026-01-01T00:00:01Z"));
 }
 
+/**
+ * Preloads the Low preset. Clock-driven tests render every frame in headless software
+ * GL, and the preset only changes rendering, not the simulation they check; the tests of
+ * rendering itself keep the default.
+ */
+export async function lowQuality(page: Page): Promise<void> {
+  await page.addInitScript(() =>
+    localStorage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, quality: "low" })),
+  );
+}
+
 export async function openGame(page: Page, path = "./"): Promise<void> {
   await page.goto(path);
   await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });

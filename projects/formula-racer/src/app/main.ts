@@ -30,6 +30,9 @@ const hud = {
   bestLap: element("#best-lap"),
   storageNote: element("#storage-note"),
   trackName: element("#track-name"),
+  telemetry: element("#telemetry"),
+  map: document.querySelector<SVGSVGElement>("#track-map") ?? undefined,
+  preview: element("#corner-preview"),
 };
 const menu = {
   resume: element<HTMLButtonElement>("#resume"),

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { GameApp, GameAppState } from "../../src/app/game-app.ts";
-import { freezeFrames, openGame } from "./helpers.ts";
+import { freezeFrames, openGame, lowQuality } from "./helpers.ts";
 
 type Call = { name: "state" | "dispose" } | { name: "step"; count: number; throttle: boolean };
 
@@ -49,6 +49,7 @@ test("@dev stepping with the hooks is deterministic across page loads", async ({
 });
 
 test("@dev losing focus pauses and releases held keys", async ({ page }) => {
+  await lowQuality(page);
   await freezeFrames(page);
   await openGame(page);
   await page.clock.runFor(3_000);
@@ -69,6 +70,7 @@ test("@dev losing focus pauses and releases held keys", async ({ page }) => {
 });
 
 test("@dev R resets to the grid", async ({ page }) => {
+  await lowQuality(page);
   await freezeFrames(page);
   await openGame(page);
   const grid = await state(page);

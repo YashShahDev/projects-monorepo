@@ -35,6 +35,10 @@ describe("graphics quality presets", () => {
     expect(qualitySettings("high", 3).pixelRatio).toBe(2);
   });
 
+  test("leave the trees out on low, the cheapest preset", () => {
+    expect(QUALITY_PRESETS.map((q) => qualitySettings(q, 1).trees)).toEqual([false, true, true]);
+  });
+
   test("draw the car at a coarser level of detail on lower presets", () => {
     expect(QUALITY_PRESETS.map((q) => qualitySettings(q, 1).carLod)).toEqual([2, 1, 0]);
   });

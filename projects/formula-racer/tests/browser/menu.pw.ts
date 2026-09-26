@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { lapKey } from "../../src/app/lap-store.ts";
 import { PHYSICS_VERSION } from "../../src/simulation/version.ts";
-import { collectErrors, freezeFrames, openGame, readSpeed, scenePixels } from "./helpers.ts";
+import { collectErrors, freezeFrames, openGame, readSpeed, scenePixels, lowQuality } from "./helpers.ts";
 
 const allAssists = { steering: true, abs: true, traction: true };
 const key = lapKey({ trackId: "harbour", physicsVersion: PHYSICS_VERSION, assists: allAssists });
@@ -17,6 +17,7 @@ test("@smoke Escape opens the pause menu; Resume continues", async ({ page }) =>
 });
 
 test("@smoke switching an assist off restarts on the grid", async ({ page }) => {
+  await lowQuality(page);
   await freezeFrames(page);
   await openGame(page);
   await page.clock.runFor(3_000);

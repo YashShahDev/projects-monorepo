@@ -105,6 +105,7 @@ body {
 
 #tuning {
   position: fixed;
+  z-index: 1;
   top: 12px;
   left: 12px;
   display: grid;
@@ -184,4 +185,173 @@ body {
 #charge-meter {
   width: 64px;
   vertical-align: middle;
+}
+
+#telemetry {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+#shift-lights {
+  display: flex;
+  gap: 4px;
+}
+
+#shift-lights i {
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 15%);
+}
+
+#shift-lights i.on.green {
+  background: #4cd964;
+}
+
+#shift-lights i.on.amber {
+  background: #ffcc00;
+}
+
+#shift-lights i.on.red {
+  background: #ff5a4a;
+}
+
+#shift-lights.flash i.on {
+  background: #6fa8ff;
+}
+
+#telemetry .rpm {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+#telemetry .pedal {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  align-items: center;
+  font-size: 12px;
+}
+
+#telemetry .bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 15%);
+}
+
+#telemetry .bar i {
+  display: block;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+#throttle-bar {
+  background: #4cd964;
+}
+
+#brake-bar {
+  background: #ff5a4a;
+}
+
+#telemetry .g-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.g-ring {
+  width: 44px;
+  height: 44px;
+}
+
+.g-ring circle,
+.g-ring line {
+  fill: none;
+  stroke: rgb(255 255 255 / 35%);
+  stroke-width: 0.04;
+}
+
+.g-ring #g-dot {
+  fill: #ffcc00;
+  stroke: none;
+}
+
+#track-map {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  width: 220px;
+  height: 150px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 45%);
+}
+
+#track-map .outline {
+  fill: none;
+  stroke: rgb(0 0 0 / 60%);
+  stroke-width: 6;
+  stroke-linejoin: round;
+}
+
+#track-map .road {
+  fill: none;
+  stroke: #e8edf2;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+#track-map .start {
+  fill: #ffcc00;
+}
+
+#map-car {
+  fill: #ff5a4a;
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+#corner-preview {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  transform: translateX(-50%);
+  border-radius: 6px;
+  background: rgb(0 0 0 / 55%);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#corner-preview[hidden] {
+  display: none;
+}
+
+#corner-preview svg {
+  width: 120px;
+  height: 120px;
+}
+
+#corner-preview path {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#corner-preview .ahead {
+  stroke: #e8edf2;
+}
+
+#corner-preview .behind {
+  stroke: rgb(232 237 242 / 35%);
+}
+
+#corner-preview .car {
+  fill: #ff5a4a;
 }

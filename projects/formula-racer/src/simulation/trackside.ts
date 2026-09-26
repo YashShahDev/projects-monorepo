@@ -12,6 +12,9 @@ export interface TracksideEdge {
 
   /** Distance from the centreline to the barrier's face, metres; NaN where there is none. */
   barrierM: Float64Array;
+
+  /** Distance from the centreline to the outer edge of the runoff surface, metres. */
+  runoffM: Float64Array;
 }
 
 export interface Trackside {
@@ -21,6 +24,9 @@ export interface Trackside {
   /** Barrier face lines as world points, each an unbroken run (closed when `closed`). */
   barriers: { points: { x: number; z: number }[]; closed: boolean; side: "left" | "right" }[];
   surfaceAt(location: TrackLocation): GroundSurface;
+
+  /** Distance from (x, z) to the nearest centreline sample, or Infinity beyond `reachM`. */
+  distanceToTrack(x: number, z: number, reachM: number): number;
 }
 
 /** Gravel's rolling resistance on each wheel in it, N: four wheels decelerate the car ~0.75 g. */
@@ -114,6 +120,36 @@ function runoffFor(track: TrackGeometry, sign: 1 | -1): Runoff[] {
   return runoff;
 }
 
+/** Tightest curvature toward this side within the smoothing window; 0 on an outside. */
+function insideCurvature(track: TrackGeometry, i: number, sign: 1 | -1): number {
+  let tightest = 0;
+  for (let k = -SMOOTH_SAMPLES; k <= SMOOTH_SAMPLES; k += 1) {
+    tightest = Math.max(tightest, (track.curvature[(i + k + track.count) % track.count] ?? 0) * sign);
+  }
+
+  return tightest;
+}
+
+/** The painted runoff's outer edge: its width, cut short by the barrier and inside bends. */
+function runoffExtent(track: TrackGeometry, runoff: Runoff[], barrierM: Float64Array, sign: 1 | -1) {
+  const edge = track.halfWidthM + track.kerbWidthM;
+
+  return Float64Array.from(runoff, (r, i) => {
+    const inside = insideCurvature(track, i, sign);
+    const barrier = barrierM[i] ?? Number.NaN;
+    let extent = edge + RUNOFF_M[r];
+    if (inside > 0) {
+      extent = Math.min(extent, 0.5 / inside);
+    }
+
+    if (!Number.isNaN(barrier)) {
+      extent = Math.min(extent, barrier);
+    }
+
+    return Math.max(edge, extent);
+  });
+}
+
 function barrierFor(track: TrackGeometry, runoff: Runoff[], sign: 1 | -1, near: ReturnType<typeof sampleGrid>) {
   const n = track.count;
   const edge = track.halfWidthM + track.kerbWidthM;
@@ -123,12 +159,7 @@ function barrierFor(track: TrackGeometry, runoff: Runoff[], sign: 1 | -1, near: 
     let wanted = edge + RUNOFF_M[runoff[i] ?? "grass"];
 
     // On the inside of a bend an offset past the radius folds the line back on itself.
-    let tightest = 0;
-    for (let k = -SMOOTH_SAMPLES; k <= SMOOTH_SAMPLES; k += 1) {
-      const c = (track.curvature[(i + k + n) % n] ?? 0) * sign;
-      tightest = Math.max(tightest, c);
-    }
-
+    const tightest = insideCurvature(track, i, sign);
     if (tightest > 0) {
       wanted = Math.min(wanted, 0.5 / tightest);
     }
@@ -207,8 +238,9 @@ export function buildTrackside(track: TrackGeometry): Trackside {
   const near = sampleGrid(track);
   const edges = ([1, -1] as const).map((sign) => {
     const runoff = runoffFor(track, sign);
+    const barrierM = barrierFor(track, runoff, sign, near);
 
-    return { runoff, barrierM: barrierFor(track, runoff, sign, near) };
+    return { runoff, barrierM, runoffM: runoffExtent(track, runoff, barrierM, sign) };
   });
   const [left, right] = edges as [TracksideEdge, TracksideEdge];
 
@@ -216,16 +248,17 @@ export function buildTrackside(track: TrackGeometry): Trackside {
     left,
     right,
     barriers: [...runsOf(track, left.barrierM, 1, "left"), ...runsOf(track, right.barrierM, -1, "right")],
+    distanceToTrack: near,
     surfaceAt(location) {
       if (location.surface !== "grass") {
         return location.surface;
       }
 
+      // The same extent the renderer paints, so what a wheel feels is what is drawn.
       const edge = location.lateralM > 0 ? left : right;
-      const runoff = edge.runoff[location.index] ?? "grass";
-      const reach = track.halfWidthM + track.kerbWidthM + RUNOFF_M[runoff];
+      const reach = edge.runoffM[location.index] ?? 0;
 
-      return Math.abs(location.lateralM) <= reach ? runoff : "grass";
+      return Math.abs(location.lateralM) <= reach ? (edge.runoff[location.index] ?? "grass") : "grass";
     },
   };
 }

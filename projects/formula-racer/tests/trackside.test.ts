@@ -104,6 +104,17 @@ describe("trackside barriers", () => {
     expect(side.barriers.map((b) => b.closed)).toEqual([true, true]);
   });
 
+  test("painted runoff never runs past the barrier", () => {
+    for (const edge of [harbourSide.left, harbourSide.right]) {
+      edge.runoffM.forEach((m, i) => {
+        const barrier = edge.barrierM[i] ?? Number.NaN;
+        if (!Number.isNaN(barrier)) {
+          expect(m).toBeLessThanOrEqual(barrier + 1e-9);
+        }
+      });
+    }
+  });
+
   test("the inside of the hairpin leaves a gap rather than folding the barrier back on itself", () => {
     const apex = tightest(harbour);
     expect(harbourSide.right.barrierM[apex]).toBeNaN();

@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import type { Livery } from "../content/livery.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
+import type { Trackside } from "../simulation/trackside.ts";
+import { layoutScenery } from "./scenery-layout.ts";
+import { createScenery } from "./scenery-view.ts";
 import type { VehicleSnapshot } from "../simulation/vehicle.ts";
 import type { CameraView } from "./camera-rig.ts";
 import type { BoundCarModel } from "./car-model-view.ts";
@@ -83,6 +86,7 @@ export function createTrackView(
   track: TrackGeometry,
   startDistanceM: number,
   car: BoundCarModel,
+  trackside: Trackside,
 ): TrackView {
   const renderer = new THREE.WebGLRenderer({ canvas, context });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -134,6 +138,8 @@ export function createTrackView(
   line.position.set(start.x, 0.01, start.z);
   scene.add(line);
 
+  const scenery = createScenery(track, trackside, layoutScenery(track, trackside, startDistanceM), own);
+  scene.add(scenery);
   scene.add(car.root);
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 4000);
@@ -174,6 +180,12 @@ export function createTrackView(
       renderer.setPixelRatio(settings.pixelRatio);
       camera.far = settings.drawDistanceM;
       car.setLod(settings.carLod);
+      for (const child of scenery.children) {
+        if (child.name === "trees") {
+          child.visible = settings.trees;
+        }
+      }
+
       camera.updateProjectionMatrix();
     },
     dispose() {

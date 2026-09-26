@@ -10,6 +10,9 @@ export interface QualitySettings {
 
   /** Car model level of detail; 0 is the finest. */
   carLod: number;
+
+  /** Trackside trees, most of the scenery's vertices. */
+  trees: boolean;
 }
 
 export const isQualityPreset = (value: unknown): value is QualityPreset =>
@@ -21,10 +24,10 @@ export const isQualityPreset = (value: unknown): value is QualityPreset =>
 export function qualitySettings(preset: QualityPreset, devicePixelRatio: number): QualitySettings {
   switch (preset) {
     case "low":
-      return { pixelRatio: 0.6, drawDistanceM: 1500, carLod: 2 };
+      return { pixelRatio: 0.6, drawDistanceM: 1500, carLod: 2, trees: false };
     case "medium":
-      return { pixelRatio: Math.min(devicePixelRatio, 1.5), drawDistanceM: 3000, carLod: 1 };
+      return { pixelRatio: Math.min(devicePixelRatio, 1.5), drawDistanceM: 3000, carLod: 1, trees: true };
     case "high":
-      return { pixelRatio: Math.min(devicePixelRatio, 2), drawDistanceM: 4000, carLod: 0 };
+      return { pixelRatio: Math.min(devicePixelRatio, 2), drawDistanceM: 4000, carLod: 0, trees: true };
   }
 }

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { collectErrors, freezeFrames, openGame, readSpeed, scenePixels } from "./helpers.ts";
+import { collectErrors, freezeFrames, openGame, readSpeed, scenePixels, lowQuality } from "./helpers.ts";
 
 test("@smoke starts on the grid and renders sky, grass, road and car", async ({ page }, info) => {
   const errors = collectErrors(page);
@@ -20,6 +20,7 @@ test("@smoke starts on the grid and renders sky, grass, road and car", async ({ 
 });
 
 test("@smoke the countdown holds the car, then the lap clock runs", async ({ page }) => {
+  await lowQuality(page);
   await freezeFrames(page);
   await openGame(page);
   await page.keyboard.down("ArrowUp");
@@ -34,6 +35,7 @@ test("@smoke the countdown holds the car, then the lap clock runs", async ({ pag
 });
 
 test("@smoke holding the throttle drives off and shifts up", async ({ page }) => {
+  await lowQuality(page);
   const errors = collectErrors(page);
   await freezeFrames(page);
   await openGame(page);
@@ -46,6 +48,7 @@ test("@smoke holding the throttle drives off and shifts up", async ({ page }) =>
 });
 
 test("@smoke Escape pauses the car and shows it", async ({ page }) => {
+  await lowQuality(page);
   await freezeFrames(page);
   await openGame(page);
   await page.clock.runFor(3_000);
@@ -61,6 +64,7 @@ test("@smoke Escape pauses the car and shows it", async ({ page }) => {
 });
 
 test("@smoke E switches the energy mode and Shift deploys from the battery", async ({ page }) => {
+  await lowQuality(page);
   await freezeFrames(page);
   await openGame(page);
   await expect(page.locator("#energy-mode")).toHaveText("Balanced");
@@ -79,6 +83,7 @@ test("@smoke E switches the energy mode and Shift deploys from the battery", asy
 });
 
 test("@smoke a battery meter shows the charge the readout gives", async ({ page }) => {
+  await lowQuality(page);
   await freezeFrames(page);
   await openGame(page);
   const meter = page.getByRole("meter", { name: "Battery" });
@@ -93,11 +98,7 @@ test("@smoke a battery meter shows the charge the readout gives", async ({ page 
 });
 
 test("@smoke running wide onto the grass marks the lap invalid", async ({ page }) => {
-  // This test renders 12 s of frames; software GL draws the real car model slowly, and
-  // the preset only changes rendering, not where the car goes.
-  await page.addInitScript(() =>
-    localStorage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, quality: "low" })),
-  );
+  await lowQuality(page);
   await freezeFrames(page);
   await openGame(page);
   await page.clock.runFor(3_000);
