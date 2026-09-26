@@ -15,6 +15,7 @@ test("@smoke starts on the grid and renders sky, grass, road and car", async ({ 
     () => performance.getEntriesByName("formula-racer:startup")[0]?.duration,
   );
   expect(startup).toBeGreaterThan(0);
+
   // Reported for the checkpoint record; headless software rendering is not a benchmark.
   info.annotations.push({ type: "startup-ms", description: String(Math.round(startup ?? 0)) });
   expect(errors).toEqual([]);
@@ -24,6 +25,7 @@ test("@smoke the countdown holds the car, then the lap clock runs", async ({ pag
   await freezeFrames(page);
   await openGame(page);
   await page.keyboard.down("ArrowUp");
+
   // Mid-second, clear of the boundary: the first frame has no previous timestamp.
   await page.clock.runFor(1_500);
   await expect(page.locator("#countdown")).toHaveText("2");
@@ -71,6 +73,7 @@ test("@smoke E switches the energy mode and Shift deploys from the battery", asy
   await page.clock.runFor(3_000);
   await page.keyboard.down("Shift");
   await page.keyboard.down("ArrowUp");
+
   // Still inside the main-straight zone (40–260 m from a 150 m grid slot).
   await page.clock.runFor(2_000);
   await expect(page.locator("#wing")).toHaveText("Straight");
@@ -82,6 +85,7 @@ test("@smoke running wide onto the grass marks the lap invalid", async ({ page }
   await openGame(page);
   await page.clock.runFor(3_000);
   await expect(page.locator("#lap-time")).not.toHaveClass(/invalid/);
+
   // Flat out without steering: straight on at turn 1 and onto the grass.
   await page.keyboard.down("ArrowUp");
   await page.clock.runFor(9_000);

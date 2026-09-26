@@ -15,8 +15,10 @@ export type CameraMode = "chase" | "nose";
 
 export interface CameraRig {
   update(car: CarPose, dtSeconds: number): CameraView;
+
   /** Advances to the next mode and returns it. */
   cycle(): CameraMode;
+
   /** Drops smoothing history, e.g. after the car is reset. */
   reset(): void;
 }
@@ -37,25 +39,33 @@ function headingOf(q: Quat): number {
 export function createCameraRig(): CameraRig {
   let mode: CameraMode = "chase";
   let heading: number | undefined;
+
   return {
     update(car, dtSeconds) {
       const actual = headingOf(car.rotation);
-      if (heading === undefined) heading = actual;
+      if (heading === undefined) {
+        heading = actual;
+      }
+
       let delta = actual - heading;
       delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+
       // Exponential decay per elapsed time, so the path does not depend on frame rate.
       heading += delta * (1 - Math.exp(-dtSeconds / HEADING_LAG_S));
       const p = car.position;
       if (mode === "nose") {
         const fx = Math.sin(actual);
         const fz = Math.cos(actual);
+
         return {
           position: { x: p.x + fx * 1.2, y: p.y + 0.6, z: p.z + fz * 1.2 },
           target: { x: p.x + fx * 20, y: p.y + 0.4, z: p.z + fz * 20 },
         };
       }
+
       const fx = Math.sin(heading);
       const fz = Math.cos(heading);
+
       return {
         position: {
           x: p.x - fx * CHASE_DISTANCE_M,
@@ -67,6 +77,7 @@ export function createCameraRig(): CameraRig {
     },
     cycle() {
       mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length] ?? "chase";
+
       return mode;
     },
     reset() {

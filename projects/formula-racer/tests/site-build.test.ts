@@ -13,8 +13,13 @@ const html = readFileSync(join(outdir, "index.html"), "utf8");
 test("the production page references its bundle with subpath-safe relative URLs", () => {
   const urls = [...html.matchAll(/(?:src|href)="([^"]+)"/gu)].map((match) => match[1] ?? "");
   expect(urls.length).toBeGreaterThanOrEqual(2);
-  for (const url of urls) expect(url).toStartWith("./");
-  for (const url of urls) expect(files.map((file) => file.path)).toContain(url.slice(2));
+  for (const url of urls) {
+    expect(url).toStartWith("./");
+  }
+
+  for (const url of urls) {
+    expect(files.map((file) => file.path)).toContain(url.slice(2));
+  }
 });
 
 test("runtime assets are copied beside the bundle", () => {

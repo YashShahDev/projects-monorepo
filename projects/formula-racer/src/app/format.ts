@@ -4,5 +4,6 @@ export function formatLapTime(seconds: number): string {
   const minutes = Math.floor(ms / 60_000);
   const secs = Math.floor((ms % 60_000) / 1000);
   const millis = ms % 1000;
+
   return `${String(minutes)}:${String(secs).padStart(2, "0")}.${String(millis).padStart(3, "0")}`;
 }

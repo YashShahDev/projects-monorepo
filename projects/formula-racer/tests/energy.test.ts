@@ -25,6 +25,7 @@ const cruise = (over: Partial<EnergyInput> = {}): EnergyInput => ({
 function rolling() {
   const energy = createEnergySystem(rules);
   energy.update(cruise({ speedMps: kmh(60) }));
+
   return energy;
 }
 
@@ -64,8 +65,10 @@ describe("permitted deployment (C5.2.8 i)", () => {
   test.each([
     [100, 350],
     [290, 350],
+
     // 1800 - 5 * 300 = 300 kW
     [300, 300],
+
     // 6900 - 20 * 342 = 60 kW
     [342, 60],
     [345, 0],
@@ -97,6 +100,7 @@ describe("energy system", () => {
     const fresh = createEnergySystem(rules);
     expect(fresh.update(cruise({ speedMps: kmh(40) })).deployW).toBe(0);
     fresh.update(cruise({ speedMps: kmh(51) }));
+
     // Once past 50 km/h, deployment stays available even back below it.
     expect(fresh.update(cruise({ speedMps: kmh(40) })).deployW).toBeGreaterThan(0);
   });
@@ -104,15 +108,20 @@ describe("energy system", () => {
   test("an empty battery stops deployment", () => {
     const energy = rolling();
     let flow = energy.update(cruise({ deployRequest: true }));
-    for (let i = 0; i < 60 * 20 && flow.socJ > 0; i += 1)
+    for (let i = 0; i < 60 * 20 && flow.socJ > 0; i += 1) {
       flow = energy.update(cruise({ deployRequest: true }));
+    }
+
     expect(flow.socJ).toBe(0);
     expect(energy.update(cruise({ deployRequest: true })).deployW).toBe(0);
   });
 
   test("braking regenerates up to the ERS limit and blends the rest to friction", () => {
     const energy = rolling();
-    for (let i = 0; i < 120; i += 1) energy.update(cruise({ deployRequest: true }));
+    for (let i = 0; i < 120; i += 1) {
+      energy.update(cruise({ deployRequest: true }));
+    }
+
     const flow = energy.update(cruise({ throttle: 0, brakePowerW: 1_000_000 }));
     expect(flow.regenW).toBeCloseTo(350_000, 6);
     expect(flow.frictionBrakeW).toBeCloseTo(650_000, 6);
@@ -130,7 +139,10 @@ describe("energy system", () => {
 
   test("Harvest deploys nothing and charges on lift-off", () => {
     const energy = rolling();
-    for (let i = 0; i < 120; i += 1) energy.update(cruise({ deployRequest: true }));
+    for (let i = 0; i < 120; i += 1) {
+      energy.update(cruise({ deployRequest: true }));
+    }
+
     expect(energy.update(cruise({ mode: "harvest" })).deployW).toBe(0);
     expect(energy.update(cruise({ mode: "harvest", throttle: 0 })).regenW).toBeCloseTo(120_000, 6);
     expect(energy.update(cruise({ mode: "balanced", throttle: 0 })).regenW).toBe(0);
@@ -139,11 +151,13 @@ describe("energy system", () => {
   test("recharge stops at the per-lap limit until the next lap", () => {
     const energy = rolling();
     let lapRecharge = 0;
+
     // Alternate draining and braking until the lap's recharge allowance is used up.
     for (let i = 0; i < 60 * 120 && lapRecharge < rules.rechargePerLapJ; i += 1) {
       energy.update(cruise({ deployRequest: true }));
       lapRecharge = energy.update(cruise({ throttle: 0, brakePowerW: 2_000_000 })).lapRechargeJ;
     }
+
     expect(lapRecharge).toBeCloseTo(rules.rechargePerLapJ, 0);
     energy.update(cruise({ deployRequest: true }));
     expect(energy.update(cruise({ throttle: 0, brakePowerW: 2_000_000 })).regenW).toBe(0);
@@ -157,6 +171,7 @@ describe("energy system", () => {
     const energy = rolling();
     const start = energy.state().socJ;
     let expected = start;
+
     // A deterministic mix of deploying, coasting and braking at varying speeds.
     for (let i = 0; i < 3000; i += 1) {
       const phase = i % 7;
@@ -174,6 +189,7 @@ describe("energy system", () => {
       expect(flow.socJ).toBeGreaterThanOrEqual(0);
       expect(flow.socJ).toBeLessThanOrEqual(rules.socWindowJ);
     }
+
     expect(energy.state().socJ).toBeCloseTo(expected, 3);
   });
 
@@ -184,10 +200,14 @@ describe("energy system", () => {
 
   test("lift-off harvesting reports the drivetrain braking it needs, and stops near rest", () => {
     const energy = rolling();
-    for (let i = 0; i < 120; i += 1) energy.update(cruise({ deployRequest: true }));
+    for (let i = 0; i < 120; i += 1) {
+      energy.update(cruise({ deployRequest: true }));
+    }
+
     const coasting = energy.update(cruise({ mode: "harvest", throttle: 0 }));
     expect(coasting.engineBrakeW).toBeCloseTo(120_000, 6);
     const braking = energy.update(cruise({ mode: "harvest", throttle: 0, brakePowerW: 500_000 }));
+
     // Up to the ERS limit: 350 kW, of which 500 kW of brake request covers all.
     expect(braking.engineBrakeW).toBe(0);
     expect(energy.update(cruise({ mode: "harvest", throttle: 0, speedMps: 2 })).regenW).toBe(0);

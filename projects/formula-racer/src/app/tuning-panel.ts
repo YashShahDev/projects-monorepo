@@ -7,6 +7,7 @@ export interface Tunable {
 
 interface Field {
   label: string;
+
   /** Path into the car definition. */
   path: string[];
   step: string;
@@ -29,9 +30,15 @@ const read = (car: CarDefinition, path: string[]): unknown =>
 
 function write(tree: Tree, path: string[], value: number): void {
   const [key, ...rest] = path;
-  if (key === undefined) return;
-  if (rest.length === 0) tree[key] = value;
-  else write(tree[key] as Tree, rest, value);
+  if (key === undefined) {
+    return;
+  }
+
+  if (rest.length === 0) {
+    tree[key] = value;
+  } else {
+    write(tree[key] as Tree, rest, value);
+  }
 }
 
 /**
@@ -43,6 +50,7 @@ export function installTuningPanel(target: Tunable): () => void {
   form.id = "tuning";
   form.setAttribute("aria-label", "Tuning");
   form.hidden = true;
+
   // Content validation names the failing field; the browser's step checks would instead
   // silently block values like 1.36 that are not a multiple of the spinner step.
   form.noValidate = true;
@@ -53,6 +61,7 @@ export function installTuningPanel(target: Tunable): () => void {
     input.step = field.step;
     label.append(field.label, input);
     form.append(label);
+
     return input;
   });
   const apply = document.createElement("button");
@@ -67,9 +76,12 @@ export function installTuningPanel(target: Tunable): () => void {
     const car = target.car();
     FIELDS.forEach((field, i) => {
       const input = inputs[i];
-      if (input) input.value = String(read(car, field.path));
+      if (input) {
+        input.value = String(read(car, field.path));
+      }
     });
   };
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const next = structuredClone(target.car()) as unknown as Tree;
@@ -82,12 +94,19 @@ export function installTuningPanel(target: Tunable): () => void {
     }
   });
   const onKey = (event: KeyboardEvent) => {
-    if (event.code !== "F2") return;
+    if (event.code !== "F2") {
+      return;
+    }
+
     event.preventDefault();
     form.hidden = !form.hidden;
-    if (!form.hidden) load();
+    if (!form.hidden) {
+      load();
+    }
   };
+
   addEventListener("keydown", onKey);
+
   return () => {
     removeEventListener("keydown", onKey);
     form.remove();

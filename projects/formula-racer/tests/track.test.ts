@@ -15,9 +15,13 @@ const DEG = Math.PI / 180;
 /** Heading change over each window of `lengthM` metres, keyed by start sample. */
 function turnOver(g: TrackGeometry, lengthM: number): number[] {
   const n = Math.round(lengthM / g.spacingM);
+
   return Array.from({ length: g.count }, (_, i) => {
     let sum = 0;
-    for (let k = 0; k < n; k += 1) sum += (g.curvature[(i + k) % g.count] ?? 0) * g.spacingM;
+    for (let k = 0; k < n; k += 1) {
+      sum += (g.curvature[(i + k) % g.count] ?? 0) * g.spacingM;
+    }
+
     return sum;
   });
 }
@@ -31,11 +35,13 @@ describe("the shipped circuit", () => {
   test("has a straight of at least 1 km for active aero", () => {
     let best = 0;
     let run = 0;
+
     // Two laps so a straight crossing the loop's seam is counted whole.
     for (let i = 0; i < geometry.count * 2; i += 1) {
       run = Math.abs(geometry.curvature[i % geometry.count] ?? 0) < 1 / 1000 ? run + 1 : 0;
       best = Math.max(best, run);
     }
+
     expect(best * geometry.spacingM).toBeGreaterThan(1000);
   });
 
@@ -54,6 +60,7 @@ describe("the shipped circuit", () => {
       sweep = fast && k * sweep >= 0 ? sweep + k * geometry.spacingM : 0;
       sweeper ||= Math.abs(sweep) >= 60 * DEG;
     }
+
     expect(sweeper).toBe(true);
   });
 
@@ -61,6 +68,7 @@ describe("the shipped circuit", () => {
     const flick = turnOver(geometry, 40);
     const chicane = flick.some((turn, i) => {
       const next = flick[(i + Math.round(50 / geometry.spacingM)) % geometry.count] ?? 0;
+
       return Math.abs(turn) > 20 * DEG && Math.abs(next) > 20 * DEG && turn * next < 0;
     });
     expect(chicane).toBe(true);
@@ -72,7 +80,10 @@ describe("the shipped circuit", () => {
     let closest = Number.POSITIVE_INFINITY;
     for (let i = 0; i < geometry.count; i += 1) {
       for (let j = i + 1; j < geometry.count; j += 1) {
-        if (Math.min(j - i, geometry.count - (j - i)) < skip) continue;
+        if (Math.min(j - i, geometry.count - (j - i)) < skip) {
+          continue;
+        }
+
         const d = Math.hypot(
           (geometry.x[i] ?? 0) - (geometry.x[j] ?? 0),
           (geometry.z[i] ?? 0) - (geometry.z[j] ?? 0),
@@ -80,6 +91,7 @@ describe("the shipped circuit", () => {
         closest = Math.min(closest, d);
       }
     }
+
     expect(closest).toBeGreaterThan(clearance);
   });
 

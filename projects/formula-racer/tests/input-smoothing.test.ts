@@ -15,7 +15,10 @@ const kmh = (v: number) => v / 3.6;
 function hold(input: DigitalInput, seconds: number, speedMps = 0) {
   const smoother = createInputSmoother();
   let controls = smoother.update(idle, speedMps, DT);
-  for (let t = 0; t < seconds - 1e-9; t += DT) controls = smoother.update(input, speedMps, DT);
+  for (let t = 0; t < seconds - 1e-9; t += DT) {
+    controls = smoother.update(input, speedMps, DT);
+  }
+
   return { smoother, controls };
 }
 
@@ -29,7 +32,10 @@ describe("keyboard input smoothing", () => {
   test("letting go re-centres faster than steering in", () => {
     const { smoother } = hold({ ...idle, right: true }, 0.4);
     let steer = 1;
-    for (let t = 0; t < 0.15; t += DT) steer = smoother.update(idle, 0, DT).steer;
+    for (let t = 0; t < 0.15; t += DT) {
+      steer = smoother.update(idle, 0, DT).steer;
+    }
+
     expect(steer).toBeLessThan(0.1);
   });
 

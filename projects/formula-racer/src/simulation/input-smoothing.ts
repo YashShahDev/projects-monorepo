@@ -24,6 +24,7 @@ const LOCK_HALF_SPEED_MPS = 30;
 
 export function createInputSmoother(): InputSmoother {
   let steer = 0;
+
   return {
     update(input, speedMps, dtSeconds) {
       const direction = (input.right ? 1 : 0) - (input.left ? 1 : 0);
@@ -32,6 +33,7 @@ export function createInputSmoother(): InputSmoother {
       const returning = Math.abs(target) < Math.abs(steer) || target * steer < 0;
       const rate = (returning ? STEER_OUT_PER_S : STEER_IN_PER_S) * dtSeconds;
       steer += Math.max(-rate, Math.min(rate, target - steer));
+
       return {
         throttle: input.throttle ? 1 : 0,
         brake: input.brake ? 1 : 0,

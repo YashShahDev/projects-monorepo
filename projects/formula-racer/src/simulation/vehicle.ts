@@ -14,6 +14,7 @@ export interface DriverControls {
   throttle: number;
   brake: number;
   steer: number;
+
   /** Request the full permitted ERS deployment (held Shift). */
   deploy?: boolean;
 }
@@ -51,16 +52,20 @@ export interface VehicleSnapshot {
   position: Vec3;
   rotation: Quat;
   linearVelocity: Vec3;
+
   /** Radians per second in world axes; +y turns toward +x (the driver's left). */
   angularVelocity: Vec3;
+
   /** Signed speed along the chassis forward axis, m/s. */
   speedMps: number;
+
   /** Order: front-left, front-right, rear-left, rear-right. */
   wheels: WheelState[];
   applied: DriverControls;
   gear: number;
   rpm: number;
   assists: DriverAssists;
+
   /** Absent for a car without an energy system. */
   energy: EnergyTelemetry | undefined;
   wing: WingState;
@@ -71,6 +76,7 @@ export type WingMode = "corner" | "straight";
 export interface WingState {
   /** The commanded mode; braking always commands Corner Mode. */
   mode: WingMode;
+
   /** 0 in Corner Mode, 1 fully in Straight Mode, between while moving. */
   opening: number;
 }
@@ -85,6 +91,7 @@ export interface EnergyTelemetry {
 
 export interface StartPose {
   position: Vec3;
+
   /** Radians about +y; 0 faces +z. */
   headingRad: number;
 }
@@ -95,8 +102,10 @@ export interface VehicleSimulation {
   step(controls: DriverControls): void;
   setAssists(assists: DriverAssists): void;
   setEnergyMode(mode: EnergyMode): void;
+
   /** Commands the wings; Straight Mode is refused while braking. */
   setWingMode(mode: WingMode): void;
+
   /** Starts a new lap's energy Recharge allowance. */
   newLap(): void;
   reset(): void;
@@ -106,12 +115,16 @@ export interface VehicleSimulation {
 
 export interface VehicleOptions {
   start: StartPose;
+
   /** Half-size of the flat ground collider; the ground's top is y = 0. */
   groundHalfExtentM?: number;
+
   /** Defaults to every assist on. */
   assists?: DriverAssists;
+
   /** Hybrid energy rules; without them the car runs on the ICE alone. */
   energy?: EnergyRules;
+
   /** Multiplier on tyre friction for the surface at a ground position; default 1. */
   gripAt?: (x: number, z: number, wheel: number) => number;
 }
@@ -136,6 +149,7 @@ export async function createVehicleSimulation(
   options: VehicleOptions,
 ): Promise<VehicleSimulation> {
   await initPhysics();
+
   return buildVehicleSimulation(car, options);
 }
 
@@ -167,6 +181,7 @@ export function buildVehicleSimulation(
       }),
   );
   const half = car.chassisHalfExtents;
+
   // Mass comes from the body's explicit properties so the collider shape can change freely.
   world.createCollider(RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setDensity(0), body);
 
@@ -179,6 +194,7 @@ export function buildVehicleSimulation(
   const createController = () => {
     const controller = world.createVehicleController(body);
     controller.indexUpAxis = 1;
+
     // Rapier 0.21 names this setter `setIndexForwardAxis` (a property, not a method).
     controller.setIndexForwardAxis = 2;
     wheelPoints.forEach((point, i) => {
@@ -197,8 +213,10 @@ export function buildVehicleSimulation(
       controller.setWheelFrictionSlip(i, w.frictionCoefficient);
       controller.setWheelSideFrictionStiffness(i, w.sideFrictionStiffness);
     });
+
     return controller;
   };
+
   let vehicle = createController();
 
   let simSeconds = 0;
@@ -216,6 +234,7 @@ export function buildVehicleSimulation(
   let drivetrain = powertrain.update(0, 0, stepSeconds);
   let assists: DriverAssists = { ...(options.assists ?? ALL_ASSISTS) };
   let disposed = false;
+
   // Longitudinal force a wheel can add before it slides, from the last step's load and
   // cornering force. Rapier halves the forward impulse in its friction-circle test
   // (Bullet's fwdFactor), so its longitudinal budget is twice the lateral one.
@@ -224,25 +243,32 @@ export function buildVehicleSimulation(
     const mu = w.frictionCoefficient * (surfaceGrip[i] ?? 1);
     const grip = ASSIST_GRIP_MARGIN * mu * (vehicle.wheelSuspensionForce(i) ?? 0);
     const side = (vehicle.wheelSideImpulse(i) ?? 0) / stepSeconds;
+
     return 2 * Math.sqrt(Math.max(0, grip * grip - side * side));
   };
+
   const assertLive = (): void => {
-    if (disposed) throw new Error("vehicle simulation used after dispose()");
+    if (disposed) {
+      throw new Error("vehicle simulation used after dispose()");
+    }
   };
 
   const localPoint = (x: number, y: number, z: number) => {
     const r = body.rotation();
     const t = body.translation();
+
     // Rotate by the chassis quaternion: v' = v + 2w(q×v) + 2q×(q×v).
     const cx = r.y * z - r.z * y;
     const cy = r.z * x - r.x * z;
     const cz = r.x * y - r.y * x;
+
     return {
       x: t.x + x + 2 * (r.w * cx + r.y * cz - r.z * cy),
       y: t.y + y + 2 * (r.w * cy + r.z * cx - r.x * cz),
       z: t.z + z + 2 * (r.w * cz + r.x * cy - r.y * cx),
     };
   };
+
   // Drag opposes the velocity; downforce presses along the chassis's down axis at each
   // axle, so it moves with pitch and roll and loads the tyres the vehicle controller reads.
   const applyAero = (dynamicPressure: number, downforceN: number): void => {
@@ -252,7 +278,11 @@ export function buildVehicleSimulation(
       const drag = (dynamicPressure * dragAreaM2() * stepSeconds) / speed;
       body.applyImpulse({ x: -v.x * drag, y: -v.y * drag, z: -v.z * drag }, true);
     }
-    if (downforceN <= 0) return;
+
+    if (downforceN <= 0) {
+      return;
+    }
+
     const origin = localPoint(0, 0, 0);
     const below = localPoint(0, -1, 0);
     const down = { x: below.x - origin.x, y: below.y - origin.y, z: below.z - origin.z };
@@ -289,20 +319,24 @@ export function buildVehicleSimulation(
         const v = Math.max(speed, 1);
         const result = energy.update({
           speedMps: speed,
+
           // Rapier drops engine force on a braking wheel, so braking also stops deployment.
           throttle: brakingN > 0 ? 0 : applied.throttle,
           brakePowerW: brakingN * speed,
           mode: energyMode,
           deployRequest,
           dtS: stepSeconds,
+
           // C5.2.11 caps MGU-K torque at the crankshaft, so its power at engine speed.
           limitW: rules.mgukMaxTorqueNm * ((drivetrain.rpm * 2 * Math.PI) / 60),
         });
         flow = result;
+
         // Lift-off harvesting brakes through the drivetrain: the energy it stores must
         // leave the car's motion.
         drive += (result.deployW - result.engineBrakeW) / v;
       }
+
       if (options.gripAt) {
         for (let i = 0; i < 4; i += 1) {
           const p = wheelPoints[i] ?? { x: 0, y: 0, z: 0 };
@@ -311,14 +345,22 @@ export function buildVehicleSimulation(
           vehicle.setWheelFrictionSlip(i, w.frictionCoefficient * (surfaceGrip[i] ?? 1));
         }
       }
+
       const a = car.aero;
       const dynamicPressure = 0.5 * AIR_DENSITY_KG_M3 * speed * speed;
-      if (applied.brake > 0) wingMode = "corner";
+      if (applied.brake > 0) {
+        wingMode = "corner";
+      }
+
       const target = wingMode === "straight" ? 1 : 0;
       const move = stepSeconds / a.wingTransitionS;
       wingOpening += Math.max(-move, Math.min(move, target - wingOpening));
+
       // Snap once within float noise of the end so "fully open" is exact.
-      if (Math.abs(target - wingOpening) < 1e-9) wingOpening = target;
+      if (Math.abs(target - wingOpening) < 1e-9) {
+        wingOpening = target;
+      }
+
       const downforceN =
         dynamicPressure *
         (a.downforceAreaM2 + (a.straightMode.downforceAreaM2 - a.downforceAreaM2) * wingOpening);
@@ -332,21 +374,30 @@ export function buildVehicleSimulation(
         const limitRad = (wheelbase * gripAccel) / Math.max(speed * speed, 1) + PEAK_SLIP_RAD;
         steerRad = clamp(steerRad, -limitRad, limitRad);
       }
+
       const b = car.brakes;
       const brakeN = applied.brake * b.maxForceN;
       for (let i = 0; i < 4; i += 1) {
         const front = i < 2;
         vehicle.setWheelSteering(i, front ? steerRad : 0);
+
         // Rapier ignores a wheel's brake while it has engine force, so braking cuts drive.
         let engine = !front && brakeN === 0 ? drive / 2 : 0;
-        if (assists.traction) engine = Math.min(engine, longitudinalBudgetN(i));
+        if (assists.traction) {
+          engine = Math.min(engine, longitudinalBudgetN(i));
+        }
+
         vehicle.setWheelEngineForce(i, engine);
         const share = front ? b.frontBias : 1 - b.frontBias;
         let wheelBrakeN = (brakeN * share) / 2;
-        if (assists.abs) wheelBrakeN = Math.min(wheelBrakeN, longitudinalBudgetN(i));
+        if (assists.abs) {
+          wheelBrakeN = Math.min(wheelBrakeN, longitudinalBudgetN(i));
+        }
+
         // Rapier treats `brake` as the maximum rolling-friction impulse for this step.
         vehicle.setWheelBrake(i, wheelBrakeN * stepSeconds);
       }
+
       vehicle.updateVehicle(stepSeconds);
       applyAero(dynamicPressure, downforceN);
       world.step();
@@ -373,6 +424,7 @@ export function buildVehicleSimulation(
       body.resetForces(true);
       body.resetTorques(true);
       applied = { ...NO_CONTROLS };
+
       // The controller caches speed, suspension and wheel spin from its last update;
       // a fresh one makes a reset behave like a new start.
       world.removeVehicleController(vehicle);
@@ -397,6 +449,7 @@ export function buildVehicleSimulation(
         spinRad: vehicle.wheelRotation(i) ?? 0,
         inContact: vehicle.wheelIsInContact(i),
       }));
+
       return {
         physicsVersion: PHYSICS_VERSION,
         simSeconds,
@@ -420,7 +473,10 @@ export function buildVehicleSimulation(
       };
     },
     dispose() {
-      if (disposed) return;
+      if (disposed) {
+        return;
+      }
+
       disposed = true;
       world.removeVehicleController(vehicle);
       world.free();

@@ -28,6 +28,7 @@ export const runCommand: Runner = (command, args) => {
     timeout: 15_000,
     env: { ...process.env, MISE_AUTO_INSTALL: "0" },
   });
+
   return {
     status: result.status,
     stdout: result.stdout ?? "",
@@ -45,6 +46,7 @@ export function checkTool(spec: ToolSpec, run: Runner = runCommand): CheckResult
       detail: result.error ?? (result.stderr.trim() || `exit ${String(result.status)}`),
     };
   }
+
   const output = `${result.stdout}
 ${result.stderr}`.trim();
   const actual = /\d+\.\d+\.\d+(?:-[\w.-]+)?/u.exec(output)?.[0];
@@ -55,6 +57,7 @@ ${result.stderr}`.trim();
       detail: `expected ${spec.version}; got ${actual ?? "unrecognized version"}`,
     };
   }
+
   return { name: spec.name, ok: true, detail: output.split("\n")[0] || "available" };
 }
 
@@ -73,5 +76,6 @@ export function checkManagedTool(spec: ToolSpec, run: Runner = runCommand): Chec
         resolved.error ?? (resolved.stderr.trim() || "mise could not resolve the installed tool"),
     };
   }
+
   return checkTool({ ...spec, command: resolved.stdout.trim() }, run);
 }

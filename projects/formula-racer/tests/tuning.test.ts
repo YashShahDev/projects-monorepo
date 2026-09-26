@@ -20,8 +20,14 @@ afterEach(() => session?.dispose());
 function speedAfter(s: DrivingSession, seconds: number) {
   const idle = { ...throttle, throttle: false };
   const wait = s.state().countdownS;
-  for (let t = 0; t < wait - 1e-9; t += 1 / 60) s.frame(1 / 60, idle);
-  for (let t = 0; t < seconds - 1e-9; t += 1 / 60) s.frame(1 / 60, throttle);
+  for (let t = 0; t < wait - 1e-9; t += 1 / 60) {
+    s.frame(1 / 60, idle);
+  }
+
+  for (let t = 0; t < seconds - 1e-9; t += 1 / 60) {
+    s.frame(1 / 60, throttle);
+  }
+
   return s.state().speedKmh;
 }
 
@@ -32,6 +38,7 @@ describe("development tuning", () => {
     session.action("reset");
     session.retune({ massKg: car.massKg * 2 });
     expect(session.state().pendingTuning).toBe(true);
+
     // Still the stock car until the player resets.
     expect(speedAfter(session, 1)).toBeCloseTo(stock, 0);
     session.action("reset");

@@ -10,7 +10,10 @@ const kmh = (v: number) => v / 3.6;
 function sweep(toKmh: number) {
   const powertrain = createPowertrain(car.powertrain);
   const out = [];
-  for (let v = 0; v <= toKmh; v += 0.25) out.push({ v, ...powertrain.update(1, kmh(v), DT) });
+  for (let v = 0; v <= toKmh; v += 0.25) {
+    out.push({ v, ...powertrain.update(1, kmh(v), DT) });
+  }
+
   return out;
 }
 
@@ -25,7 +28,10 @@ describe("powertrain", () => {
     const shift = run.findIndex((s, i) => i > 0 && s.gear > (run[i - 1]?.gear ?? 1));
     expect(shift).toBeGreaterThan(0);
     const cutSteps = Math.round(car.powertrain.shiftTimeS / DT);
-    for (let k = 0; k < cutSteps; k += 1) expect(run[shift + k]?.driveForceN).toBe(0);
+    for (let k = 0; k < cutSteps; k += 1) {
+      expect(run[shift + k]?.driveForceN).toBe(0);
+    }
+
     expect(run[shift + cutSteps]?.driveForceN ?? 0).toBeGreaterThan(0);
   });
 
@@ -43,7 +49,10 @@ describe("powertrain", () => {
     const shift = run.findIndex((s, i) => i > 0 && s.gear === 7 && (run[i - 1]?.gear ?? 0) === 6);
     const before = run[shift - 1];
     const after = run[shift + cutSteps];
-    if (!before || !after) throw new Error("no 6→7 upshift in the sweep");
+    if (!before || !after) {
+      throw new Error("no 6→7 upshift in the sweep");
+    }
+
     expect(after.rpm).toBeLessThan(before.rpm);
     expect(after.driveForceN).toBeGreaterThan(before.driveForceN);
   });
@@ -54,7 +63,10 @@ describe("powertrain", () => {
 
   test("reset returns to first gear with no shift pending", () => {
     const powertrain = createPowertrain(car.powertrain);
-    for (let v = 0; v < 200; v += 1) powertrain.update(1, kmh(v), DT);
+    for (let v = 0; v < 200; v += 1) {
+      powertrain.update(1, kmh(v), DT);
+    }
+
     powertrain.reset();
     const state = powertrain.update(1, 0, DT);
     expect(state.gear).toBe(1);

@@ -16,19 +16,29 @@ describe("automatic gearbox", () => {
     const gears: number[] = [];
     for (let v = 0; v <= 330; v += 0.5) {
       const { gear, rpm } = gearbox.update(kmh(v));
-      if (gear !== gears.at(-1)) gears.push(gear);
+      if (gear !== gears.at(-1)) {
+        gears.push(gear);
+      }
+
       expect(rpm).toBeLessThanOrEqual(box.redlineRpm);
       expect(rpm).toBeGreaterThanOrEqual(box.idleRpm);
     }
+
     expect(gears).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
   test("hovering around a shift point does not hunt between gears", () => {
     const gearbox = createGearbox(box);
     const upshift = (box.gearTopSpeedsKmh[2] ?? 0) * (box.upshiftRpm / box.redlineRpm);
-    for (let v = 0; v < upshift - 1; v += 1) gearbox.update(kmh(v));
+    for (let v = 0; v < upshift - 1; v += 1) {
+      gearbox.update(kmh(v));
+    }
+
     const seen = new Set<number>();
-    for (let i = 0; i < 200; i += 1) seen.add(gearbox.update(kmh(upshift + (i % 2 ? 2 : -2))).gear);
+    for (let i = 0; i < 200; i += 1) {
+      seen.add(gearbox.update(kmh(upshift + (i % 2 ? 2 : -2))).gear);
+    }
+
     // At most the one upshift, never back down again.
     expect([...seen].every((gear) => gear === 3 || gear === 4)).toBe(true);
     expect(gearbox.update(kmh(upshift - 2)).gear).toBe(4);
@@ -36,15 +46,24 @@ describe("automatic gearbox", () => {
 
   test("braking to a hairpin steps back down to first", () => {
     const gearbox = createGearbox(box);
-    for (let v = 0; v <= 300; v += 1) gearbox.update(kmh(v));
+    for (let v = 0; v <= 300; v += 1) {
+      gearbox.update(kmh(v));
+    }
+
     let gear = 8;
-    for (let v = 300; v >= 60; v -= 1) gear = gearbox.update(kmh(v)).gear;
+    for (let v = 300; v >= 60; v -= 1) {
+      gear = gearbox.update(kmh(v)).gear;
+    }
+
     expect(gear).toBe(1);
   });
 
   test("reset returns to first gear", () => {
     const gearbox = createGearbox(box);
-    for (let v = 0; v <= 200; v += 1) gearbox.update(kmh(v));
+    for (let v = 0; v <= 200; v += 1) {
+      gearbox.update(kmh(v));
+    }
+
     gearbox.reset();
     expect(gearbox.update(0).gear).toBe(1);
   });
@@ -54,6 +73,7 @@ describe("gearbox content", () => {
   const withBox = (patch: Record<string, unknown>) => {
     const raw = structuredClone(car) as unknown as Record<string, Record<string, unknown>>;
     raw.powertrain = { ...raw.powertrain, gearbox: { ...box, ...patch } };
+
     return () => parseCar(raw);
   };
 

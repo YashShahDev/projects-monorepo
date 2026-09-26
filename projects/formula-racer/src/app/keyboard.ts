@@ -15,13 +15,20 @@ const isEditable = (target: EventTarget | null): boolean => {
     type?: unknown;
     isContentEditable?: unknown;
   } | null;
-  if (element?.isContentEditable === true) return true;
-  if (element?.tagName === "TEXTAREA" || element?.tagName === "SELECT") return true;
+  if (element?.isContentEditable === true) {
+    return true;
+  }
+
+  if (element?.tagName === "TEXTAREA" || element?.tagName === "SELECT") {
+    return true;
+  }
+
   return element?.tagName === "INPUT" && TEXT_INPUTS.has(String(element.type ?? "text"));
 };
 
 const keyFields = (event: Event): KeyFields => {
   const { code, repeat } = event as Event & Partial<KeyFields>;
+
   return { code: code ?? "", repeat: repeat ?? false };
 };
 
@@ -30,6 +37,7 @@ export interface HeldKeys {
   brake: boolean;
   left: boolean;
   right: boolean;
+
   /** Held Shift: request full ERS deployment. */
   deploy: boolean;
 }
@@ -69,25 +77,42 @@ export function createKeyboard(
   const down = new Set<string>();
   const listeners: ((action: KeyAction) => void)[] = [];
   const onKeyDown = (event: Event) => {
-    if (isEditable(event.target)) return;
+    if (isEditable(event.target)) {
+      return;
+    }
+
     const { code, repeat } = keyFields(event);
     const action = ACTION_KEYS[code];
-    if (DRIVE_KEYS[code]) down.add(code);
-    else if (!action) return;
+    if (DRIVE_KEYS[code]) {
+      down.add(code);
+    } else if (!action) {
+      return;
+    }
+
     event.preventDefault();
-    if (action && !repeat) for (const listener of listeners) listener(action);
+    if (action && !repeat) {
+      for (const listener of listeners) {
+        listener(action);
+      }
+    }
   };
+
   const onKeyUp = (event: Event) => {
     down.delete(keyFields(event).code);
   };
+
   const release = () => down.clear();
   const onVisibility = () => {
-    if (document.visibilityState === "hidden") release();
+    if (document.visibilityState === "hidden") {
+      release();
+    }
   };
+
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", release);
   document.addEventListener("visibilitychange", onVisibility);
+
   return {
     held() {
       const held: HeldKeys = {
@@ -99,8 +124,11 @@ export function createKeyboard(
       };
       for (const code of down) {
         const control = DRIVE_KEYS[code];
-        if (control) held[control] = true;
+        if (control) {
+          held[control] = true;
+        }
       }
+
       return held;
     },
     onAction(listener) {

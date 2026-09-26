@@ -3,6 +3,7 @@ import fullConfig from "./playwright.config.ts";
 
 export default defineConfig({
   ...fullConfig,
+
   // Local checks need only the dev server; dist/ may not exist yet.
   webServer: {
     command: "bun run tools/dev.ts",

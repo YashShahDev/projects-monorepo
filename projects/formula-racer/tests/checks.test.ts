@@ -61,6 +61,7 @@ test("managed tools use the installed executable instead of a PATH installer wra
   const calls: string[] = [];
   const result = checkManagedTool(spec, (command) => {
     calls.push(command);
+
     return command === "mise"
       ? { status: 0, stdout: "/tools with spaces/example\n", stderr: "" }
       : success;
@@ -73,6 +74,7 @@ test("missing managed tools fail without falling back to a PATH wrapper", () => 
   const calls: string[] = [];
   const result = checkManagedTool(spec, (command) => {
     calls.push(command);
+
     return { status: 1, stdout: "", stderr: "tool not installed" };
   });
   expect(result.ok).toBe(false);

@@ -38,8 +38,10 @@ export async function exportCar(
       `Blender export failed (${String(result.status)}):\n${result.stderr}${result.stdout.slice(-4000)}`,
     );
   }
+
   const car = parseCar(await Bun.file(carPath).json(), carPath);
   const spec = parseCarModelInterface(await Bun.file(interfacePath).json(), interfacePath);
+
   return validateCarModelFile(out, car, spec);
 }
 
@@ -47,8 +49,14 @@ if (import.meta.main) {
   const out = process.argv[2] ?? "public/assets/cars/fr26.glb";
   const started = performance.now();
   const problems = await exportCar(out);
-  for (const problem of problems) console.error(`${out}: ${problem}`);
-  if (problems.length > 0) process.exit(1);
+  for (const problem of problems) {
+    console.error(`${out}: ${problem}`);
+  }
+
+  if (problems.length > 0) {
+    process.exit(1);
+  }
+
   console.log(
     `${out}: exported and valid in ${((performance.now() - started) / 1000).toFixed(1)} s`,
   );

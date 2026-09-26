@@ -20,12 +20,14 @@ function drive(
     d = (((d + sign * speed * DT) % LENGTH) + LENGTH) % LENGTH;
     timer.update(t, d, onTrack);
   }
+
   return { t, d };
 }
 
 function start(startDistanceM = 100) {
   const timer = createLapTimer({ lengthM: LENGTH, sectors: 3 });
   timer.start(0, startDistanceM);
+
   return { timer, at: { t: 0, d: startDistanceM } };
 }
 
@@ -34,6 +36,7 @@ describe("lap timer", () => {
     const { timer, at } = start();
     drive(timer, at, LENGTH + 10);
     const [lap] = timer.laps();
+
     // 3000 m at 50 m/s is exactly 60 s, however the steps fall.
     expect(lap?.timeS).toBeCloseTo(60, 6);
     expect(lap?.valid).toBe(true);
@@ -52,6 +55,7 @@ describe("lap timer", () => {
   test("a shortcut invalidates the lap, which still ends at the real start line", () => {
     const { timer, at } = start();
     const before = drive(timer, at, 500);
+
     // The nearest centreline point jumps 800 m ahead: the car cut across the infield.
     const t = before.t + DT;
     const d = before.d + 800;
@@ -69,6 +73,7 @@ describe("lap timer", () => {
     timer.update(t, before.d + 800, false);
     const line = drive(timer, { t, d: before.d + 800 }, LENGTH - 1300);
     expect(timer.laps()).toHaveLength(1);
+
     // A full clean lap from the line closes back at the line after 60 s.
     drive(timer, line, LENGTH + 5);
     const [, clean] = timer.laps();

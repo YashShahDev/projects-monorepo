@@ -29,9 +29,11 @@ for (const browser of [chromium, firefox]) {
     });
   }
 }
+
 for (const result of results) {
   console.log(`${result.ok ? "PASS" : "FAIL"} ${result.name}: ${result.detail}`);
 }
+
 console.log(
   "Doctor checks versions and presence only. Run make verify-prerequisites for browser launch and Blender/KTX checks.",
 );

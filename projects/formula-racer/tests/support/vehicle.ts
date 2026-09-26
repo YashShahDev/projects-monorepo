@@ -16,12 +16,15 @@ export async function settledVehicle(definition: CarDefinition = car): Promise<V
     start: { position: { x: 0, y: 0, z: 0 }, headingRad: 0 },
   });
   run(sim, NO_CONTROLS, 1);
+
   return sim;
 }
 
 export function run(sim: VehicleSimulation, controls: DriverControls, seconds: number): void {
   const steps = Math.round(seconds / sim.stepSeconds);
-  for (let i = 0; i < steps; i += 1) sim.step(controls);
+  for (let i = 0; i < steps; i += 1) {
+    sim.step(controls);
+  }
 }
 
 export const kmh = (sim: VehicleSimulation): number => sim.snapshot().speedMps * 3.6;
@@ -29,8 +32,12 @@ export const kmh = (sim: VehicleSimulation): number => sim.snapshot().speedMps *
 /** Seconds of full throttle to reach `targetKmh`, or Infinity within the time limit. */
 export function timeTo(sim: VehicleSimulation, targetKmh: number, limitSeconds = 30): number {
   for (let t = 0; t < limitSeconds; t += sim.stepSeconds) {
-    if (kmh(sim) >= targetKmh) return t;
+    if (kmh(sim) >= targetKmh) {
+      return t;
+    }
+
     sim.step({ throttle: 1, brake: 0, steer: 0 });
   }
+
   return Number.POSITIVE_INFINITY;
 }

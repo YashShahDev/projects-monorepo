@@ -15,6 +15,7 @@ function rearSlipDeg(s: VehicleSnapshot): number {
   const v = s.linearVelocity;
   const along = v.x * Math.sin(h) + v.z * Math.cos(h);
   const left = v.x * Math.cos(h) - v.z * Math.sin(h) + s.angularVelocity.y * car.wheels.rearAxleZ;
+
   return Math.abs((Math.atan2(left, Math.abs(along)) * 180) / Math.PI);
 }
 
@@ -22,13 +23,20 @@ function rearSlipDeg(s: VehicleSnapshot): number {
 function sideslipDeg(s: VehicleSnapshot): number {
   const v = s.linearVelocity;
   let d = Math.atan2(v.x, v.z) - yaw(s);
-  while (d > Math.PI) d -= 2 * Math.PI;
-  while (d < -Math.PI) d += 2 * Math.PI;
+  while (d > Math.PI) {
+    d -= 2 * Math.PI;
+  }
+
+  while (d < -Math.PI) {
+    d += 2 * Math.PI;
+  }
+
   return Math.abs((d * 180) / Math.PI);
 }
 
 interface Manoeuvre {
   fromKmh: number;
+
   /** Held after reaching `fromKmh` and before `controls`, to settle into a corner. */
   settle?: DriverControls;
   controls: DriverControls;
@@ -41,7 +49,10 @@ async function drive(assists: DriverAssists, m: Manoeuvre) {
   const sim = await settledVehicle({ ...car, wheels: { ...car.wheels, frictionCoefficient: mu } });
   sim.setAssists(NONE);
   timeTo(sim, m.fromKmh, 60);
-  for (let t = 0; m.settle && t < 1; t += sim.stepSeconds) sim.step(m.settle);
+  for (let t = 0; m.settle && t < 1; t += sim.stepSeconds) {
+    sim.step(m.settle);
+  }
+
   sim.setAssists(assists);
   const start = sim.snapshot();
   let maxSideslipDeg = 0;
@@ -49,12 +60,17 @@ async function drive(assists: DriverAssists, m: Manoeuvre) {
   for (let t = 0; t < m.seconds; t += sim.stepSeconds) {
     sim.step(m.controls);
     const s = sim.snapshot();
-    if (s.speedMps < 3) continue;
+    if (s.speedMps < 3) {
+      continue;
+    }
+
     maxSideslipDeg = Math.max(maxSideslipDeg, sideslipDeg(s));
     maxRearSlipDeg = Math.max(maxRearSlipDeg, rearSlipDeg(s));
   }
+
   const end = sim.snapshot();
   sim.dispose();
+
   return {
     maxSideslipDeg,
     maxRearSlipDeg,
@@ -116,6 +132,7 @@ describe("steering assist", () => {
   test("full lock at high speed turns more and scrubs less speed than unassisted", async () => {
     const off = await drive(NONE, flatOut);
     const on = await drive({ ...NONE, steering: true }, flatOut);
+
     // Unassisted full lock saturates the front tyres: about 20° turned, 237 km/h left.
     expect(on.turnedDeg).toBeGreaterThan(off.turnedDeg + 3);
     expect(on.endKmh).toBeGreaterThan(off.endKmh + 5);

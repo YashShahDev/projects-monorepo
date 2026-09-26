@@ -19,18 +19,25 @@ afterEach(() => session?.dispose());
 
 async function start() {
   session = await createDrivingSession(car, track);
+
   return session;
 }
 
 /** Waits out the standing-start countdown, during which the car is held. */
 function ready(s: DrivingSession) {
   const wait = s.state().countdownS;
-  for (let t = 0; t < wait - 1e-9; t += 1 / 60) s.frame(1 / 60, idle);
+  for (let t = 0; t < wait - 1e-9; t += 1 / 60) {
+    s.frame(1 / 60, idle);
+  }
+
   return s;
 }
 
 function drive(s: DrivingSession, held: typeof idle, seconds: number, hz = 60) {
-  for (let t = 0; t < seconds - 1e-9; t += 1 / hz) s.frame(1 / hz, held);
+  for (let t = 0; t < seconds - 1e-9; t += 1 / hz) {
+    s.frame(1 / hz, held);
+  }
+
   return s.state();
 }
 
@@ -70,6 +77,7 @@ describe("driving session", () => {
     s.action("pause");
     const before = s.state().simSeconds;
     s.action("pause");
+
     // The browser's frame clock reports the whole paused time on the first frame back.
     s.frame(30, throttle);
     expect(s.state().simSeconds - before).toBeLessThan(0.02);
@@ -102,8 +110,10 @@ describe("driving session", () => {
       const s = await createDrivingSession(car, track);
       const state = drive(s, throttle, 2, hz);
       s.dispose();
+
       return state.lapDistanceM;
     };
+
     expect(await at(30)).toBe(await at(144));
   });
 
@@ -112,6 +122,7 @@ describe("driving session", () => {
   async function atSpeed() {
     const s = await start();
     drive(s, throttle, 8);
+
     return s;
   }
 
@@ -136,6 +147,7 @@ describe("driving session", () => {
       moves.push(Math.hypot(position.x - last.x, position.z - last.z));
       last = position;
     }
+
     expect(Math.min(...moves)).toBeGreaterThan(0);
     expect(Math.max(...moves) / Math.min(...moves)).toBeLessThan(1.3);
   });

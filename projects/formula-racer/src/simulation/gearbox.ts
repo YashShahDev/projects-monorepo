@@ -15,12 +15,18 @@ export function createGearbox(box: GearboxDefinition): Gearbox {
   const rpmIn = (gear: number, speedMps: number) =>
     (box.redlineRpm * Math.abs(speedMps)) / (tops[gear - 1] ?? 1);
   let gear = 1;
+
   return {
     update(speedMps) {
       // Step one gear at a time so a sudden speed change still reads as a sequence of shifts.
-      if (gear < tops.length && rpmIn(gear, speedMps) >= box.upshiftRpm) gear += 1;
-      else if (gear > 1 && rpmIn(gear, speedMps) < box.downshiftRpm) gear -= 1;
+      if (gear < tops.length && rpmIn(gear, speedMps) >= box.upshiftRpm) {
+        gear += 1;
+      } else if (gear > 1 && rpmIn(gear, speedMps) < box.downshiftRpm) {
+        gear -= 1;
+      }
+
       const rpm = Math.min(box.redlineRpm, Math.max(box.idleRpm, rpmIn(gear, speedMps)));
+
       return { gear, rpm };
     },
     reset() {

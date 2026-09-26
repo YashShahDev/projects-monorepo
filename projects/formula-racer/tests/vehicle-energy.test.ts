@@ -22,6 +22,7 @@ async function vehicle(withEnergy = true) {
     ...(withEnergy ? { energy: rules } : {}),
   });
   run(sim, { throttle: 0, brake: 0, steer: 0 }, 1);
+
   return sim;
 }
 
@@ -32,12 +33,16 @@ function timeBetween(
   toKmh: number,
   controls: DriverControls,
 ) {
-  while (kmh(sim) < fromKmh) sim.step({ throttle: 1, brake: 0, steer: 0 });
+  while (kmh(sim) < fromKmh) {
+    sim.step({ throttle: 1, brake: 0, steer: 0 });
+  }
+
   let t = 0;
   while (kmh(sim) < toKmh && t < 30) {
     sim.step(controls);
     t += sim.stepSeconds;
   }
+
   return t;
 }
 
@@ -78,21 +83,28 @@ describe("vehicle energy", () => {
   test("braking recharges without changing how hard the car brakes", async () => {
     const stop = async (withEnergy: boolean) => {
       const sim = await vehicle(withEnergy);
+
       // Same brake point for both cars, with the hybrid's store partly drained.
       timeBetween(sim, 0, 250, { ...flatOut, deploy: true });
       const soc = sim.snapshot().energy?.socJ ?? 0;
       const start = sim.snapshot().position.z;
-      while (kmh(sim) > 60) sim.step({ throttle: 0, brake: 1, steer: 0 });
+      while (kmh(sim) > 60) {
+        sim.step({ throttle: 0, brake: 1, steer: 0 });
+      }
+
       const result = {
         distance: sim.snapshot().position.z - start,
         gainedJ: (sim.snapshot().energy?.socJ ?? 0) - soc,
       };
       sim.dispose();
+
       return result;
     };
+
     const plain = await stop(false);
     const hybrid = await stop(true);
     expect(hybrid.gainedJ).toBeGreaterThan(300_000);
+
     // Regeneration replaces part of the friction braking; the requested force is the
     // same, so the stopping distance matches to within a step's travel.
     expect(Math.abs(hybrid.distance - plain.distance)).toBeLessThan(1.5);
@@ -126,11 +138,14 @@ describe("vehicle energy", () => {
         kineticJ: kinetic - 0.5 * car.massKg * sim.snapshot().speedMps ** 2,
       };
       sim.dispose();
+
       return result;
     };
+
     const balanced = await coast("balanced");
     const harvest = await coast("harvest");
     expect(harvest.gainedJ).toBeGreaterThan(100_000);
+
     // The extra kinetic energy lost must at least pay for what was stored.
     expect(harvest.kineticJ - balanced.kineticJ).toBeGreaterThan(harvest.gainedJ);
   });

@@ -8,25 +8,37 @@ type Call = { name: "state" | "dispose" } | { name: "step"; count: number; throt
 function hook(page: Page, call: Call): Promise<GameAppState | undefined> {
   return page.evaluate((call) => {
     const app = (window as unknown as { __formulaRacerTest: GameApp }).__formulaRacerTest;
-    if (call.name === "step") return app.step(call.count, call.throttle);
-    if (call.name === "state") return app.state();
+    if (call.name === "step") {
+      return app.step(call.count, call.throttle);
+    }
+
+    if (call.name === "state") {
+      return app.state();
+    }
+
     app.dispose();
+
     return undefined;
   }, call);
 }
 
 async function state(page: Page, call: Call = { name: "state" }): Promise<GameAppState> {
   const result = await hook(page, call);
-  if (!result) throw new Error(`${call.name} returned no state`);
+  if (!result) {
+    throw new Error(`${call.name} returned no state`);
+  }
+
   return result;
 }
 
 test("@dev stepping with the hooks is deterministic across page loads", async ({ page }) => {
   const run = async () => {
     await openGame(page);
+
     // 180 held countdown steps, then 120 driving.
     return state(page, { name: "step", count: 300, throttle: true });
   };
+
   await freezeFrames(page);
   const first = await run();
   await page.reload();
@@ -50,6 +62,7 @@ test("@dev losing focus pauses and releases held keys", async ({ page }) => {
   await page.clock.runFor(2_000);
   const coasting = await state(page);
   expect(coasting.paused).toBe(false);
+
   // No drag until P2-C3, so a released throttle coasts at a steady speed; the chassis
   // coming out of squat adds under 1 km/h. A still-held throttle would add ~50 km/h.
   expect(coasting.speedKmh).toBeLessThan(paused.speedKmh + 1.5);

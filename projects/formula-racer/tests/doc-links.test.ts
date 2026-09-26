@@ -9,10 +9,14 @@ function fixture(text: string): string {
   const root = mkdtempSync(join(tmpdir(), "formula-racer-doc-test-"));
   directories.push(root);
   writeFileSync(join(root, "README.md"), text);
+
   return root;
 }
+
 afterEach(() => {
-  for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true });
+  for (const path of directories.splice(0)) {
+    rmSync(path, { recursive: true, force: true });
+  }
 });
 
 test("finds a broken handoff link", () => {

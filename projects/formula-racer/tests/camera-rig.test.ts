@@ -9,7 +9,10 @@ const facing = (headingRad: number, x = 0, z = 0): CarPose => ({
 
 function settle(rig: ReturnType<typeof createCameraRig>, pose: CarPose, seconds: number, hz = 60) {
   let view = rig.update(pose, 1 / hz);
-  for (let t = 1 / hz; t < seconds - 1e-9; t += 1 / hz) view = rig.update(pose, 1 / hz);
+  for (let t = 1 / hz; t < seconds - 1e-9; t += 1 / hz) {
+    view = rig.update(pose, 1 / hz);
+  }
+
   return view;
 }
 
@@ -26,6 +29,7 @@ describe("chase camera", () => {
   test("swings round smoothly when the car turns instead of snapping", () => {
     const rig = createCameraRig();
     settle(rig, facing(0), 3);
+
     // Car now faces +x: "behind" is -x.
     const first = rig.update(facing(Math.PI / 2), 1 / 60);
     expect(first.position.x).toBeGreaterThan(-1);
@@ -38,8 +42,10 @@ describe("chase camera", () => {
     const path = (hz: number) => {
       const rig = createCameraRig();
       settle(rig, facing(0), 1, hz);
+
       return settle(rig, facing(Math.PI / 2, 10, 20), 0.5, hz);
     };
+
     const slow = path(30);
     const fast = path(144);
     expect(

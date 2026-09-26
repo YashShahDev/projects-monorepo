@@ -21,7 +21,10 @@ let session: DrivingSession | undefined;
 afterEach(() => session?.dispose());
 
 function hold(s: DrivingSession, held: typeof idle, seconds: number) {
-  for (let t = 0; t < seconds - 1e-9; t += 1 / 60) s.frame(1 / 60, held);
+  for (let t = 0; t < seconds - 1e-9; t += 1 / 60) {
+    s.frame(1 / 60, held);
+  }
+
   return s.state();
 }
 
@@ -47,6 +50,7 @@ describe("session laps", () => {
       session.frame(1 / 60, throttle);
       lap = session.state().lap;
     }
+
     expect(lap?.valid).toBe(false);
   });
 
@@ -77,6 +81,7 @@ describe("session laps", () => {
     for (let t = 0; t < 200 && session.state().laps.length === 0; t += 1 / 60) {
       session.frame(1 / 60, autopilot(session));
     }
+
     const [lap] = session.state().laps;
     expect(lap?.valid).toBe(true);
     expect(lap?.timeS).toBeGreaterThan(60);
@@ -112,8 +117,10 @@ describe("session energy", () => {
       hold(s, { ...throttle, deploy }, 4);
       const used = rules.socWindowJ - (s.state().energy?.socJ ?? 0);
       s.dispose();
+
       return used;
     };
+
     expect(await deployed(true)).toBeGreaterThan((await deployed(false)) * 1.3);
   });
 
@@ -125,6 +132,7 @@ describe("session energy", () => {
       before = session.state().energy?.lapRechargeJ ?? 0;
       session.frame(1 / 60, autopilot(session));
     }
+
     expect(before).toBeGreaterThan(1_000_000);
     expect(session.state().energy?.lapRechargeJ ?? 0).toBeLessThan(200_000);
   }, 30_000);

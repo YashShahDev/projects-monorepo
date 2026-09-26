@@ -4,7 +4,22 @@
     "correctness": "error"
   },
   "rules": {
-    "typescript/no-explicit-any": "error"
+    "typescript/no-explicit-any": "error",
+    "curly": ["error", "all"],
+    "@stylistic/padding-line-between-statements": [
+      "error",
+      {
+        "blankLine": "always",
+        "prev": ["if", "function", "block-like"],
+        "next": "*"
+      },
+      {
+        "blankLine": "always",
+        "prev": "*",
+        "next": "return"
+      }
+    ],
+    "spacing/blank-line-before-nested-comment": "error"
   },
   "ignorePatterns": [
     "node_modules/**",
@@ -14,5 +29,12 @@
     ".cache/**",
     "test-results/**",
     "playwright-report/**"
+  ],
+  "jsPlugins": [
+    "@stylistic/eslint-plugin",
+    {
+      "name": "spacing",
+      "specifier": "./tools/oxlint/spacing-plugin.js"
+    }
   ]
 }

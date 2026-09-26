@@ -21,5 +21,6 @@ export function initPhysics(): Promise<void> {
     ready = undefined;
     throw error;
   });
+
   return ready;
 }

@@ -6,6 +6,7 @@ function memoryStorage(
   initial: Record<string, string> = {},
 ): StorageLike & { data: Record<string, string> } {
   const data = { ...initial };
+
   return {
     data,
     getItem: (k) => data[k] ?? null,
@@ -106,6 +107,7 @@ describe("lap store", () => {
     storage.setItem = () => {
       throw new Error("QuotaExceededError");
     };
+
     const store = createLapStore(storage);
     store.record(key, lap(100));
     expect(store.best(key)?.timeS).toBe(100);
@@ -120,6 +122,7 @@ describe("lap store", () => {
     storage.setItem = () => {
       throw new Error("QuotaExceededError");
     };
+
     store.record(key, lap(100));
     expect(storageNotice(store.status)).toContain("not saved");
     expect(storageNotice({ persistent: true, recovered: true })).toContain("reset");

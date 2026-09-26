@@ -15,12 +15,14 @@ export async function buildSite(projectRoot: string, outdir: string): Promise<Bu
     outdir,
     target: "browser",
     minify: true,
+
     // Bun leaves NODE_ENV unresolved unless told, which would keep development-only code.
     define: { "process.env.NODE_ENV": JSON.stringify("production") },
   });
   if (!result.success) {
     throw new AggregateError(result.logs, "Bun.build failed");
   }
+
   const publicRoot = join(projectRoot, "public");
   const collisions = listFiles(publicRoot)
     .map((path) => relative(publicRoot, path))
@@ -28,9 +30,11 @@ export async function buildSite(projectRoot: string, outdir: string): Promise<Bu
   if (collisions.length) {
     throw new Error(`public/ would overwrite bundle outputs: ${collisions.join(", ")}`);
   }
+
   cpSync(publicRoot, outdir, { recursive: true });
   const scripts = listFiles(outdir).filter((path) => path.endsWith(".js"));
   assertNoTestHooks(scripts.map((path) => [relative(outdir, path), readFileSync(path, "utf8")]));
+
   return listFiles(outdir).map((path) => ({
     path: relative(outdir, path),
     bytes: statSync(path).size,
@@ -47,6 +51,7 @@ export function assertNoTestHooks(scripts: [path: string, source: string][]): vo
 function listFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
+
     return entry.isDirectory() ? listFiles(path) : [path];
   });
 }

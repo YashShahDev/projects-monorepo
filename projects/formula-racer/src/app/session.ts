@@ -37,12 +37,16 @@ export interface SessionState {
   camera: CameraMode;
   assists: DriverAssists;
   physicsVersion: string;
+
   /** The running car differs from the shipped definition; laps should say so. */
   tuned: boolean;
+
   /** A tuning change is waiting for the next reset. */
   pendingTuning: boolean;
+
   /** Seconds of the standing-start countdown left; the car is held until it is zero. */
   countdownS: number;
+
   /** The lap being timed, once the countdown ends. */
   lap: CurrentLap | undefined;
   laps: SessionLap[];
@@ -62,6 +66,7 @@ export interface FrameView {
 export interface DrivingSession {
   readonly geometry: TrackGeometry;
   readonly stepSeconds: number;
+
   /**
    * Advances by one displayed frame and returns what to draw: the car interpolated
    * between the last two simulation steps, and the camera following that same pose.
@@ -70,11 +75,13 @@ export interface DrivingSession {
   action(action: KeyAction): void;
   focusLost(): void;
   setAssists(assists: DriverAssists): void;
+
   /**
    * Validates a change to the car and applies it on the next reset, since changing mass,
    * springs or aero under a moving car would be a discontinuity, not a tuning result.
    */
   retune(patch: Partial<CarDefinition>): void;
+
   /** The car definition currently being driven. */
   car(): CarDefinition;
   snapshot(): VehicleSnapshot;
@@ -91,6 +98,7 @@ const poseOf = (s: VehicleSnapshot): Pose => ({ position: s.position, rotation: 
 /** Linear position and normalized-lerp rotation; steps are too short for nlerp to drift. */
 function blend(a: Pose, b: Pose, t: number): Pose {
   const lerp = (x: number, y: number) => x + (y - x) * t;
+
   // Take the short way round: q and -q are the same rotation.
   const sign =
     a.rotation.x * b.rotation.x +
@@ -107,6 +115,7 @@ function blend(a: Pose, b: Pose, t: number): Pose {
     w: lerp(a.rotation.w, sign * b.rotation.w),
   };
   const n = Math.hypot(q.x, q.y, q.z, q.w) || 1;
+
   return {
     position: {
       x: lerp(a.position.x, b.position.x),
@@ -124,6 +133,7 @@ export async function createDrivingSession(
 ): Promise<DrivingSession> {
   const geometry = buildTrackGeometry(track);
   const start = geometry.pointAt(track.startDistanceM);
+
   // One lookup hint per wheel keeps each locate to a short windowed search.
   const wheelHints: (number | undefined)[] = [undefined, undefined, undefined, undefined];
   const options: VehicleOptions = {
@@ -135,6 +145,7 @@ export async function createDrivingSession(
     gripAt: (x, z, wheel) => {
       const location = geometry.locate(x, z, wheelHints[wheel]);
       wheelHints[wheel] = location.index;
+
       return track.surfaceGrip[location.surface];
     },
   };
@@ -148,17 +159,21 @@ export async function createDrivingSession(
   let paused = false;
   const lapTimer = createLapTimer({ lengthM: geometry.lengthM, sectors: SECTORS });
   const laps: SessionLap[] = [];
+
   // Counted in whole steps so the countdown ends on the same step at any frame rate.
   const TYRE_HALF_WIDTH_M = 0.2;
   const innerWheelOffsetM = car.wheels.halfTrack + TYRE_HALF_WIDTH_M;
   const countdownSteps = Math.round(COUNTDOWN_S / sim.stepSeconds);
   let countdownLeft = countdownSteps;
+
   // Pose before the latest step and how far the display is between the two.
   let previous = poseOf(sim.snapshot());
   let alpha = 1;
+
   // The first frame after a pause reports the whole paused gap; it must not be simulated.
   let skipNextFrame = false;
   let cameraMode: CameraMode = "chase";
+
   // Kept here too so a rebuilt (retuned) vehicle starts in the driver's mode.
   let energyMode: EnergyMode = "balanced";
   let hint: number | undefined;
@@ -167,6 +182,7 @@ export async function createDrivingSession(
     const { position } = sim.snapshot();
     const location = geometry.locate(position.x, position.z, hint);
     hint = location.index;
+
     return location;
   };
 
@@ -178,6 +194,7 @@ export async function createDrivingSession(
         skipNextFrame = false;
       } else if (!paused) {
         const plan = stepper.advance(frameSeconds);
+
         // Input is smoothed per simulation step, not per frame, so the render rate
         // cannot change what the car does.
         for (let i = 0; i < plan.steps; i += 1) {
@@ -188,9 +205,13 @@ export async function createDrivingSession(
             // Held on the brakes; steering still responds so the grid feels live.
             sim.step({ throttle: 0, brake: 1, steer: controls.steer });
             countdownLeft -= 1;
-            if (countdownLeft === 0) lapTimer.start(sim.snapshot().simSeconds, locate().distanceM);
+            if (countdownLeft === 0) {
+              lapTimer.start(sim.snapshot().simSeconds, locate().distanceM);
+            }
+
             continue;
           }
+
           // Straight Mode only on throttle, off the brakes, inside an activation zone.
           const here = locate().distanceM;
           const inZone = track.activeAeroZones.some((z) => here >= z.startM && here <= z.endM);
@@ -200,6 +221,7 @@ export async function createDrivingSession(
           sim.step(controls);
           const location = locate();
           const before = lapTimer.laps().length;
+
           // Track limits: the lap stays valid until all four wheels are past the kerb,
           // i.e. the inner wheels' outer edges are beyond it.
           const withinLimits =
@@ -207,7 +229,10 @@ export async function createDrivingSession(
             geometry.halfWidthM + geometry.kerbWidthM;
           lapTimer.update(sim.snapshot().simSeconds, location.distanceM, withinLimits);
           const done = lapTimer.laps();
-          if (done.length > before) sim.newLap();
+          if (done.length > before) {
+            sim.newLap();
+          }
+
           for (const record of done.slice(before)) {
             laps.push({
               ...record,
@@ -217,10 +242,13 @@ export async function createDrivingSession(
             });
           }
         }
+
         alpha = plan.alpha;
       }
+
       const latest = sim.snapshot();
       const car = { ...latest, ...blend(previous, poseOf(latest), alpha) };
+
       return { car, camera: camera.update(car, frameSeconds) };
     },
     action(action) {
@@ -239,6 +267,7 @@ export async function createDrivingSession(
         } else {
           sim.reset();
         }
+
         smoother.reset();
         previous = poseOf(sim.snapshot());
         alpha = 1;
@@ -260,6 +289,7 @@ export async function createDrivingSession(
     },
     setAssists(assists) {
       sim.setAssists(assists);
+
       // A lap must be driven under one assist set to be compared fairly.
       session.action("reset");
     },
@@ -271,6 +301,7 @@ export async function createDrivingSession(
     state() {
       const snapshot = sim.snapshot();
       const location = locate();
+
       return {
         paused,
         simSeconds: snapshot.simSeconds,
@@ -295,5 +326,6 @@ export async function createDrivingSession(
       sim.dispose();
     },
   };
+
   return session;
 }

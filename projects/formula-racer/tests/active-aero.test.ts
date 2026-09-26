@@ -47,12 +47,17 @@ describe("active aero in the vehicle", () => {
     const coast = async (straight: boolean) => {
       const sim = await settledVehicle();
       timeTo(sim, 250);
-      if (straight) sim.setWingMode("straight");
+      if (straight) {
+        sim.setWingMode("straight");
+      }
+
       run(sim, NO_CONTROLS, 3);
       const v = kmh(sim);
       sim.dispose();
+
       return v;
     };
+
     expect(await coast(true)).toBeGreaterThan((await coast(false)) + 5);
   });
 
@@ -81,18 +86,33 @@ describe("active aero in a session", () => {
 
   test("opens in a zone on throttle and closes under braking", async () => {
     session = await createDrivingSession(car, track);
-    for (let t = 0; t < 3; t += 1 / 60) session.frame(1 / 60, idle);
+    for (let t = 0; t < 3; t += 1 / 60) {
+      session.frame(1 / 60, idle);
+    }
+
     // From the grid at 150 m the car is inside the main-straight zone.
-    for (let t = 0; t < 1; t += 1 / 60) session.frame(1 / 60, { ...idle, throttle: true });
+    for (let t = 0; t < 1; t += 1 / 60) {
+      session.frame(1 / 60, { ...idle, throttle: true });
+    }
+
     expect(session.state().wing.mode).toBe("straight");
-    for (let t = 0; t < 0.5; t += 1 / 60) session.frame(1 / 60, { ...idle, brake: true });
+    for (let t = 0; t < 0.5; t += 1 / 60) {
+      session.frame(1 / 60, { ...idle, brake: true });
+    }
+
     expect(session.state().wing.mode).toBe("corner");
   });
 
   test("stays closed outside a zone", async () => {
     session = await createDrivingSession(car, { ...track, activeAeroZones: [] });
-    for (let t = 0; t < 3; t += 1 / 60) session.frame(1 / 60, idle);
-    for (let t = 0; t < 1; t += 1 / 60) session.frame(1 / 60, { ...idle, throttle: true });
+    for (let t = 0; t < 3; t += 1 / 60) {
+      session.frame(1 / 60, idle);
+    }
+
+    for (let t = 0; t < 1; t += 1 / 60) {
+      session.frame(1 / 60, { ...idle, throttle: true });
+    }
+
     expect(session.state().wing.mode).toBe("corner");
   });
 });

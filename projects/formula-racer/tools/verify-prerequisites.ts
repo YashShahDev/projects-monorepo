@@ -11,13 +11,16 @@ try {
     try {
       const page = await browser.newPage();
       await page.setContent("<!doctype html><title>Prerequisite check</title><p>Browser ready</p>");
-      if ((await page.title()) !== "Prerequisite check")
+      if ((await page.title()) !== "Prerequisite check") {
         throw new Error(`${engine.name()}: page execution failed`);
+      }
+
       console.log(`PASS ${engine.name()} ${browser.version()}: headless launch and DOM execution`);
     } finally {
       await browser.close();
     }
   }
+
   execFileSync(
     "blender",
     [
@@ -40,6 +43,7 @@ try {
   ) {
     throw new Error("Blender did not produce a valid GLB 2 header");
   }
+
   console.log(
     `PASS Blender background Python: GLB export (${String(glb.length)} bytes) and PNG fixture`,
   );
@@ -52,7 +56,10 @@ try {
   const identifier = new Uint8Array([
     0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a,
   ]);
-  if (!ktx.subarray(0, 12).equals(identifier)) throw new Error("KTX encoder did not produce KTX2");
+  if (!ktx.subarray(0, 12).equals(identifier)) {
+    throw new Error("KTX encoder did not produce KTX2");
+  }
+
   console.log(`PASS KTX UASTC encoding (${String(ktx.length)} bytes)`);
   execFileSync(
     "node",

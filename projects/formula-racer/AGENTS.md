@@ -34,6 +34,9 @@ This guidance does not itself authorize spawning agents.
 
 - Bun, `bun test`, Oxlint, Oxfmt and strict TypeScript; no imports into sibling projects. Python is allowed
   for Blender tooling. Any new reusable shell script follows the global ~/scripts rules.
+- Formatting rules (braces on every `if`, blank lines after blocks and before `return`, blank line
+  before nested comments) are enforced by Oxlint, since Oxfmt cannot insert blank lines. Fix with
+  `bun run oxlint --fix .` then `bun run format`, repeating until clean.
 - Simulation has no DOM or Three.js dependencies. The renderer consumes snapshots;
   Rapier types stay behind the physics adapter. Use SI units internally.
 - Validate external content at load boundaries. Keep track/team/rule data separate

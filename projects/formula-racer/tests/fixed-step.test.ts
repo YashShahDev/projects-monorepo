@@ -7,7 +7,10 @@ describe("fixed-rate stepping", () => {
   test.each([30, 60, 75, 144, 240])("%d Hz frames yield 60 steps per second", (hz) => {
     const stepper = new FixedStepper(step, 8);
     let steps = 0;
-    for (let i = 0; i < hz * 3; i += 1) steps += stepper.advance(1 / hz).steps;
+    for (let i = 0; i < hz * 3; i += 1) {
+      steps += stepper.advance(1 / hz).steps;
+    }
+
     expect(steps).toBe(180);
   });
 

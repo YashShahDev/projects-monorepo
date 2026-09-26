@@ -5,12 +5,15 @@ export type EnergyMode = "balanced" | "harvest";
 export interface EnergyInput {
   speedMps: number;
   throttle: number;
+
   /** Braking power the driver asks for, W; regeneration takes what it can first. */
   brakePowerW: number;
   mode: EnergyMode;
+
   /** Driver holding the deploy key: the full permitted power instead of the mode's share. */
   deployRequest: boolean;
   dtS: number;
+
   /** Most deployment the drivetrain can turn into drive, e.g. below the traction cap. */
   limitW?: number;
 }
@@ -18,22 +21,27 @@ export interface EnergyInput {
 export interface EnergyFlow {
   deployW: number;
   regenW: number;
+
   /** The share of requested braking left to the friction brakes. */
   frictionBrakeW: number;
+
   /**
    * Regeneration with no brake request behind it (Harvest on lift-off). The vehicle must
    * apply it as drivetrain braking, or the stored energy would come from nowhere.
    */
   engineBrakeW: number;
   socJ: number;
+
   /** Recharge counted against this lap's limit. */
   lapRechargeJ: number;
 }
 
 export interface EnergySystem {
   update(input: EnergyInput): EnergyFlow;
+
   /** Starts a new lap's Recharge allowance. */
   newLap(): void;
+
   /** Back to a full store and a standing start. */
   reset(): void;
   state(): { socJ: number; lapRechargeJ: number };
@@ -44,13 +52,18 @@ export function permittedDeployW(rules: EnergyRules, speedMps: number): number {
   const kph = Math.abs(speedMps) * 3.6;
   const curve = rules.deployCurveKphKw;
   const last = curve.at(-1);
-  if (!last || kph >= last[0]) return 0;
+  if (!last || kph >= last[0]) {
+    return 0;
+  }
+
   for (let i = 1; i < curve.length; i += 1) {
     const [k1, p1] = curve[i] ?? last;
     const [k0, p0] = curve[i - 1] ?? last;
-    if (kph <= k1)
+    if (kph <= k1) {
       return Math.min(rules.ersMaxPowerW, (p0 + ((p1 - p0) * (kph - k0)) / (k1 - k0)) * 1000);
+    }
   }
+
   return 0;
 }
 
@@ -62,9 +75,13 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
   let socJ = rules.socWindowJ;
   let lapRechargeJ = 0;
   let launched = false;
+
   return {
     update({ speedMps, throttle, brakePowerW, mode, deployRequest, dtS, limitW }) {
-      if (Math.abs(speedMps) * 3.6 >= rules.standingStartDeployKph) launched = true;
+      if (Math.abs(speedMps) * 3.6 >= rules.standingStartDeployKph) {
+        launched = true;
+      }
+
       let deployW = 0;
       if (launched && throttle > 0 && mode !== "harvest") {
         const share = deployRequest ? 1 : rules.balancedDeployShare;
@@ -72,9 +89,11 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
           throttle * share * permittedDeployW(rules, speedMps),
           limitW ?? Number.POSITIVE_INFINITY,
         );
+
         // Never draw more than is stored.
         deployW = Math.min(deployW, (socJ * rules.deployEfficiency) / dtS);
       }
+
       const liftOff =
         mode === "harvest" && throttle === 0 && Math.abs(speedMps) >= MIN_HARVEST_SPEED_MPS
           ? rules.liftOffHarvestW
@@ -86,12 +105,14 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
         rules.rechargePerLapJ - lapRechargeJ,
       );
       const regenW = Math.max(0, Math.min(wanted, roomJ / dtS));
+
       // Regeneration serves the requested braking first; only braking beyond it is friction.
       const frictionBrakeW = Math.max(0, brakePowerW - Math.min(regenW, brakePowerW));
       const engineBrakeW = Math.max(0, regenW - brakePowerW);
       socJ += regenW * dtS * rules.regenEfficiency - (deployW * dtS) / rules.deployEfficiency;
       socJ = Math.min(rules.socWindowJ, Math.max(0, socJ));
       lapRechargeJ += regenW * dtS;
+
       return { deployW, regenW, frictionBrakeW, engineBrakeW, socJ, lapRechargeJ };
     },
     newLap() {

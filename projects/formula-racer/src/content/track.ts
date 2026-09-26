@@ -16,21 +16,29 @@ export interface TrackDefinition {
   name: string;
   widthM: number;
   kerbWidthM: number;
+
   /** Closed loop of centreline control points, listed in driving direction. */
   controlPoints: { x: number; z: number }[];
+
   /** Start position as a distance along the sampled centreline. */
   startDistanceM: number;
+
   /** Multipliers on the car's tyre friction coefficient. */
   surfaceGrip: { road: number; kerb: number; grass: number };
+
   /** Lap-distance spans where the wings may run in Straight Mode. */
   activeAeroZones: { startM: number; endM: number }[];
 }
 
 export function parseTrack(value: unknown, source = "track"): TrackDefinition {
   const root = object(value, source);
-  if (root.version !== 1) throw new ContentError(`${source}.version must be 1`);
+  if (root.version !== 1) {
+    throw new ContentError(`${source}.version must be 1`);
+  }
+
   const points = array(root.controlPoints, `${source}.controlPoints`, 4).map((point, i) => {
     const pair = array(point, `${source}.controlPoints[${String(i)}]`, 2);
+
     return {
       x: finite(pair[0], `${source}.controlPoints[${String(i)}][0]`),
       z: finite(pair[1], `${source}.controlPoints[${String(i)}][1]`),
@@ -44,6 +52,7 @@ export function parseTrack(value: unknown, source = "track"): TrackDefinition {
   });
   const grip = object(root.surfaceGrip, `${source}.surfaceGrip`);
   const multiplier = (key: string) => inRange(grip[key], `${source}.surfaceGrip.${key}`, 0.05, 1.5);
+
   return {
     version: 1,
     id: text(root.id, `${source}.id`),
@@ -58,6 +67,7 @@ export function parseTrack(value: unknown, source = "track"): TrackDefinition {
       const z = object(zone, field);
       const startM = inRange(z.startM, `${field}.startM`, 0, 1e6);
       const endM = inRange(z.endM, `${field}.endM`, startM + 1, 1e6);
+
       return { startM, endM };
     }),
   };

@@ -7,8 +7,10 @@ function page() {
   const key = (type: "keydown" | "keyup", code: string, repeat = false) => {
     const event = Object.assign(new Event(type, { cancelable: true }), { code, repeat });
     window.dispatchEvent(event);
+
     return event;
   };
+
   return { window, document, key };
 }
 
@@ -94,6 +96,7 @@ describe("keyboard input", () => {
       code: "ArrowUp",
       repeat: false,
     });
+
     // Dispatch on the field, then let it reach the window listener as a bubbled event.
     Object.defineProperty(event, "target", { value: input });
     window.dispatchEvent(event);
@@ -131,6 +134,7 @@ describe("keyboard input", () => {
       Object.defineProperty(event, "target", { value: Object.assign(new EventTarget(), target) });
       window.dispatchEvent(event);
     }
+
     expect(actions).toEqual(["pause", "pause"]);
   });
 });

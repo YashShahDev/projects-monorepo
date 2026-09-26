@@ -19,7 +19,9 @@ describe("base paths", () => {
     expect(normalizeBasePath("/games/formula-racer/")).toBe("/games/formula-racer/");
   });
   test("reject traversal and empty segments", () => {
-    for (const bad of ["/../x", "/a/./b", "/a//b"]) expect(() => normalizeBasePath(bad)).toThrow();
+    for (const bad of ["/../x", "/a/./b", "/a//b"]) {
+      expect(() => normalizeBasePath(bad)).toThrow();
+    }
   });
 });
 

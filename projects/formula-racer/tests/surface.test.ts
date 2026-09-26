@@ -20,10 +20,13 @@ async function stoppingDistance(grip: number) {
   run(sim, { throttle: 0, brake: 0, steer: 0 }, 1);
   timeTo(sim, 150);
   const start = sim.snapshot().position.z;
-  for (let t = 0; t < 10 && kmh(sim) > 1; t += sim.stepSeconds)
+  for (let t = 0; t < 10 && kmh(sim) > 1; t += sim.stepSeconds) {
     sim.step({ throttle: 0, brake: 1, steer: 0 });
+  }
+
   const distance = sim.snapshot().position.z - start;
   sim.dispose();
+
   return distance;
 }
 
@@ -44,7 +47,10 @@ describe("surface grip", () => {
 describe("surface grip in a session", () => {
   let sessions: DrivingSession[] = [];
   afterEach(() => {
-    for (const s of sessions) s.dispose();
+    for (const s of sessions) {
+      s.dispose();
+    }
+
     sessions = [];
   });
 
@@ -57,15 +63,22 @@ describe("surface grip in a session", () => {
     sessions.push(s);
     const held = { throttle: true, brake: false, left: false, right: false, deploy: false };
     let firstGrass: number | undefined;
+
     // 3 s standing-start countdown, then flat out past turn 1.
     for (let t = 0; t < 12; t += 1 / 60) {
       s.frame(1 / 60, held);
-      if (firstGrass === undefined && s.state().surface === "grass") firstGrass = t;
+      if (firstGrass === undefined && s.state().surface === "grass") {
+        firstGrass = t;
+      }
     }
+
     // Brake hard on whatever surface the car ended up on.
     const before = s.state().speedKmh;
     const brake = { ...held, throttle: false, brake: true };
-    for (let t = 0; t < 1; t += 1 / 60) s.frame(1 / 60, brake);
+    for (let t = 0; t < 1; t += 1 / 60) {
+      s.frame(1 / 60, brake);
+    }
+
     return { firstGrass, shed: before - s.state().speedKmh };
   }
 

@@ -1,8 +1,10 @@
 export interface StepPlan {
   /** Whole fixed steps to run this frame. */
   steps: number;
+
   /** Fraction of the next step already elapsed, for render interpolation. */
   alpha: number;
+
   /** Time discarded because the frame exceeded the catch-up budget. */
   droppedSeconds: number;
 }
@@ -32,7 +34,9 @@ export class FixedStepper {
       droppedSeconds = (steps - this.maxStepsPerFrame) * this.stepSeconds;
       steps = this.maxStepsPerFrame;
     }
+
     this.accumulator = Math.max(0, this.accumulator - droppedSeconds - steps * this.stepSeconds);
+
     return { steps, alpha: Math.min(1, this.accumulator / this.stepSeconds), droppedSeconds };
   }
 

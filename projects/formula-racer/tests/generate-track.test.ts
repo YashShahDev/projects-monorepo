@@ -34,10 +34,12 @@ const square: Layout = {
 describe("track generator", () => {
   test("solves the marked straights so the loop closes", () => {
     const { track, solvedM } = generateTrack(square);
+
     // Opposite sides of a square match: both solved straights equal the fixed 200 m.
     expect(solvedM[0]).toBeCloseTo(200, 6);
     expect(solvedM[1]).toBeCloseTo(200, 6);
     const geometry = buildTrackGeometry(parseTrack(track));
+
     // 4 × 200 m of straights plus a 50 m circle: 800 + 2π·50 = 1114.2 m.
     expect(geometry.lengthM).toBeCloseTo(1114.2, -1);
   });

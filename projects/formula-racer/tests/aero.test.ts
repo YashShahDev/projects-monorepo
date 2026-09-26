@@ -14,12 +14,14 @@ describe("aerodynamics", () => {
     const sim = await settledVehicle(
       parseCar({ ...car, powertrain: { ...car.powertrain, maxPowerW: 700_000 } }),
     );
+
     // 24 s of full throttle covers about 2 km, inside the 3 km test ground.
     run(sim, { throttle: 1, brake: 0, steer: 0 }, 20);
     const top = kmh(sim);
     run(sim, { throttle: 1, brake: 0, steer: 0 }, 4);
     expect(top).toBeGreaterThan(320);
     expect(top).toBeLessThan(360);
+
     // Settled: another 4 s adds almost nothing.
     expect(kmh(sim) - top).toBeLessThan(2);
     sim.dispose();
@@ -50,12 +52,15 @@ describe("aerodynamics", () => {
       sim.setAssists(NONE);
       timeTo(sim, 220, 60);
       const start = yaw(sim.snapshot().rotation);
+
       // Hold speed roughly constant through a long corner at a fixed lock.
       run(sim, { throttle: 0.5, brake: 0, steer: 0.12 }, 2);
       const end = sim.snapshot();
       sim.dispose();
+
       return Math.abs(yaw(end.rotation) - start);
     };
+
     const noDownforce = parseCar({
       ...car,
       aero: {
@@ -85,6 +90,7 @@ describe("aerodynamics", () => {
     run(sim, { throttle: 0, brake: 0, steer }, 1.5);
     const end = sim.snapshot();
     sim.dispose();
+
     // A car that grips turns about as far as the kinematic path v * lock / wheelbase;
     // one that spins turns far more (118° against 53° with 45% front downforce).
     const kinematic =

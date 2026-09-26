@@ -11,6 +11,7 @@ if (!existsSync(join(root, "index.html"))) {
   console.error("dist/index.html is missing; run make build first.");
   process.exit(1);
 }
+
 const base = normalizeBasePath(values.base ?? "/");
 const server = Bun.serve({
   port: Number(values.port ?? "4173"),

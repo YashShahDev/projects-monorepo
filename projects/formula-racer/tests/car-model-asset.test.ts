@@ -15,6 +15,7 @@ const MODEL = "public/assets/cars/fr26.glb";
 describe("shipped car model", () => {
   test("is the LFS object, not a pointer file", async () => {
     const head = (await readFile(MODEL)).subarray(0, 4).toString("latin1");
+
     // A checkout without `git lfs pull` holds a text pointer instead of the GLB.
     expect(head).toBe("glTF");
   });
@@ -30,7 +31,10 @@ describe("model files", () => {
     try {
       const doc = validModel(car, contract);
       const buffer = doc.createBuffer();
-      for (const accessor of doc.getRoot().listAccessors()) accessor.setBuffer(buffer);
+      for (const accessor of doc.getRoot().listAccessors()) {
+        accessor.setBuffer(buffer);
+      }
+
       doc
         .getRoot()
         .listTextures()

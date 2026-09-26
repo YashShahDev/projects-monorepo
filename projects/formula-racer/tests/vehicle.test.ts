@@ -37,6 +37,7 @@ describe("vehicle simulation", () => {
       sim.step({ throttle: 0, brake: 1, steer: 0 });
       seconds += sim.stepSeconds;
     }
+
     const distance = sim.snapshot().position.z - start;
     expect(distance).toBeGreaterThan(30);
     expect(distance).toBeLessThan(160);
@@ -56,6 +57,7 @@ describe("vehicle simulation", () => {
   test("reports yaw rate with the chassis's sign convention", async () => {
     const sim = await settledVehicle();
     run(sim, { throttle: 0.4, brake: 0, steer: -1 }, 2);
+
     // Steering left turns toward +x, a positive rotation about +y.
     expect(sim.snapshot().angularVelocity.y).toBeGreaterThan(0.1);
     sim.dispose();
@@ -100,8 +102,10 @@ describe("vehicle simulation", () => {
       run(sim, { throttle: 0, brake: 0.7, steer: -0.2 }, 1);
       const snapshot = sim.snapshot();
       sim.dispose();
+
       return snapshot;
     };
+
     expect(await drive()).toEqual(await drive());
   });
 
@@ -112,14 +116,21 @@ describe("vehicle simulation", () => {
       for (let frame = 0; frame < hz * 3; frame += 1) {
         const controls = frame < hz * 2 ? { throttle: 1, brake: 0, steer: 0.3 } : NO_CONTROLS;
         const { steps } = stepper.advance(1 / hz);
-        for (let i = 0; i < steps; i += 1) sim.step(controls);
+        for (let i = 0; i < steps; i += 1) {
+          sim.step(controls);
+        }
       }
+
       const snapshot = sim.snapshot();
       sim.dispose();
+
       return snapshot;
     };
+
     const reference = await at(60);
-    for (const hz of [30, 144]) expect(await at(hz)).toEqual(reference);
+    for (const hz of [30, 144]) {
+      expect(await at(hz)).toEqual(reference);
+    }
   });
 
   test("using a disposed simulation fails clearly", async () => {

@@ -11,6 +11,7 @@ function circle(): TrackDefinition {
     x: RADIUS * Math.cos((i * Math.PI) / 18),
     z: RADIUS * Math.sin((i * Math.PI) / 18),
   }));
+
   return {
     version: 1,
     id: "ring",
@@ -28,7 +29,9 @@ describe("track geometry", () => {
   test("a circular centreline has the circle's length and constant right-hand curvature", () => {
     const geometry = buildTrackGeometry(circle());
     expect(geometry.lengthM).toBeCloseTo(2 * Math.PI * RADIUS, -1);
-    for (const k of geometry.curvature) expect(Math.abs(k * RADIUS + 1)).toBeLessThan(0.03);
+    for (const k of geometry.curvature) {
+      expect(Math.abs(k * RADIUS + 1)).toBeLessThan(0.03);
+    }
   });
 });
 
