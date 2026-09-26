@@ -21,6 +21,8 @@ The primary implementation runs in the **main working folder** on
 `feat/formula-racer`, not on the `main` branch. Do not create a worktree for ordinary
 serial work. Preserve unrelated local files and stage explicit project paths.
 Use one draft PR for P0–P5, with small checkpoint commits; do not merge automatically.
+Every agent, including cloud sessions that start on their own branch, pushes to
+`feat/formula-racer` so the work lands in that PR (user, 2026-09-26).
 
 For authorized, independent parallel tasks, use separate branches/worktrees with
 clear ownership: Blender assets and UI are examples. Never edit the same `.blend`
@@ -47,6 +49,8 @@ This guidance does not itself authorize spawning agents.
 - Browser checks (user, 2026-09-26): run only the Chromium tests (`make test`) per change
   and commit; the full matrix (`make test-browser-full`, Firefox and production variants)
   is not required. Run `make assets-verify` when the car source or its inputs change.
+- Commits (user, 2026-09-26): commit after each red → green subtask, with a one-line
+  message (`P4-C3: add graphics presets`); no body beyond the attribution trailers.
 - Benchmark before claiming performance improvements. Record before/after data,
   hardware, renderer backend, route, quality preset and exact commands.
 - Never treat headless software rendering as a hardware FPS benchmark.

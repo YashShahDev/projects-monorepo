@@ -5,7 +5,7 @@ type: status
 status: active
 date: 2026-09-26
 updated: 2026-09-26
-summary: P3 done and reviewed; P4-C1 and P4-C2 done, P4-C3 presentation next.
+summary: P3 done and reviewed; P4-C1 and P4-C2 done, P4-C3 presentation in progress.
 ---
 
 # Current delivery status
@@ -22,11 +22,11 @@ summary: P3 done and reviewed; P4-C1 and P4-C2 done, P4-C3 presentation next.
 
 ## Next action
 
-P4-C2 is done: three visual-only liveries, Harbour Park confirmed as the original
-circuit by its existing feature tests, and a track catalog with the small Test Loop
-map selectable by `?track=` ([record](checkpoints/P4.md)). Next, P4-C3 test-first:
-low/medium/high graphics presets, wheel spin and wing flap animation, a basic engine
-audio model, the missing favicon, then drawing the car GLB (needs LFS objects).
+P4-C3 is in progress ([record](checkpoints/P4.md)): favicon, low/medium/high graphics
+presets and engine/tyre/kerb sound with a Sound toggle are done. Next, test-first: draw
+the car GLB through the model interface (liveries, hub pivots, wing flaps from
+`wing.opening`, chase and cockpit anchors, screenshot and loading tests). This needs
+the LFS objects. Then menu/HUD polish and the P4 phase review.
 
 ## Checkpoints
 
@@ -46,12 +46,16 @@ audio model, the missing favicon, then drawing the car GLB (needs LFS objects).
 | P3 review | done    | Codex `gpt-6-astra`, 3/3 fixed; [P3 record](checkpoints/P3.md)              |
 | P4-C1     | done    | `--grep=P4-C1`; [P4 record](checkpoints/P4.md)                              |
 | P4-C2     | done    | `--grep=P4-C2`; [P4 record](checkpoints/P4.md)                              |
-| P4-C3     | next    | [P4](phases/P4-content.md)                                                  |
+| P4-C3     | active  | `--grep=P4-C3`; [P4 record](checkpoints/P4.md)                              |
 | P5        | planned | [Roadmap](ROADMAP.md)                                                       |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
 ## Verified
+
+P4-C3 (partial): favicon, graphics presets (pixel ratio and draw distance, saved),
+engine/tyre/kerb sound model and Web Audio playback with a saved Sound toggle; 263 unit
+tests pass (the 2 GLB tests need LFS objects); Chromium browser 25/25.
 
 P4-C2: liveries (paint/accent only, saved choice); track catalog with safe ids and a
 catalog/file id check; Test Loop second map loaded by `?track=`; 245 unit tests pass
