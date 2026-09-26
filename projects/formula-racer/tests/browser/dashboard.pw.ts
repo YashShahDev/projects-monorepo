@@ -24,3 +24,17 @@ test("@smoke the map tracks the car and the next corner is previewed on approach
   expect(Number(await page.locator("#rpm").textContent())).toBeGreaterThan(4000);
   expect(errors).toEqual([]);
 });
+
+test("@smoke restarting mid-lap does not read as a huge deceleration", async ({ page }) => {
+  await lowQuality(page);
+  await freezeFrames(page);
+  await openGame(page);
+  await page.clock.runFor(3_000);
+  await page.keyboard.down("ArrowUp");
+  await page.clock.runFor(2_500);
+  await page.keyboard.up("ArrowUp");
+  await page.keyboard.press("KeyR");
+  await page.clock.runFor(100);
+  const g = Number((await page.locator("#g-force").textContent())?.replace(" g", ""));
+  expect(g).toBeLessThan(1);
+});

@@ -29,12 +29,23 @@ export function createGMeter() {
   let g: GForce = { lateral: 0, longitudinal: 0 };
 
   return {
+    /** Forgets the last speed, so a teleport (restart) is not read as a deceleration. */
+    reset(): void {
+      previousSpeed = undefined;
+      g = { lateral: 0, longitudinal: 0 };
+    },
     update(speedMps: number, yawRateRadS: number, dtS: number): GForce {
       if (dtS <= 0) {
         return g;
       }
 
-      const longitudinal = previousSpeed === undefined ? 0 : (speedMps - previousSpeed) / dtS / GRAVITY;
+      if (previousSpeed === undefined) {
+        previousSpeed = speedMps;
+
+        return g;
+      }
+
+      const longitudinal = (speedMps - previousSpeed) / dtS / GRAVITY;
       previousSpeed = speedMps;
 
       // Centripetal acceleration of the chassis: forward speed times yaw rate.

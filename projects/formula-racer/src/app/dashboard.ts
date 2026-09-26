@@ -24,6 +24,9 @@ export interface DashboardElements {
 
 export interface Dashboard {
   update(car: VehicleSnapshot, frameSeconds: number): void;
+
+  /** The car was put back on the grid: readings that compare frames start again. */
+  reset(): void;
 }
 
 const svg = <K extends keyof SVGElementTagNameMap>(name: K, attributes: Record<string, string> = {}) => {
@@ -124,6 +127,10 @@ export function createDashboard(
   let hint: number | undefined;
 
   return {
+    reset() {
+      meter.reset();
+      hint = undefined;
+    },
     update(car, frameSeconds) {
       const location = track.locate(car.position.x, car.position.z, hint);
       hint = location.index;

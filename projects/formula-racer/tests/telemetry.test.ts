@@ -51,4 +51,12 @@ describe("g meter", () => {
     const before = meter.update(50, 0.2, 1 / 60);
     expect(meter.update(90, 0.2, 0)).toEqual(before);
   });
+
+  test("after a reset the next reading starts afresh instead of a huge deceleration", () => {
+    const meter = createGMeter();
+    meter.update(80, 0, 1 / 60);
+    meter.update(80, 0, 1 / 60);
+    meter.reset();
+    expect(meter.update(0, 0, 1 / 60)).toEqual({ lateral: 0, longitudinal: 0 });
+  });
 });

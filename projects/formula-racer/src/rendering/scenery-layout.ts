@@ -107,9 +107,20 @@ export function layoutScenery(
     }
 
     const clearOfTrack = points.every((p) => trackside.distanceToTrack(p.x, p.z, 80) > edge + SETBACK_M);
+
+    // The barrier can swing out beyond the anchor sample's offset, so check its whole
+    // line against the footprint, with a metre to spare.
+    const clearOfBarriers = trackside.barriers.every((run) =>
+      run.points.every((p) => {
+        const dx = p.x - f.x;
+        const dz = p.z - f.z;
+
+        return Math.abs(dx * fx + dz * fz) > f.lengthM / 2 + 1 || Math.abs(dx * fz - dz * fx) > f.depthM / 2 + 1;
+      }),
+    );
     const clearOfOthers = placed.every((o) => Math.hypot(o.x - f.x, o.z - f.z) > (o.lengthM + f.lengthM) / 2 + 10);
 
-    return clearOfTrack && clearOfOthers;
+    return clearOfTrack && clearOfBarriers && clearOfOthers;
   };
 
   const start = track.locate(track.pointAt(startDistanceM).x, track.pointAt(startDistanceM).z).index;

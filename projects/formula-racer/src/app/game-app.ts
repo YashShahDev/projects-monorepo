@@ -300,7 +300,7 @@ export async function startGameApp(
     held: keyboard.held(),
     sound: { ...sound, enabled: preferences.sound(), output: audio?.state() ?? "none" },
   });
-  const show = (): void => {
+  const show = (): SessionState => {
     const s = session.state();
     hud.speed.textContent = String(Math.round(Math.abs(s.speedKmh)));
     hud.gear.textContent = String(s.gear);
@@ -339,8 +339,11 @@ export async function startGameApp(
     menu.traction.checked = s.assists.traction;
     const last = s.laps.at(-1);
     hud.lastLap.textContent = last ? `${formatLapTime(last.timeS)}${last.valid ? "" : " ✕"}` : "–";
+
+    return s;
   };
 
+  let lastCountdownS = Number.POSITIVE_INFINITY;
   const recorder = bench ? createBenchRecorder(bench.options) : undefined;
   let benchReported = false;
   const draw = (frameSeconds: number, held: HeldKeys): void => {
@@ -376,7 +379,14 @@ export async function startGameApp(
     }
 
     listen(car);
-    show();
+
+    // The countdown only ever restarts on a reset (R, Restart, an assist change).
+    const { countdownS } = show();
+    if (countdownS > lastCountdownS) {
+      dashboard.reset();
+    }
+
+    lastCountdownS = countdownS;
     dashboard.update(car, frameSeconds);
     frames += 1;
     if (frames === 1) {

@@ -47,6 +47,26 @@ describe("scenery layout", () => {
     });
   }
 
+  for (const id of ["harbour", "test-loop"]) {
+    test(`on ${id}, no barrier runs through a stand or building`, () => {
+      const { trackside, scenery } = id === "harbour" ? harbour : load(id);
+      for (const f of [...scenery.grandstands, ...scenery.buildings]) {
+        const fx = Math.sin(f.headingRad);
+        const fz = Math.cos(f.headingRad);
+        for (const run of trackside.barriers) {
+          for (const p of run.points) {
+            const dx = p.x - f.x;
+            const dz = p.z - f.z;
+            const along = dx * fx + dz * fz;
+            const across = dx * fz - dz * fx;
+            const inside = Math.abs(along) <= f.lengthM / 2 && Math.abs(across) <= f.depthM / 2;
+            expect(inside).toBe(false);
+          }
+        }
+      }
+    });
+  }
+
   test("a grandstand and the pit building face each other across the start straight", () => {
     const start = harbour.geometry.pointAt(harbour.track.startDistanceM);
     const near = (f: Footprint) => Math.hypot(f.x - start.x, f.z - start.z) < 60;
