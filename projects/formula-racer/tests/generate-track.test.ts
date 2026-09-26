@@ -44,12 +44,12 @@ describe("track generator", () => {
     expect(geometry.lengthM).toBeCloseTo(1114.2, -1);
   });
 
-  test("regenerates the shipped Harbour Park exactly", () => {
+  test.each(["harbour", "test-loop"])("regenerates the shipped %s track exactly", (id) => {
     const layout = JSON.parse(
-      readFileSync(resolve(import.meta.dirname, "../content/tracks/harbour.layout.json"), "utf8"),
+      readFileSync(resolve(import.meta.dirname, `../content/tracks/${id}.layout.json`), "utf8"),
     ) as Layout;
     const shipped = JSON.parse(
-      readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8"),
+      readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8"),
     ) as Record<string, unknown>;
     expect(generateTrack(layout).track).toEqual(shipped);
   });

@@ -1,0 +1,32 @@
+{
+  "id": "test-loop",
+  "name": "Test Loop",
+  "widthM": 12,
+  "kerbWidthM": 1.5,
+  "startDistanceM": 60,
+  "surfaceGrip": {
+    "road": 1,
+    "kerb": 0.85,
+    "grass": 0.45
+  },
+  "activeAeroZones": [
+    {
+      "startM": 20,
+      "endM": 200
+    }
+  ],
+  "segments": [
+    { "straight": 0, "solve": true },
+    { "arc": -90, "radius": 45 },
+    { "straight": 0, "solve": true },
+    { "arc": -90, "radius": 60 },
+    { "straight": 120 },
+    { "arc": 30, "radius": 50 },
+    { "straight": 20 },
+    { "arc": -30, "radius": 50 },
+    { "straight": 60 },
+    { "arc": -90, "radius": 45 },
+    { "straight": 150 },
+    { "arc": -90, "radius": 60 }
+  ]
+}

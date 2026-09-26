@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "tracks": [
+    { "id": "harbour", "name": "Harbour Park" },
+    { "id": "test-loop", "name": "Test Loop" }
+  ]
+}
