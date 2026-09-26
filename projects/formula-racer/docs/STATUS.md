@@ -22,11 +22,13 @@ summary: P3 done and reviewed; P4-C1 and P4-C2 done, P4-C3 presentation in progr
 
 ## Next action
 
-P4-C3 is in progress ([record](checkpoints/P4.md)): favicon, low/medium/high graphics
-presets and engine/tyre/kerb sound with a Sound toggle are done. Next, test-first: draw
-the car GLB through the model interface (liveries, hub pivots, wing flaps from
-`wing.opening`, chase and cockpit anchors, screenshot and loading tests). This needs
-the LFS objects. Then menu/HUD polish and the P4 phase review.
+P4-C3 is implemented ([record](checkpoints/P4.md)). Done: favicon, graphics presets
+(resolution, draw distance, car LOD), engine/tyre/kerb sound with a Sound toggle, the car
+GLB drawn through the model interface (liveries, wheels, flaps, chase and cockpit
+anchors), an LFS-pointer startup alert and a battery meter. Still open: verify against
+the real `fr26.glb` where LFS objects are available (`make test`, `make test-full`,
+chase/cockpit screenshots); the cloud session could only use a stand-in model. Then
+close P4 after the phase review.
 
 ## Checkpoints
 
@@ -53,9 +55,11 @@ Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
 ## Verified
 
-P4-C3 (partial): favicon, graphics presets (pixel ratio and draw distance, saved),
-engine/tyre/kerb sound model and Web Audio playback with a saved Sound toggle; 263 unit
-tests pass (the 2 GLB tests need LFS objects); Chromium browser 25/25.
+P4-C3: favicon; graphics presets (pixel ratio, draw distance, car LOD; saved); sound
+model and Web Audio playback with a saved toggle; anchored chase/cockpit cameras; car
+GLB binding, loading and rendering; battery meter. Unit tests pass except the shipped-GLB
+checks, which need the real LFS object; Chromium browser 27/27 against a local stand-in
+model.
 
 P4-C2: liveries (paint/accent only, saved choice); track catalog with safe ids and a
 catalog/file id check; Test Loop second map loaded by `?track=`; 245 unit tests pass
