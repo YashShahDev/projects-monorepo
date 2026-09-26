@@ -78,93 +78,267 @@ export interface RacingLine {
   phase: GuidePhase[];
 }
 
-// Coarse levels first: the long, smooth parts of the line barely move under
-// Gauss–Seidel on a fine grid, so each level starts from the coarser one's answer.
-const LEVELS: { every: number; sweeps: number }[] = [
-  { every: 8, sweeps: 3000 },
-  { every: 2, sweeps: 800 },
-  { every: 1, sweeps: 300 },
-];
+// Second differences of the line's points: Σ|p(i−1) − 2p(i) + p(i+1)|² is its squared
+// curvature summed on an even spacing, and it is exactly quadratic in the lateral
+// offsets. Its Hessian is DᵀD, whose stencil is 6, −4, 1 at distances 0, 1, 2, weighted
+// by how the normals at the two points align.
+const STENCIL = [6, -4, 1];
 
-/**
- * Minimises the sum of squared second differences of the line's points (its squared
- * curvature, on an even spacing) over offsets within ±`bound`, by projected
- * Gauss–Seidel. Each offset's objective is a parabola with curvature 6, so the exact
- * coordinate minimum is one step, clamped to the bound.
- */
-function relax(
-  cx: number[],
-  cz: number[],
-  nx: number[],
-  nz: number[],
-  offset: number[],
-  bound: number,
-  sweeps: number,
-) {
-  const m = cx.length;
-  const px = (i: number) => (cx[i] ?? 0) + (offset[i] ?? 0) * (nx[i] ?? 0);
-  const pz = (i: number) => (cz[i] ?? 0) + (offset[i] ?? 0) * (nz[i] ?? 0);
-  const wrap = (i: number) => (i + m) % m;
-  for (let sweep = 0; sweep < sweeps; sweep += 1) {
-    for (let j = 0; j < m; j += 1) {
-      let gradient = 0;
-      for (const [i, weight] of [
-        [wrap(j - 1), 1],
-        [j, -2],
-        [wrap(j + 1), 1],
-      ] as const) {
-        const [a, c] = [wrap(i - 1), wrap(i + 1)];
-        const rx = px(a) - 2 * px(i) + px(c);
-        const rz = pz(a) - 2 * pz(i) + pz(c);
-        gradient += weight * (rx * (nx[j] ?? 0) + rz * (nz[j] ?? 0));
+// ADMM brings the offsets near the answer and finds which points sit at the edges; an
+// active-set polish then solves exactly on that set.
+const ADMM_RHO = 1;
+const ADMM_ITERATIONS = 400;
+const POLISH_ROUNDS = 60;
+
+// Keeps the system positive definite where a long straight barely fixes its offsets.
+const REGULARISE = 1e-9;
+
+type Solve = (b: Float64Array) => Float64Array;
+
+/** Gaussian elimination, for systems too short for the banded solver. */
+function denseSolver(m: number, entry: (r: number, s: number) => number): Solve {
+  const a = Array.from({ length: m }, (_row, r) => Float64Array.from({ length: m }, (_column, c) => entry(r, c)));
+
+  return (b) => {
+    const rows = a.map((row, r) => Float64Array.from([...row, b[r] ?? 0]));
+    for (let c = 0; c < m; c += 1) {
+      const pivot = rows[c] ?? new Float64Array(m + 1);
+      for (let r = c + 1; r < m; r += 1) {
+        const row = rows[r] ?? new Float64Array(m + 1);
+        const f = (row[c] ?? 0) / (pivot[c] ?? 1);
+        for (let k = c; k <= m; k += 1) {
+          row[k] = (row[k] ?? 0) - f * (pivot[k] ?? 0);
+        }
+      }
+    }
+
+    const x = new Float64Array(m);
+    for (let r = m - 1; r >= 0; r -= 1) {
+      const row = rows[r] ?? new Float64Array(m + 1);
+      let sum = row[m] ?? 0;
+      for (let k = r + 1; k < m; k += 1) {
+        sum -= (row[k] ?? 0) * (x[k] ?? 0);
       }
 
-      offset[j] = Math.max(-bound, Math.min(bound, (offset[j] ?? 0) - gradient / 6));
+      x[r] = sum / (row[r] ?? 1);
     }
+
+    return x;
+  };
+}
+
+/** LDLᵀ of a symmetric positive-definite matrix with two sub-diagonals, no wrap. */
+function bandedSolver(k: number, entry: (r: number, s: number) => number): Solve {
+  const d = new Float64Array(k);
+  const a = new Float64Array(k);
+  const b = new Float64Array(k);
+  for (let i = 0; i < k; i += 1) {
+    b[i] = i >= 2 ? entry(i, i - 2) / (d[i - 2] ?? 1) : 0;
+    a[i] = i >= 1 ? (entry(i, i - 1) - (b[i] ?? 0) * (d[i - 2] ?? 0) * (a[i - 1] ?? 0)) / (d[i - 1] ?? 1) : 0;
+    d[i] = entry(i, i) - (a[i] ?? 0) ** 2 * (d[i - 1] ?? 0) - (b[i] ?? 0) ** 2 * (d[i - 2] ?? 0);
   }
+
+  return (r) => {
+    const y = new Float64Array(k);
+    for (let i = 0; i < k; i += 1) {
+      y[i] = (r[i] ?? 0) - (a[i] ?? 0) * (y[i - 1] ?? 0) - (b[i] ?? 0) * (y[i - 2] ?? 0);
+    }
+
+    for (let i = 0; i < k; i += 1) {
+      y[i] = (y[i] ?? 0) / (d[i] ?? 1);
+    }
+
+    for (let i = k - 1; i >= 0; i -= 1) {
+      y[i] = (y[i] ?? 0) - (a[i + 1] ?? 0) * (y[i + 1] ?? 0) - (b[i + 2] ?? 0) * (y[i + 2] ?? 0);
+    }
+
+    return y;
+  };
 }
 
-/** Periodic Catmull-Rom through evenly spaced `coarse` values, sampled `every` times per gap. */
-function refine(coarse: number[], n: number, every: number): number[] {
-  const m = coarse.length;
-  const at = (i: number) => coarse[((i % m) + m) % m] ?? 0;
+/**
+ * Solves A x = b for a symmetric positive-definite A whose entries vanish beyond two
+ * places either side of the diagonal, wrapping round as a closed loop does. The last two
+ * unknowns are split off so the rest is a plain band, and a 2×2 Schur complement
+ * couples them back: O(m) to factor and to solve.
+ */
+function cyclicBandedSolver(m: number, entry: (r: number, s: number) => number): Solve {
+  if (m < 7) {
+    return denseSolver(m, entry);
+  }
 
-  return Array.from({ length: n }, (_, k) => {
-    const i = Math.floor(k / every);
-    const t = k / every - i;
-    const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
+  const k = m - 2;
+  const inner = bandedSolver(k, entry);
 
-    return (
-      0.5 * (2 * p1 + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (3 * p1 - p0 + p3 - 3 * p2) * t * t * t)
-    );
-  });
+  // The only inner rows coupled to the last two unknowns: two at each end.
+  const edge = [0, 1, k - 2, k - 1];
+  const column = (j: number) => {
+    const c = new Float64Array(k);
+    for (const i of edge) {
+      c[i] = entry(i, j);
+    }
+
+    return c;
+  };
+
+  const w = [inner(column(k)), inner(column(k + 1))];
+  const s = [0, 1].map((p) =>
+    [0, 1].map((q) => entry(k + p, k + q) - edge.reduce((sum, i) => sum + entry(k + p, i) * (w[q]?.[i] ?? 0), 0)),
+  );
+  const [s00, s01, s10, s11] = [s[0]?.[0] ?? 1, s[0]?.[1] ?? 0, s[1]?.[0] ?? 0, s[1]?.[1] ?? 1];
+  const det = s00 * s11 - s01 * s10;
+
+  return (b) => {
+    const y = inner(b.subarray(0, k));
+    const r0 = (b[k] ?? 0) - edge.reduce((sum, i) => sum + entry(k, i) * (y[i] ?? 0), 0);
+    const r1 = (b[k + 1] ?? 0) - edge.reduce((sum, i) => sum + entry(k + 1, i) * (y[i] ?? 0), 0);
+    const x0 = (s11 * r0 - s01 * r1) / det;
+    const x1 = (s00 * r1 - s10 * r0) / det;
+    const x = new Float64Array(m);
+    for (let i = 0; i < k; i += 1) {
+      x[i] = (y[i] ?? 0) - (w[0]?.[i] ?? 0) * x0 - (w[1]?.[i] ?? 0) * x1;
+    }
+
+    x[k] = x0;
+    x[k + 1] = x1;
+
+    return x;
+  };
 }
 
-function solveOffsets(geometry: TrackGeometry, bound: number): number[] {
+/**
+ * The offsets within ±`bound` that minimise the line's summed squared curvature: a
+ * convex quadratic programme with box bounds (the minimum-curvature line of Braghin et
+ * al., 2008, and Heilmeier et al., 2020), solved to convergence.
+ */
+function solveOffsets(geometry: TrackGeometry, bound: number): Float64Array {
   const n = geometry.count;
-  let offset: number[] | undefined;
-  let previousEvery = 0;
-  for (const { every, sweeps } of LEVELS) {
-    // A level only runs when the lap divides evenly into its spacing.
-    if (n % every !== 0) {
-      continue;
-    }
-
-    const indices = Array.from({ length: n / every }, (_, j) => j * every);
-    const cx = indices.map((i) => geometry.x[i] ?? 0);
-    const cz = indices.map((i) => geometry.z[i] ?? 0);
-
-    // The left normal of a tangent (tx, tz) is (tz, −tx).
-    const nx = indices.map((i) => geometry.tz[i] ?? 0);
-    const nz = indices.map((i) => -(geometry.tx[i] ?? 0));
-    const start = offset ? refine(offset, indices.length, previousEvery / every) : indices.map(() => 0);
-    const clamped = start.map((o) => Math.max(-bound, Math.min(bound, o)));
-    relax(cx, cz, nx, nz, clamped, bound, sweeps);
-    offset = clamped;
-    previousEvery = every;
+  if (bound <= 0) {
+    return new Float64Array(n);
   }
 
-  return offset ?? Array.from({ length: n }, () => 0);
+  // The left normal of a tangent (tx, tz) is (tz, −tx).
+  const nx = Float64Array.from({ length: n }, (_, i) => geometry.tz[i] ?? 0);
+  const nz = Float64Array.from({ length: n }, (_, i) => -(geometry.tx[i] ?? 0));
+  const wrap = (i: number) => ((i % n) + n) % n;
+  const hessian = (i: number, j: number) => {
+    const apart = Math.min(wrap(i - j), wrap(j - i));
+    const weight = STENCIL[apart];
+    if (weight === undefined) {
+      return 0;
+    }
+
+    return weight * ((nx[i] ?? 0) * (nx[j] ?? 0) + (nz[i] ?? 0) * (nz[j] ?? 0)) + (apart === 0 ? REGULARISE : 0);
+  };
+
+  // The linear term: each normal against DᵀD applied to the centreline.
+  const q = Float64Array.from({ length: n }, (_, i) => {
+    let [gx, gz] = [0, 0];
+    for (let o = -2; o <= 2; o += 1) {
+      const w = STENCIL[Math.abs(o)] ?? 0;
+      gx += w * (geometry.x[wrap(i + o)] ?? 0);
+      gz += w * (geometry.z[wrap(i + o)] ?? 0);
+    }
+
+    return gx * (nx[i] ?? 0) + gz * (nz[i] ?? 0);
+  });
+  const gradientAt = (x: Float64Array, i: number) => {
+    let g = q[i] ?? 0;
+    for (let o = -2; o <= 2; o += 1) {
+      g += hessian(i, wrap(i + o)) * (x[wrap(i + o)] ?? 0);
+    }
+
+    return g;
+  };
+
+  const objective = (x: Float64Array) => {
+    let sum = 0;
+    for (let i = 0; i < n; i += 1) {
+      sum += (x[i] ?? 0) * (0.5 * (gradientAt(x, i) - (q[i] ?? 0)) + (q[i] ?? 0));
+    }
+
+    return sum;
+  };
+
+  const clamp = (v: number) => Math.max(-bound, Math.min(bound, v));
+
+  // ADMM on ½xᵀHx + qᵀx over the box: one banded factorisation, many cheap solves.
+  const admm = cyclicBandedSolver(n, (r, c) => hessian(r, c) + (r === c ? ADMM_RHO : 0));
+  let z = new Float64Array(n);
+  const u = new Float64Array(n);
+  for (let iteration = 0; iteration < ADMM_ITERATIONS; iteration += 1) {
+    const x = admm(Float64Array.from({ length: n }, (_, i) => ADMM_RHO * ((z[i] ?? 0) - (u[i] ?? 0)) - (q[i] ?? 0)));
+    z = Float64Array.from({ length: n }, (_, i) => clamp((x[i] ?? 0) + (u[i] ?? 0)));
+    for (let i = 0; i < n; i += 1) {
+      u[i] = (u[i] ?? 0) + (x[i] ?? 0) - (z[i] ?? 0);
+    }
+  }
+
+  // Polish: fix the points ADMM put at an edge, solve the rest exactly, then move points
+  // on or off the edges by the KKT conditions until nothing changes.
+  const edge = bound * (1 - 1e-6);
+  const side = Int8Array.from(z, (v) => {
+    if (Math.abs(v) < edge) {
+      return 0;
+    }
+
+    return v > 0 ? 1 : -1;
+  });
+  let best = z;
+  let bestObjective = objective(z);
+  const tolerance = 1e-9 * Math.max(1, ...q.map(Math.abs));
+  for (let round = 0; round < POLISH_ROUNDS; round += 1) {
+    const free: number[] = [];
+    const x = new Float64Array(n);
+    side.forEach((sd, i) => {
+      if (sd === 0) {
+        free.push(i);
+      } else {
+        x[i] = sd * bound;
+      }
+    });
+    if (free.length > 0) {
+      const rhs = Float64Array.from(free, (i) => {
+        let r = -(q[i] ?? 0);
+        for (let o = -2; o <= 2; o += 1) {
+          const j = wrap(i + o);
+          r -= side[j] === 0 ? 0 : hessian(i, j) * (x[j] ?? 0);
+        }
+
+        return r;
+      });
+      const solved = cyclicBandedSolver(free.length, (r, c) => hessian(free[r] ?? 0, free[c] ?? 0))(rhs);
+      free.forEach((i, r) => {
+        x[i] = solved[r] ?? 0;
+      });
+    }
+
+    let changed = false;
+    for (let i = 0; i < n; i += 1) {
+      const v = x[i] ?? 0;
+      const g = gradientAt(x, i);
+      if (side[i] === 0 && Math.abs(v) > bound) {
+        side[i] = v > 0 ? 1 : -1;
+        changed = true;
+      } else if ((side[i] === 1 && g > tolerance) || (side[i] === -1 && g < -tolerance)) {
+        side[i] = 0;
+        changed = true;
+      }
+    }
+
+    const feasible = Float64Array.from(x, clamp);
+    const value = objective(feasible);
+    if (value < bestObjective) {
+      best = feasible;
+      bestObjective = value;
+    }
+
+    if (!changed) {
+      break;
+    }
+  }
+
+  return best;
 }
 
 /** Signed curvature through the points `k` samples either side. */
@@ -257,7 +431,7 @@ function phases(speed: Float64Array, stepM: Float64Array): GuidePhase[] {
 export function buildRacingLine(geometry: TrackGeometry, limits: LineLimits): RacingLine {
   const n = geometry.count;
   const bound = Math.max(0, geometry.halfWidthM - limits.clearanceM);
-  const offsetM = Float64Array.from(solveOffsets(geometry, bound));
+  const offsetM = solveOffsets(geometry, bound);
   const x = Float64Array.from(
     { length: n },
     (_, i) => (geometry.x[i] ?? 0) + (offsetM[i] ?? 0) * (geometry.tz[i] ?? 0),
@@ -324,4 +498,15 @@ export function slowestBetween(line: RacingLine, spacingM: number, fromM: number
   }
 
   return slowest;
+}
+
+/** Lap time the speed profile predicts: each step at the mean of its end speeds. */
+export function estimatedLapTimeS(line: RacingLine): number {
+  let total = 0;
+  for (let i = 0; i < line.count; i += 1) {
+    const mean = ((line.speedMps[i] ?? 0) + (line.speedMps[(i + 1) % line.count] ?? 0)) / 2;
+    total += (line.stepM[i] ?? 0) / Math.max(mean, 1e-6);
+  }
+
+  return total;
 }

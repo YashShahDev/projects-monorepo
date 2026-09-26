@@ -3,7 +3,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseTrack } from "../src/content/track.ts";
 import { findCorners } from "../src/app/track-map.ts";
-import { buildRacingLine, guideColour, lineLimits, slowestBetween } from "../src/simulation/racing-line.ts";
+import type { TrackDefinition } from "../src/content/track.ts";
+import {
+  buildRacingLine,
+  estimatedLapTimeS,
+  guideColour,
+  lineLimits,
+  slowestBetween,
+} from "../src/simulation/racing-line.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 import { car } from "./support/vehicle.ts";
 
@@ -192,4 +199,165 @@ describe("corner speed hint", () => {
     );
     expect(wrapped).toBeLessThanOrEqual(either);
   });
+});
+
+/** A closed track through `points`, with corners rounded by the geometry's spline. */
+function trackThrough(points: { x: number; z: number }[], widthM: number): TrackDefinition {
+  return {
+    version: 1,
+    id: "synthetic",
+    name: "Synthetic",
+    widthM,
+    kerbWidthM: 1,
+    controlPoints: points,
+    startDistanceM: 0,
+    surfaceGrip: { road: 1, kerb: 1, grass: 1, gravel: 1 },
+    activeAeroZones: [],
+    setting: "circuit",
+    lighting: "day",
+  };
+}
+
+/** A square with 300 m sides and 20 m corners on a 12 m road, driven one way round. */
+function square(): TrackDefinition {
+  const points: { x: number; z: number }[] = [];
+  const corners = [
+    [0, 0],
+    [300, 0],
+    [300, 300],
+    [0, 300],
+  ] as const;
+  const r = 20;
+  corners.forEach(([cx, cz], k) => {
+    const [px, pz] = corners[(k + 3) % 4] ?? [0, 0];
+    const [nx, nz] = corners[(k + 1) % 4] ?? [0, 0];
+    const into = { x: (cx - px) / 300, z: (cz - pz) / 300 };
+    const out = { x: (nx - cx) / 300, z: (nz - cz) / 300 };
+    for (let d = 150; d > r; d -= 20) {
+      points.push({ x: cx - into.x * d, z: cz - into.z * d });
+    }
+
+    for (let t = 0; t <= 4; t += 1) {
+      const a = (t / 4) * (Math.PI / 2);
+      const f = (1 - Math.cos(a)) * r;
+      const g = Math.sin(a) * r;
+      points.push({ x: cx - into.x * (r - g) + out.x * f, z: cz - into.z * (r - g) + out.z * f });
+    }
+  });
+
+  return trackThrough(points, 12);
+}
+
+/** Sum of squared second differences round a closed line: its squared curvature on even steps. */
+function bending(x: ArrayLike<number>, z: ArrayLike<number>, n: number): number {
+  return squaredCurvature(x, z, n);
+}
+
+describe("minimum-curvature solve", () => {
+  // Least summed squared curvature spreads an isolated corner's turn over the straights
+  // either side, so it reaches well into the inside half rather than clipping the kerb:
+  // the kerb-clipping late apex is a minimum-time trait (C3).
+  test("takes a 90° corner from the outside edge, through the inside half, and out again", () => {
+    const geometry = buildTrackGeometry(square());
+    const squareLine = buildRacingLine(geometry, limits);
+    const room = geometry.halfWidthM - limits.clearanceM;
+    const n = geometry.count;
+    const at = (m: number) => Math.round(m / geometry.spacingM + n) % n;
+
+    // The apex of each corner is where the centreline bends most.
+    for (let c = 0; c < 4; c += 1) {
+      let apex = at((c * n * geometry.spacingM) / 4);
+      for (let k = 0; k < n / 4; k += 1) {
+        const i = (at((c * n * geometry.spacingM) / 4) + k) % n;
+        if (Math.abs(geometry.curvature[i] ?? 0) > Math.abs(geometry.curvature[apex] ?? 0)) {
+          apex = i;
+        }
+      }
+
+      const turn = Math.sign(geometry.curvature[apex] ?? 0);
+      const side = (i: number) => ((squareLine.offsetM[i] ?? 0) * turn) / room;
+      const apexM = apex * geometry.spacingM;
+      expect(side(apex)).toBeGreaterThan(0.3);
+      expect(side(at(apexM - 90))).toBeLessThan(-0.95);
+      expect(side(at(apexM + 90))).toBeLessThan(-0.95);
+    }
+
+    // Using the width, it turns on a wider radius than the road's own 20 m.
+    const tightest = Math.max(...squareLine.curvature.map(Math.abs));
+    expect(1 / tightest).toBeGreaterThan(24);
+  });
+
+  test("bends within 1% as little as a brute-force search on a small track", () => {
+    const geometry = buildTrackGeometry(
+      trackThrough(
+        [
+          { x: 0, z: 0 },
+          { x: 60, z: -10 },
+          { x: 110, z: 30 },
+          { x: 90, z: 90 },
+          { x: 30, z: 70 },
+          { x: -10, z: 40 },
+        ],
+        16,
+      ),
+    );
+    const small = buildRacingLine(geometry, limits);
+    const n = geometry.count;
+    const bound = geometry.halfWidthM - limits.clearanceM;
+
+    // Projected coordinate descent, run until nothing moves: slow, but certain.
+    const offset = Array.from({ length: n }, () => 0);
+    const nx = Array.from({ length: n }, (_, i) => geometry.tz[i] ?? 0);
+    const nz = Array.from({ length: n }, (_, i) => -(geometry.tx[i] ?? 0));
+    const px = (i: number) => (geometry.x[(i + n) % n] ?? 0) + (offset[(i + n) % n] ?? 0) * (nx[(i + n) % n] ?? 0);
+    const pz = (i: number) => (geometry.z[(i + n) % n] ?? 0) + (offset[(i + n) % n] ?? 0) * (nz[(i + n) % n] ?? 0);
+    for (let sweep = 0, moved = Infinity; sweep < 400_000 && moved > 1e-11; sweep += 1) {
+      moved = 0;
+      for (let j = 0; j < n; j += 1) {
+        let gradient = 0;
+        for (const [i, w] of [
+          [j - 1, 1],
+          [j, -2],
+          [j + 1, 1],
+        ] as const) {
+          const rx = px(i - 1) - 2 * px(i) + px(i + 1);
+          const rz = pz(i - 1) - 2 * pz(i) + pz(i + 1);
+          gradient += w * (rx * (nx[j] ?? 0) + rz * (nz[j] ?? 0));
+        }
+
+        const next = Math.max(-bound, Math.min(bound, (offset[j] ?? 0) - gradient / 6));
+        moved = Math.max(moved, Math.abs(next - (offset[j] ?? 0)));
+        offset[j] = next;
+      }
+    }
+
+    const xs = Array.from({ length: n }, (_, i) => px(i));
+    const zs = Array.from({ length: n }, (_, i) => pz(i));
+    const reference = bending(xs, zs, n);
+    expect(bending(small.x, small.z, n)).toBeLessThan(reference * 1.01);
+    for (const offsetM of small.offsetM) {
+      expect(Math.abs(offsetM)).toBeLessThanOrEqual(bound + 1e-9);
+    }
+  }, 60_000);
+
+  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "corniche", "test-loop"]) {
+    test(`on ${id}, the line's estimated lap beats the centreline's and stays on the road`, () => {
+      const geometry = buildTrackGeometry(
+        parseTrack(
+          JSON.parse(readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8")),
+        ),
+      );
+      const started = performance.now();
+      const raced = buildRacingLine(geometry, limits);
+      const builtMs = performance.now() - started;
+      const centre = buildRacingLine(geometry, { ...limits, clearanceM: geometry.halfWidthM });
+      expect(centre.offsetM.every((o) => o === 0)).toBe(true);
+      expect(estimatedLapTimeS(raced)).toBeLessThan(estimatedLapTimeS(centre));
+      const bound = geometry.halfWidthM - limits.clearanceM;
+      expect(raced.offsetM.every((o) => Math.abs(o) <= bound + 1e-9)).toBe(true);
+
+      // A loose bound, since the machine may be busy: it catches a solver gone quadratic.
+      expect(builtMs).toBeLessThan(3000);
+    });
+  }
 });
