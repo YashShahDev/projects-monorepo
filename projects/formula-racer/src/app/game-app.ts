@@ -360,6 +360,7 @@ export async function startGameApp(
         drawCalls: stats.drawCalls,
         triangles: stats.triangles,
         metres: Math.abs(car.speedMps) * frameSeconds,
+        paused: session.state().paused,
       });
       if (phase === "done") {
         benchReported = true;

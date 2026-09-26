@@ -16,7 +16,15 @@ describe("bench options", () => {
 });
 
 describe("bench recorder", () => {
-  const sample = (frameMs: number) => ({ frameMs, simMs: 1, renderMs: 2, drawCalls: 10, triangles: 1000, metres: 1 });
+  const sample = (frameMs: number, paused = false) => ({
+    frameMs,
+    simMs: 1,
+    renderMs: 2,
+    drawCalls: 10,
+    triangles: 1000,
+    metres: 1,
+    paused,
+  });
 
   test("discards the warm-up, measures for the run length, then stops", () => {
     const bench = createBenchRecorder({ warmupSeconds: 0.1, seconds: 0.2 });
@@ -33,5 +41,19 @@ describe("bench recorder", () => {
     expect(result.drawCalls).toBe(10);
     expect(result.triangles).toBe(1000);
     expect(result.renderMs.medianMs).toBe(2);
+  });
+
+  test("paused frames are not measured, and are counted so the run can be rejected", () => {
+    const bench = createBenchRecorder({ warmupSeconds: 0, seconds: 0.1 });
+    bench.record(sample(20));
+    for (let i = 0; i < 50; i += 1) {
+      expect(bench.record(sample(20, true))).toBe("measuring");
+    }
+
+    const phases = Array.from({ length: 4 }, () => bench.record(sample(20)));
+    expect(phases.at(-1)).toBe("done");
+    const result = bench.result();
+    expect(result.frames.frames).toBe(5);
+    expect(result.pausedFrames).toBe(50);
   });
 });

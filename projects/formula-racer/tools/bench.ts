@@ -64,6 +64,13 @@ function parseFrameSummary(value: unknown, path: string): FrameSummary {
 /** Reads back the JSON a `?bench` page printed. */
 export function parseBenchReport(value: unknown, path = "report"): BenchReport {
   const r = object(value, path);
+  const pausedFrames = finite(r.pausedFrames, `${path}.pausedFrames`);
+  if (pausedFrames > 0) {
+    throw new Error(
+      `${path} was paused for ${String(pausedFrames)} frames (did the window lose focus?); rerun the pass`,
+    );
+  }
+
   const buffer = object(r.drawingBuffer, `${path}.drawingBuffer`);
   const gl = object(r.gl, `${path}.gl`);
 
@@ -85,6 +92,7 @@ export function parseBenchReport(value: unknown, path = "report"): BenchReport {
     drawCalls: finite(r.drawCalls, `${path}.drawCalls`),
     triangles: finite(r.triangles, `${path}.triangles`),
     distanceM: finite(r.distanceM, `${path}.distanceM`),
+    pausedFrames,
   };
 }
 

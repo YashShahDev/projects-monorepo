@@ -15,6 +15,9 @@ export interface BenchSample {
 
   /** Distance the car covered during this frame. */
   metres: number;
+
+  /** The session was paused, so the frame measured the pause screen, not driving. */
+  paused: boolean;
 }
 
 export interface BenchResult {
@@ -27,6 +30,9 @@ export interface BenchResult {
   drawCalls: number;
   triangles: number;
   distanceM: number;
+
+  /** A run that was paused (the window lost focus) did not measure the route. */
+  pausedFrames: number;
 }
 
 /** What `?bench` prints: the result plus what is needed to compare runs fairly. */
@@ -73,12 +79,19 @@ export function createBenchRecorder(options: BenchOptions) {
   let drawCalls = 0;
   let triangles = 0;
   let distanceM = 0;
+  let pausedFrames = 0;
   let done = false;
 
   return {
     record(sample: BenchSample): BenchPhase {
       if (done) {
         return "done";
+      }
+
+      if (sample.paused) {
+        pausedFrames += 1;
+
+        return elapsedMs <= options.warmupSeconds * 1000 ? "warmup" : "measuring";
       }
 
       elapsedMs += sample.frameMs;
@@ -108,6 +121,7 @@ export function createBenchRecorder(options: BenchOptions) {
         drawCalls: drawCalls / n,
         triangles: triangles / n,
         distanceM,
+        pausedFrames,
       };
     },
   };

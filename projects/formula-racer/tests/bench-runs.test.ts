@@ -29,6 +29,7 @@ const report = (
   drawCalls: 40,
   triangles: 60_000,
   distanceM: 5000,
+  pausedFrames: 0,
 });
 
 test("takes the median pass for each figure and checks the 60 FPS target", () => {
@@ -103,4 +104,7 @@ test("reads a printed report back exactly and names the first field that is wron
     "report.gl.renderer must be a non-empty string",
   );
   expect(() => parseBenchReport([])).toThrow("report must be an object");
+  expect(() => parseBenchReport({ ...report(12), pausedFrames: 3 })).toThrow(
+    "report was paused for 3 frames (did the window lose focus?); rerun the pass",
+  );
 });
