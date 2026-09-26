@@ -231,3 +231,46 @@ All 8 findings were folded in above:
    48 KB.
 7. The help overlay has explicit ownership, and cameras gain FOV.
 8. Scenery placement classes are separated, and benchmarks cover the aids together.
+
+## Addendum review (Codex `gpt-6-astra`, 2026-09-26)
+
+These refine C1, C9 and C10:
+
+- **Shift logic.** Automatic upshifts at the crossover where the next gear's power, at
+  its ratio-adjusted rpm and with the force caps applied, beats the current gear's.
+  When there is no crossover it falls back to the redline. Downshifts keep hysteresis
+  and a cooldown. In Hybrid the driver's request takes priority, and the automatic
+  never reverses a driver shift straight away; bog-prone upshifts are refused. The
+  gearing is set to a 13,000 rpm redline with 8th at about 360 km/h, the reported 2026
+  figure. That is not the 15,000 rpm regulation limit, which would put 8th at about
+  415 km/h.
+- **Tyre-mark slip model.** Rapier's `frictionSlip` is a parameter, not measured
+  slip, so marks use explicit proxies:
+  - lateral velocity at the contact patch;
+  - the requested longitudinal force against the grip available (lock-up and
+    wheelspin).
+
+  There are guards for contact, load and low speed, plus hysteresis. Marks are sampled
+  by distance, not per step, with a byte budget per ghost and preallocated GPU
+  buffers. Tests cover cornering, an airborne wheel and reverse.
+
+- **Circuit import.**
+  - GeoJSON is `[longitude, latitude]`: convert to radians and project about the
+    centroid with cos(latitude), with the axis handedness stated.
+  - Drop the duplicate closing point, verify the direction, and pin the dataset
+    revision.
+  - Anchor the start/finish line geographically, then recompute distances and aero
+    zones after resampling.
+  - Avoid double smoothing on top of the runtime Catmull-Rom spline. Test positional
+    deviation from the source as well as length.
+  - Imported tracks write `public/assets/tracks/<id>.json` directly, alongside the
+    arc-based generator.
+  - Clearance tests run on the final runtime geometry: roads, kerbs and barriers of
+    adjacent sections must not overlap, and progress must stay continuous with no
+    shortcut.
+  - Monaco needs explicit trackside settings (walls close to the road).
+  - Measure the hairpin against the car's kinematic minimum radius (about 8.5 m,
+    from a 3.4 m wheelbase and 0.38 rad of lock) before any smoothing. Raise the
+    steering lock if needed rather than erasing the hairpin.
+- **Licensing.** The dataset's copyright and MIT notice ship beside the derived track
+  files. Names and branding make no official or F1 claims.
