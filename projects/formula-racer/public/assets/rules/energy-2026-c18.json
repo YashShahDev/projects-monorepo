@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "id": "f1-2026-c18",
+  "name": "2026 energy rules (Section C Issue 18)",
+  "source": "FIA 2026 F1 Regulations, Section C Technical Issue 18 (2026-05-07) C5.2.7-C5.2.12; Section B Sporting Issue 07 (2026-06-25) B7.1-B7.2",
+  "ersMaxPowerW": 350000,
+  "deployCurveKphKw": [
+    [0, 350],
+    [290, 350],
+    [340, 100],
+    [345, 0]
+  ],
+  "socWindowJ": 4000000,
+  "rechargePerLapJ": 8500000,
+  "standingStartDeployKph": 50,
+  "deployEfficiency": 0.95,
+  "regenEfficiency": 0.9,
+  "balancedDeployShare": 0.6,
+  "liftOffHarvestW": 120000
+}

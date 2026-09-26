@@ -36,3 +36,21 @@ eligibility in solo time trial. Label rule deviations in [P3](../phases/P3-time-
 
 Open at P3: confirm preferred deployment button semantics and selected regulation
 revision with the user after research. Default request is held Shift deployment.
+
+## Selected revision (P3, retrieved 2026-09-26)
+
+- [Section C: Technical, Issue 18, 7 May 2026](https://www.fia.com/system/files/documents/fia_2026_f1_regulations_-_section_c_technical_-_iss_18_-_2026-05-07.pdf):
+  C5.2.7 ERS-K ≤ 350 kW; C5.2.8(i) without Overtake, deployment ≤ 1800 − 5·v kW below
+  340 km/h and 6900 − 20·v kW from 340 to 345 km/h, zero from 345 km/h; C5.2.8(ii)
+  Overtake ≤ 7100 − 20·v kW below 355 km/h; C5.2.9 state-of-charge window ≤ 4 MJ;
+  C5.2.10 Recharge ≤ 8.5 MJ per lap (7 MJ at designated circuits, 5 MJ minimum in some
+  qualifying sessions, +0.5 MJ with Overtake); C5.2.12 no MGU-K drive from a standing
+  start until 50 km/h; C3.10.10 and C3.11.6 Corner and Straight Mode wing positions,
+  transition ≤ 400 ms, Straight Mode only fully inside an Activation Zone.
+- [Section B: Sporting, Issue 07, 25 June 2026](https://api.fia.com/system/files/documents/fia_2026_f1_regulations_-_section_b_sporting_-_iss_07_-_2026-06-25.pdf):
+  B7.1 Driver Adjustable Bodywork (full and partial activation, circuit-defined
+  Activation Zones); B7.2 per-circuit deployment and Recharge limits, and Overtake
+  via a Detection Gap, Detection Line and Activation Line relative to another car.
+
+These figures are encoded in `public/assets/rules/energy-2026-c18.json`, which names
+its source; the game reads them from there, not from engine code.

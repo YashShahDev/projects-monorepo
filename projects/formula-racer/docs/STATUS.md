@@ -22,10 +22,12 @@ summary: P2 done and reviewed; P3 time trial and energy in progress.
 
 ## Next action
 
-P3-C1 is done. Next, P3-C2: first read RES-002, show the selected regulatory revision
-and document the gameplay deviations; then test-first: versioned energy rules, Shift
-deployment above baseline, E cycling Balanced → Harvest, regeneration efficiency and
-brake blending, active-wing zones with braking override, and charge/power telemetry.
+P3-C2 in progress: regulation selected (Section C Iss 18, Section B Iss 07), deviations
+recorded, sourced rules file and pure energy system done. Next, test-first: split the
+car's power into ICE curve plus ERS deployment in the vehicle adapter; Shift and E keys
+and energy mode in the session; regeneration from requested braking; new lap resets
+Recharge; active-wing zones in track content with braking override; charge/power
+telemetry; then HUD (P3-C3).
 
 ## Checkpoints
 
