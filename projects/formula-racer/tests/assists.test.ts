@@ -80,7 +80,7 @@ async function drive(assists: DriverAssists, m: Manoeuvre) {
   };
 }
 
-// Below the speeds where downforce steadies the rear, braking hard with half lock slides it.
+// Braking hard with half lock below the speeds where downforce steadies the rear.
 const trailBraking: Manoeuvre = {
   fromKmh: 120,
   controls: { throttle: 0, brake: 1, steer: 0.5 },
@@ -88,10 +88,12 @@ const trailBraking: Manoeuvre = {
 };
 
 describe("brake assist (ABS)", () => {
-  test("keeps the rear planted when braking hard while turning", async () => {
+  test("braking hard while turning, keeps the car turning with the rear planted", async () => {
     const off = await drive(NONE, trailBraking);
     const on = await drive({ ...NONE, abs: true }, trailBraking);
-    expect(off.maxSideslipDeg).toBeGreaterThan(8);
+
+    // Without ABS every wheel locks and the car ploughs straight on.
+    expect(on.turnedDeg).toBeGreaterThan(off.turnedDeg * 3);
     expect(on.maxSideslipDeg).toBeLessThan(4);
   });
 

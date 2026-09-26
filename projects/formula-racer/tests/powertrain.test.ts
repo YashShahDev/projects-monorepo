@@ -36,11 +36,11 @@ describe("powertrain", () => {
   });
 
   test("above the traction cap, drive is the power curve over road speed", () => {
-    // 256 km/h in 7th (305 km/h at 12 500 rpm) is 10 492 rpm; the curve is 0.75 + 0.25 *
-    // (10 492 - 7000) / 3500 = 0.9994 of the 400 kW ICE, and 399.8 kW / 71.11 m/s = 5622 N.
+    // 256 km/h in 7th (318 km/h at 13 000 rpm) is 10 465 rpm; the curve is 0.75 + 0.25 *
+    // (10 465 - 7000) / 3500 = 0.9975 of the 400 kW ICE, and 399.0 kW / 71.11 m/s = 5611 N.
     const at256 = sweep(256).at(-1);
     expect(at256?.gear).toBe(7);
-    expect(at256?.driveForceN ?? 0).toBeCloseTo(5622, -1);
+    expect(at256?.driveForceN ?? 0).toBeCloseTo(5611, -1);
   });
 
   test("an upshift at the force crossover loses no drive once the cut ends", () => {

@@ -30,15 +30,16 @@
       [4000, 0.45],
       [7000, 0.75],
       [10500, 1],
-      [12500, 0.94]
+      [12000, 0.97],
+      [13000, 0.9]
     ],
     "shiftTimeS": 0.05,
     "gearbox": {
       "idleRpm": 4000,
-      "upshiftRpm": 11800,
-      "downshiftRpm": 8000,
-      "redlineRpm": 12500,
-      "gearTopSpeedsKmh": [95, 130, 165, 200, 235, 270, 305, 345]
+      "upshiftRpm": 12300,
+      "downshiftRpm": 8300,
+      "redlineRpm": 13000,
+      "gearTopSpeedsKmh": [99, 136, 172, 209, 245, 282, 318, 360]
     }
   },
   "aero": {

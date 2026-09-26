@@ -147,8 +147,14 @@ export interface VehicleOptions {
 const BARRIER_HALF_HEIGHT_M = 0.6;
 const BARRIER_HALF_THICKNESS_M = 0.3;
 
-// Share of the tyre's grip budget the assists allow before intervening.
+// Share of the tyre's grip the assists let braking or drive use, with cornering.
 const ASSIST_GRIP_MARGIN = 0.9;
+// ABS holds the rear tyres further back, as brake distribution does on a road car: a
+// light rear braking at its limit has too little grip left to hold the car's tail
+// when the driver brakes into a turn.
+const ABS_REAR_GRIP_SHARE = 0.7;
+// A locked or spinning slick carries about three quarters of its peak grip.
+const SLIDING_GRIP = 0.75;
 // Front slip angle at peak cornering force, measured from fixed-lock sweeps at
 // 100–250 km/h with the shipped tyre settings.
 const PEAK_SLIP_RAD = 0.015;
@@ -267,16 +273,54 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
   let assists: DriverAssists = { ...(options.assists ?? ALL_ASSISTS) };
   let disposed = false;
 
-  // Longitudinal force a wheel can add before it slides, from the last step's load and
-  // cornering force. Rapier halves the forward impulse in its friction-circle test
-  // (Bullet's fwdFactor), so its longitudinal budget is twice the lateral one.
+  // Rapier halves the forward impulse in its friction-circle test (Bullet's fwdFactor),
+  // which lets a tyre brake or drive with twice its cornering grip and keep most of
+  // its cornering grip while it does. The car applies the true circle itself: it caps
+  // each wheel's lengthways force, and shrinks Rapier's circle to leave only the grip
+  // that force does not use (see `frictionSlipFor`).
   const surfaceGrip = [1, 1, 1, 1];
-  const longitudinalBudgetN = (i: number): number => {
-    const mu = w.frictionCoefficient * (surfaceGrip[i] ?? 1);
-    const grip = ASSIST_GRIP_MARGIN * mu * (vehicle.wheelSuspensionForce(i) ?? 0);
+  const peakGripN = (i: number): number =>
+    w.frictionCoefficient * (surfaceGrip[i] ?? 1) * (vehicle.wheelSuspensionForce(i) ?? 0);
+
+  /**
+   * Lengthways force the tyre can add to the last step's cornering force while using
+   * no more than `share` of its grip.
+   */
+  const tyreBudgetN = (i: number, share = 1): number => {
+    const grip = share * peakGripN(i);
     const side = (vehicle.wheelSideImpulse(i) ?? 0) / stepSeconds;
 
-    return 2 * Math.sqrt(Math.max(0, grip * grip - side * side));
+    return Math.sqrt(Math.max(0, grip * grip - side * side));
+  };
+
+  // A wheel asked for more than its budget locks (braking) or spins (driving), and
+  // slides at sliding grip until the demand drops to what a sliding tyre carries. The
+  // sliding force goes lengthways, so a locked wheel barely steers.
+  const sliding = [false, false, false, false];
+  const updateSliding = (i: number, wantedN: number): void => {
+    sliding[i] = sliding[i] === true ? wantedN > SLIDING_GRIP * peakGripN(i) : wantedN > tyreBudgetN(i);
+  };
+
+  // Rapier passes (L/2)² + S² ≤ (slip·N)²; this slip makes that L² + S² ≤ (μN)².
+  const frictionSlipFor = (mu: number, lengthwaysN: number, loadN: number): number =>
+    Math.sqrt(Math.max(0, mu * mu - 0.75 * (lengthwaysN / loadN) ** 2));
+
+  // A locked tyre's force points against its contact's velocity, whichever way the
+  // wheel points. Rapier brakes along the wheel's rolling direction and shares an
+  // overloaded friction circle by the forces asked of it, either of which would let a
+  // locked, steered wheel steer; so a locked wheel's friction is applied here instead.
+  const locked = [false, false, false, false];
+  const LOCK_MIN_SPEED_MPS = 0.5;
+  const applyLockedFriction = (i: number, mu: number): void => {
+    const contact = vehicle.wheelContactPoint(i);
+    if (!contact || !vehicle.wheelIsInContact(i)) {
+      return;
+    }
+
+    const v = body.velocityAtPoint(contact);
+    const speed = Math.hypot(v.x, v.z);
+    const impulse = (mu * (vehicle.wheelSuspensionForce(i) ?? 0) * stepSeconds) / Math.max(speed, 1e-6);
+    body.applyImpulseAtPoint({ x: -v.x * impulse, y: 0, z: -v.z * impulse }, contact, true);
   };
 
   const assertLive = (): void => {
@@ -381,7 +425,6 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
           const p = wheelPoints[i] ?? { x: 0, y: 0, z: 0 };
           const at = localPoint(p.x, p.y, p.z);
           surfaceGrip[i] = options.gripAt(at.x, at.z, i);
-          vehicle.setWheelFrictionSlip(i, w.frictionCoefficient * (surfaceGrip[i] ?? 1));
         }
       }
 
@@ -391,7 +434,9 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         const share = i < 2 ? b.frontBias : 1 - b.frontBias;
         const wanted = (brakeN * share) / 2;
 
-        return assists.abs ? Math.min(wanted, longitudinalBudgetN(i)) : wanted;
+        return assists.abs
+          ? Math.min(wanted, tyreBudgetN(i, i < 2 ? ASSIST_GRIP_MARGIN : ABS_REAR_GRIP_SHARE))
+          : wanted;
       });
       let drive = drivetrain.driveForceN;
 
@@ -404,7 +449,7 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         // are delivering: none from a wheel in the air, and no more than the tyre grips,
         // whether ABS holds the wheel back or it locks.
         const rearBrakingN = [2, 3].reduce(
-          (sum, i) => sum + (vehicle.wheelIsInContact(i) ? Math.min(wheelBrakeN[i] ?? 0, longitudinalBudgetN(i)) : 0),
+          (sum, i) => sum + (vehicle.wheelIsInContact(i) ? Math.min(wheelBrakeN[i] ?? 0, tyreBudgetN(i)) : 0),
           0,
         );
 
@@ -466,18 +511,33 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
         let engine = !front && brakeN === 0 ? drive / 2 : 0;
         if (assists.traction) {
           // Limit the size of the force, so reverse and engine braking are held too.
-          engine = Math.sign(engine) * Math.min(Math.abs(engine), longitudinalBudgetN(i));
+          engine = Math.sign(engine) * Math.min(Math.abs(engine), tyreBudgetN(i, ASSIST_GRIP_MARGIN));
         }
 
-        vehicle.setWheelEngineForce(i, engine);
+        // Braking cuts drive, so a wheel is either braked or driven.
+        const braking = (wheelBrakeN[i] ?? 0) > 0;
+        const wanted = braking ? (wheelBrakeN[i] ?? 0) : Math.abs(engine);
+        updateSliding(i, wanted);
+        const mu = w.frictionCoefficient * (surfaceGrip[i] ?? 1) * (sliding[i] === true ? SLIDING_GRIP : 1);
+        const loadN = Math.max(vehicle.wheelSuspensionForce(i) ?? 0, 1);
+        const lengthwaysN = Math.min(wanted, mu * loadN);
+        locked[i] = braking && sliding[i] === true && speed > LOCK_MIN_SPEED_MPS;
+        vehicle.setWheelFrictionSlip(i, locked[i] === true ? 0 : frictionSlipFor(mu, lengthwaysN, loadN));
+        vehicle.setWheelEngineForce(i, braking ? 0 : Math.sign(engine) * lengthwaysN);
 
         // Regeneration blends with the friction brakes (brake-by-wire), so the wheel's
         // total braking is the same either way. Rapier treats `brake` as the maximum
         // rolling-friction impulse for this step.
-        vehicle.setWheelBrake(i, (wheelBrakeN[i] ?? 0) * stepSeconds);
+        vehicle.setWheelBrake(i, (braking && locked[i] !== true ? lengthwaysN : 0) * stepSeconds);
       }
 
       vehicle.updateVehicle(stepSeconds);
+      for (let i = 0; i < 4; i += 1) {
+        if (locked[i] === true) {
+          applyLockedFriction(i, w.frictionCoefficient * (surfaceGrip[i] ?? 1) * SLIDING_GRIP);
+        }
+      }
+
       applyAero(dynamicPressure, downforceN);
       applySurfaceDrag();
       world.step();
@@ -513,6 +573,8 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
       world.removeVehicleController(vehicle);
       vehicle = createController();
       surfaceGrip.fill(1);
+      sliding.fill(false);
+      locked.fill(false);
       powertrain.reset();
       drivetrain = powertrain.update(0, 0, stepSeconds);
       energy?.reset();

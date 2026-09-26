@@ -135,7 +135,7 @@ describe("manual gearbox", () => {
   });
 
   test("refuses a downshift that would over-rev the engine", () => {
-    // fr26 tops: 1st 95, 2nd 130, 3rd 165, 4th 200 km/h.
+    // fr26 tops: 1st 99, 2nd 136, 3rd 172, 4th 209 km/h.
     const gearbox = manual();
     for (let i = 0; i < 3; i += 1) {
       gearbox.request("up");
@@ -231,14 +231,14 @@ describe("gearbox content", () => {
   });
 
   test("rejects spacing so wide an upshift would land below the downshift point", () => {
-    // Upshifting at 11800 rpm from a 95 km/h first into a 200 km/h second lands at
-    // 11800 * 95 / 200 = 5605 rpm, under the 8000 rpm downshift point.
+    // Upshifting at 12300 rpm from a 95 km/h first into a 200 km/h second lands at
+    // 12300 * 95 / 200 = 5843 rpm, under the 8300 rpm downshift point.
     expect(withBox({ gearTopSpeedsKmh: [95, 200, 250] })).toThrow(
       "car.powertrain.gearbox.gearTopSpeedsKmh[1] is too tall",
     );
   });
 
   test("requires downshift < upshift <= redline", () => {
-    expect(withBox({ downshiftRpm: 12000 })).toThrow("car.powertrain.gearbox.downshiftRpm");
+    expect(withBox({ downshiftRpm: 12300 })).toThrow("car.powertrain.gearbox.downshiftRpm");
   });
 });
