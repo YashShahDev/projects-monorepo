@@ -217,7 +217,7 @@ export async function createDrivingSession(
   }
 
   const start = geometry.pointAt(track.startDistanceM);
-  const trackside = buildTrackside(geometry);
+  const trackside = buildTrackside(geometry, track.setting);
 
   // One lookup hint per wheel keeps each locate to a short windowed search.
   const wheelHints: (number | undefined)[] = [undefined, undefined, undefined, undefined];

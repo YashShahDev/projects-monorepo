@@ -25,7 +25,7 @@ const asset = (path: string) => new URL(path, "http://localhost/game/");
 
 describe("track catalog", () => {
   test("ships the circuit first and a small test map", () => {
-    expect(catalog.map((t) => t.id)).toEqual(["harbour", "test-loop"]);
+    expect(catalog.map((t) => t.id)).toEqual(["harbour", "riviera", "ardennes", "royal-park", "test-loop"]);
     expect(catalog[0]?.name).toBe("Harbour Park");
   });
 
@@ -61,7 +61,9 @@ describe("track catalog", () => {
   });
 
   test("names the available tracks when the requested one is unknown", () => {
-    expect(() => chooseTrack(catalog, "monza")).toThrow('unknown track "monza"; available: harbour, test-loop');
+    expect(() => chooseTrack(catalog, "monza")).toThrow(
+      'unknown track "monza"; available: harbour, riviera, ardennes, royal-park, test-loop',
+    );
   });
 });
 

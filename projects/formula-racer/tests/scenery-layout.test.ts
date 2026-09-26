@@ -13,7 +13,7 @@ const load = (id: string) => {
     JSON.parse(readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8")),
   );
   const geometry = buildTrackGeometry(track);
-  const trackside = buildTrackside(geometry);
+  const trackside = buildTrackside(geometry, track.setting);
 
   return { track, geometry, trackside, scenery: layoutScenery(geometry, trackside, track.startDistanceM) };
 };
@@ -34,7 +34,7 @@ function corners(f: Footprint) {
 }
 
 describe("scenery layout", () => {
-  for (const id of ["harbour", "test-loop"]) {
+  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "test-loop"]) {
     test(`on ${id}, no stand or building comes within its barrier's reach of the track`, () => {
       const { geometry, trackside, scenery } = id === "harbour" ? harbour : load(id);
       const clear = geometry.halfWidthM + geometry.kerbWidthM + 4;
@@ -48,7 +48,7 @@ describe("scenery layout", () => {
     });
   }
 
-  for (const id of ["harbour", "test-loop"]) {
+  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "test-loop"]) {
     test(`on ${id}, no barrier runs through a stand or building`, () => {
       const { trackside, scenery } = id === "harbour" ? harbour : load(id);
       for (const f of [...scenery.grandstands, ...scenery.buildings, ...scenery.marshals]) {

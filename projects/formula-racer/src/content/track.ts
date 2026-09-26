@@ -1,5 +1,8 @@
 import { array, ContentError, fetchJson, finite, inRange, object, positive, text } from "./validate.ts";
 
+/** Open circuits get run-off by corner; street circuits are walled in close. */
+export type TrackSetting = "circuit" | "street";
+
 /** A flat closed circuit described by its centreline, in metres on the x/z ground plane. */
 export interface TrackDefinition {
   version: 1;
@@ -19,6 +22,9 @@ export interface TrackDefinition {
 
   /** Lap-distance spans where the wings may run in Straight Mode. */
   activeAeroZones: { startM: number; endM: number }[];
+
+  /** Street circuits are walled in close; see `buildTrackside`. */
+  setting: TrackSetting;
 }
 
 export function parseTrack(value: unknown, source = "track"): TrackDefinition {
@@ -41,6 +47,11 @@ export function parseTrack(value: unknown, source = "track"): TrackDefinition {
       throw new ContentError(`${source}.controlPoints[${String(i)}] duplicates its neighbour`);
     }
   });
+  const setting = root.setting ?? "circuit";
+  if (setting !== "circuit" && setting !== "street") {
+    throw new ContentError(`${source}.setting must be circuit or street`);
+  }
+
   const grip = object(root.surfaceGrip, `${source}.surfaceGrip`);
   const multiplier = (key: string) => inRange(grip[key], `${source}.surfaceGrip.${key}`, 0.05, 1.5);
 
@@ -66,6 +77,7 @@ export function parseTrack(value: unknown, source = "track"): TrackDefinition {
 
       return { startM, endM };
     }),
+    setting,
   };
 }
 

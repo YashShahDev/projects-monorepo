@@ -122,6 +122,12 @@ describe("track content", () => {
     ).toThrow("track.controlPoints[1][0]");
   });
 
+  test("is an open circuit unless it says it is a street circuit", () => {
+    expect(parseTrack(raw).setting).toBe("circuit");
+    expect(parseTrack({ ...raw, setting: "street" }).setting).toBe("street");
+    expect(() => parseTrack({ ...raw, setting: "oval" })).toThrow("track.setting must be circuit or street");
+  });
+
   test("rejects consecutive duplicate points, including across the loop's seam", () => {
     const loop = [
       [0, 0],

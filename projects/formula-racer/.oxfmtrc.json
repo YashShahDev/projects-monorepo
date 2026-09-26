@@ -9,6 +9,7 @@
     "coverage/**",
     ".cache/**",
     "test-results/**",
-    "playwright-report/**"
+    "playwright-report/**",
+    "content/tracks/sources/**"
   ]
 }

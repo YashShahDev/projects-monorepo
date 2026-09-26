@@ -36,6 +36,8 @@ test("@dev the test map's geometry drives the session", async ({ page }) => {
 test("@smoke an unknown track names the available ones and offers a reload", async ({ page }) => {
   await page.goto("./?track=nowhere");
   const alert = page.getByRole("alert");
-  await expect(alert).toContainText('unknown track "nowhere"; available: harbour, test-loop');
+  await expect(alert).toContainText(
+    'unknown track "nowhere"; available: harbour, riviera, ardennes, royal-park, test-loop',
+  );
   await expect(alert.getByRole("button", { name: "Reload" })).toBeVisible();
 });

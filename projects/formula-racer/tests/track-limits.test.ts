@@ -17,6 +17,7 @@ const ring: TrackDefinition = {
   startDistanceM: 0,
   surfaceGrip: { road: 1, kerb: 1, grass: 1, gravel: 1 },
   activeAeroZones: [],
+  setting: "circuit",
 };
 const geometry = buildTrackGeometry(ring);
 const TYRE_HALF = 0.2;

@@ -7,10 +7,9 @@ import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 import type { TrackGeometry } from "../src/simulation/track-geometry.ts";
 import { buildTrackside } from "../src/simulation/trackside.ts";
 
-const shipped = (id: string) =>
-  buildTrackGeometry(
-    parseTrack(JSON.parse(readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8"))),
-  );
+const definition = (id: string) =>
+  parseTrack(JSON.parse(readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8")));
+const shipped = (id: string) => buildTrackGeometry(definition(id));
 const harbour = shipped("harbour");
 const harbourSide = buildTrackside(harbour);
 
@@ -29,6 +28,7 @@ function ring(): TrackGeometry {
     startDistanceM: 0,
     surfaceGrip: { road: 1, kerb: 1, grass: 1, gravel: 0.5 },
     activeAeroZones: [],
+    setting: "circuit",
   };
 
   return buildTrackGeometry(track);
@@ -69,12 +69,10 @@ describe("trackside runoff", () => {
 });
 
 describe("trackside barriers", () => {
-  for (const [id, track] of [
-    ["harbour", harbour],
-    ["test-loop", shipped("test-loop")],
-  ] as const) {
+  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "test-loop"]) {
     test(`on ${id}, no barrier comes within the kerb plus 2 m of any part of the track`, () => {
-      const side = buildTrackside(track);
+      const track = shipped(id);
+      const side = buildTrackside(track, definition(id).setting);
       const clearance = track.halfWidthM + track.kerbWidthM + 2;
       let closest = Number.POSITIVE_INFINITY;
       for (const run of side.barriers) {
@@ -102,6 +100,18 @@ describe("trackside barriers", () => {
     }
 
     expect(side.barriers.map((b) => b.closed)).toEqual([true, true]);
+  });
+
+  test("a street circuit has its walls 2 m past the kerbs, with pavement between", () => {
+    const side = buildTrackside(ring(), "street");
+    const edge = 6 + 1.5;
+    for (const e of [side.left, side.right]) {
+      for (const m of e.barrierM) {
+        expect(m).toBeCloseTo(edge + 2, 1);
+      }
+
+      expect(new Set(e.runoff)).toEqual(new Set(["asphalt"]));
+    }
   });
 
   test("painted runoff never runs past the barrier", () => {

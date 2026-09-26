@@ -1,3 +1,4 @@
+import type { TrackSetting } from "../content/track.ts";
 import type { Surface, TrackGeometry, TrackLocation } from "./track-geometry.ts";
 
 /** What lies between the kerb and the barrier. */
@@ -43,6 +44,9 @@ const HAIRPIN_RADIUS_M = 30;
 const GRAVEL_BEFORE_M = 30;
 const GRAVEL_AFTER_M = 90;
 const RUNOFF_M: Record<Runoff, number> = { grass: 10, gravel: 20, asphalt: 16 };
+
+// A street circuit's walls stand at the edge of the pavement.
+const STREET_RUNOFF_M = 2;
 
 // Barriers keep this far from any part of the track, and from their own side's
 // centreline at least the kerb plus this.
@@ -151,13 +155,19 @@ function runoffExtent(track: TrackGeometry, runoff: Runoff[], barrierM: Float64A
   });
 }
 
-function barrierFor(track: TrackGeometry, runoff: Runoff[], sign: 1 | -1, near: ReturnType<typeof sampleGrid>) {
+function barrierFor(
+  track: TrackGeometry,
+  runoff: Runoff[],
+  sign: 1 | -1,
+  near: ReturnType<typeof sampleGrid>,
+  setting: TrackSetting,
+) {
   const n = track.count;
   const edge = track.halfWidthM + track.kerbWidthM;
   const closest = edge + MIN_CLEARANCE_M;
   const limit = new Float64Array(n);
   for (let i = 0; i < n; i += 1) {
-    let wanted = edge + RUNOFF_M[runoff[i] ?? "grass"];
+    let wanted = edge + (setting === "street" ? STREET_RUNOFF_M : RUNOFF_M[runoff[i] ?? "grass"]);
 
     // On the inside of a bend an offset past the radius folds the line back on itself.
     const tightest = insideCurvature(track, i, sign);
@@ -240,11 +250,12 @@ function runsOf(track: TrackGeometry, barrierM: Float64Array, sign: 1 | -1, side
  * Lays out what surrounds the circuit: runoff by corner and barriers that keep clear of
  * every part of the track. Deterministic, so physics and rendering agree.
  */
-export function buildTrackside(track: TrackGeometry): Trackside {
+export function buildTrackside(track: TrackGeometry, setting: TrackSetting = "circuit"): Trackside {
   const near = sampleGrid(track);
   const edge = (sign: 1 | -1): TracksideEdge => {
-    const runoff = runoffFor(track, sign);
-    const barrierM = barrierFor(track, runoff, sign, near);
+    const runoff =
+      setting === "street" ? Array.from({ length: track.count }, (): Runoff => "asphalt") : runoffFor(track, sign);
+    const barrierM = barrierFor(track, runoff, sign, near, setting);
 
     return { runoff, barrierM, runoffM: runoffExtent(track, runoff, barrierM, sign) };
   };

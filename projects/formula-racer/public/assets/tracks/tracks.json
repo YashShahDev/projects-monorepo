@@ -1,7 +1,25 @@
 {
   "version": 1,
   "tracks": [
-    { "id": "harbour", "name": "Harbour Park" },
-    { "id": "test-loop", "name": "Test Loop" }
+    {
+      "id": "harbour",
+      "name": "Harbour Park"
+    },
+    {
+      "id": "riviera",
+      "name": "Riviera Streets"
+    },
+    {
+      "id": "ardennes",
+      "name": "Ardennes Ring"
+    },
+    {
+      "id": "royal-park",
+      "name": "Royal Park"
+    },
+    {
+      "id": "test-loop",
+      "name": "Test Loop"
+    }
   ]
 }
