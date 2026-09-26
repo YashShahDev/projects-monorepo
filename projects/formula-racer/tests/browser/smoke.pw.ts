@@ -19,6 +19,20 @@ test("@smoke starts on the grid and renders sky, grass, road and car", async ({ 
   expect(errors).toEqual([]);
 });
 
+test("@smoke the road shows right beside the car, not the grass under it", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openGame(page);
+
+  // The strips either side of the car, just ahead of the camera, are the start straight.
+  for (const [left, right] of [
+    [0.27, 0.37],
+    [0.63, 0.73],
+  ]) {
+    const near = await scenePixels(page, { left: left ?? 0, right: right ?? 1, top: 0.72, bottom: 0.95 });
+    expect(near.road).toBeGreaterThan(near.grass * 4);
+  }
+});
+
 test("@smoke the countdown holds the car, then the lap clock runs", async ({ page }) => {
   await lowQuality(page);
   await freezeFrames(page);
@@ -98,6 +112,9 @@ test("@smoke a battery meter shows the charge the readout gives", async ({ page 
 });
 
 test("@smoke running wide onto the grass marks the lap invalid", async ({ page }) => {
+  // Twelve seconds of driving is about 700 rendered frames of the full scene, which takes
+  // over 30 s when the machine is busy.
+  test.setTimeout(60_000);
   await lowQuality(page);
   await freezeFrames(page);
   await openGame(page);

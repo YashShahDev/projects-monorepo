@@ -116,7 +116,11 @@ export function createTrackView(
   grassMaterial.polygonOffset = true;
   grassMaterial.polygonOffsetFactor = 4;
   grassMaterial.polygonOffsetUnits = 4;
-  const grass = new THREE.Mesh(own(new THREE.PlaneGeometry(6000, 6000)), grassMaterial);
+
+  // In 300 m tiles: as two 6 km triangles, the ones clipped at the camera's near plane got
+  // a depth slope that pulled them in front of the road around the car (ANGLE on GL,
+  // Intel).
+  const grass = new THREE.Mesh(own(new THREE.PlaneGeometry(6000, 6000, 20, 20)), grassMaterial);
   grass.rotation.x = -Math.PI / 2;
   grass.position.y = -0.02;
   scene.add(grass);

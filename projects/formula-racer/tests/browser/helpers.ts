@@ -46,41 +46,57 @@ export interface ScenePixels {
   car: number;
 }
 
+/** A part of the view, as fractions of its width and height. */
+export interface ViewRegion {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+const WHOLE_VIEW: ViewRegion = { left: 0, top: 0, right: 1, bottom: 1 };
+
 /**
  * Classifies screenshot pixels by the greybox palette. The WebGL drawing buffer is not
  * preserved, so the compositor screenshot is decoded in the page instead.
  */
-export async function scenePixels(page: Page): Promise<ScenePixels> {
+export async function scenePixels(page: Page, region: ViewRegion = WHOLE_VIEW): Promise<ScenePixels> {
   const png = (await page.locator("#view").screenshot()).toString("base64");
 
-  return page.evaluate(async (data) => {
-    const image = new Image();
-    image.src = `data:image/png;base64,${data}`;
-    await image.decode();
-    const canvas = new OffscreenCanvas(image.width, image.height);
-    const context = canvas.getContext("2d");
-    if (!context) {
-      throw new Error("2D canvas unavailable");
-    }
-
-    context.drawImage(image, 0, 0);
-    const { data: rgba } = context.getImageData(0, 0, image.width, image.height);
-    const counts = { sky: 0, grass: 0, road: 0, car: 0 };
-    for (let i = 0; i < rgba.length; i += 4) {
-      const [r, g, b] = [rgba[i] ?? 0, rgba[i + 1] ?? 0, rgba[i + 2] ?? 0];
-      if (r > 150 && g < 80 && b < 80) {
-        counts.car += 1;
-      } else if (b > 170 && b > r + 30) {
-        counts.sky += 1;
-      } else if (g > r + 25 && g > b + 10) {
-        counts.grass += 1;
-      } else if (Math.abs(r - g) < 18 && Math.abs(g - b) < 18 && r > 50 && r < 150) {
-        counts.road += 1;
+  return page.evaluate(
+    async ([data, part]) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${data}`;
+      await image.decode();
+      const canvas = new OffscreenCanvas(image.width, image.height);
+      const context = canvas.getContext("2d");
+      if (!context) {
+        throw new Error("2D canvas unavailable");
       }
-    }
 
-    return counts;
-  }, png);
+      context.drawImage(image, 0, 0);
+      const [x, y] = [Math.round(part.left * image.width), Math.round(part.top * image.height)];
+      const width = Math.round(part.right * image.width) - x;
+      const height = Math.round(part.bottom * image.height) - y;
+      const { data: rgba } = context.getImageData(x, y, width, height);
+      const counts = { sky: 0, grass: 0, road: 0, car: 0 };
+      for (let i = 0; i < rgba.length; i += 4) {
+        const [r, g, b] = [rgba[i] ?? 0, rgba[i + 1] ?? 0, rgba[i + 2] ?? 0];
+        if (r > 150 && g < 80 && b < 80) {
+          counts.car += 1;
+        } else if (b > 170 && b > r + 30) {
+          counts.sky += 1;
+        } else if (g > r + 25 && g > b + 10) {
+          counts.grass += 1;
+        } else if (Math.abs(r - g) < 18 && Math.abs(g - b) < 18 && r > 50 && r < 150) {
+          counts.road += 1;
+        }
+      }
+
+      return counts;
+    },
+    [png, region] as const,
+  );
 }
 
 /** Reads the on-screen speed readout, km/h. */
