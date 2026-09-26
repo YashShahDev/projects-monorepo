@@ -2,7 +2,7 @@
 id: P5
 title: P5 — Performance and release verification
 type: phase
-status: planned
+status: in_progress
 date: 2026-09-26
 updated: 2026-09-26
 summary: Measure the first release and close regressions on real hardware.

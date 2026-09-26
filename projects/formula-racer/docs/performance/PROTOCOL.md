@@ -29,6 +29,13 @@ WebGL vendor/renderer, actual render resolution and backend. Hardware rendering 
 be confirmed. Target p95 frame time at or below 16.7 ms; report failure honestly and
 identify the limiting stage. FPS and p95 alone do not prove input responsiveness.
 
+Implemented in P5-C1 ([record](../checkpoints/P5.md)): `make bench QUALITY=medium`
+builds, serves `dist/` and runs three headed 1280×720 passes of `?bench` (10 s warm-up,
+120 s autopilot route `harbour-autopilot-v1`). It writes
+`docs/performance/runs/<time>-<preset>.json`. Record AC/battery state beside each run.
+`renderMs` is CPU-side submission only. A summary with `hardware: false` is a software
+renderer and is never a performance result.
+
 Keep route/seed and small JSON/Markdown summaries in Git. Exclude recordings and large
 trace artifacts. Compare before/after on the same machine and workload. Introduce
 workers, resolution changes or custom WASM only against evidence. Software-headless

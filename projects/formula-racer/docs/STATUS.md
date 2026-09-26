@@ -5,7 +5,7 @@ type: status
 status: active
 date: 2026-09-26
 updated: 2026-09-26
-summary: P3 done and reviewed; P4-C1 and P4-C2 done, P4-C3 presentation in progress.
+summary: P4 implemented and reviewed, pending the real-model check; P5-C1 benchmark tooling built.
 ---
 
 # Current delivery status
@@ -16,44 +16,58 @@ summary: P3 done and reviewed; P4-C1 and P4-C2 done, P4-C3 presentation in progr
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)).
 - Active phase: P4 — Blender content and presentation ([phase](phases/P4-content.md)).
-- Next checkpoint: P4-C3 presentation ([record](checkpoints/P4.md)).
+- Next checkpoint: P4-C3 real-model verification, then the P5-C1 hardware baseline ([P4](checkpoints/P4.md), [P5](checkpoints/P5.md)).
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
 ## Next action
 
-P4-C3 is implemented ([record](checkpoints/P4.md)). Done: favicon, graphics presets
-(resolution, draw distance, car LOD), engine/tyre/kerb sound with a Sound toggle, the car
-GLB drawn through the model interface (liveries, wheels, flaps, chase and cockpit
-anchors), an LFS-pointer startup alert and a battery meter. Still open: verify against
-the real `fr26.glb` where LFS objects are available (`make test`, `make test-full`,
-chase/cockpit screenshots); the cloud session could only use a stand-in model. Then
-close P4 after the phase review.
+All work that can be done without the real car model or the reference laptop is done.
+P4 is implemented and reviewed: 11 findings, 9 fixed and 2 rejected with reasons
+([record](checkpoints/P4.md#phase-review)). The P5-C1 benchmark route and `make bench`
+runner are built ([record](checkpoints/P5.md)).
+
+Next, on the reference laptop with LFS objects (`git lfs pull`):
+
+1. `make test` and `make test-full` against the real `fr26.glb`; record chase/cockpit
+   screenshots, then close P4-C3 and P4.
+2. `make bench QUALITY=low|medium|high` (headed, AC power noted); commit the summaries,
+   and name the limiting stage to close P5-C1.
+3. P5-C2 optimizations driven by that evidence, then P5-C3 final verification.
+
+Cloud sessions: set `PW_CHROMIUM_PATH` (see [SETUP](SETUP.md)); LFS fetches loop on
+redirects since the repository rename, so the browser suite needs a local stand-in model.
 
 ## Checkpoints
 
-| ID        | State   | Evidence                                                                    |
-| --------- | ------- | --------------------------------------------------------------------------- |
-| P0-C1     | done    | `35d4059`; [P0 record](checkpoints/P0.md)                                   |
-| P0-C2     | done    | `1df7e26`; [tooling evidence](checkpoints/P0.md)                            |
-| P0-C3     | done    | `d8f8b38`; [verification](checkpoints/P0.md)                                |
-| P1-C1     | done    | `2c619ed`; [P1 record](checkpoints/P1.md)                                   |
-| P1-C2     | done    | `c4768e0`; [P1 record](checkpoints/P1.md)                                   |
-| P1-C3     | done    | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md)             |
-| P2-C1     | done    | `aab4afa`; [P2 record](checkpoints/P2.md)                                   |
-| P2-C2     | done    | `f9cb3b1`… (`--grep=P2-C2`); [P2 record](checkpoints/P2.md)                 |
-| P2-C3     | done    | `ec511a5`… (`--grep=P2-C3`); [P2 record](checkpoints/P2.md)                 |
-| P2 review | done    | Codex `gpt-6-astra`, 4/4 fixed; [P2 record](checkpoints/P2.md#phase-review) |
-| P3-C1–C3  | done    | `09c6ec9`… (`--grep=P3-C`); [P3 record](checkpoints/P3.md)                  |
-| P3 review | done    | Codex `gpt-6-astra`, 3/3 fixed; [P3 record](checkpoints/P3.md)              |
-| P4-C1     | done    | `--grep=P4-C1`; [P4 record](checkpoints/P4.md)                              |
-| P4-C2     | done    | `--grep=P4-C2`; [P4 record](checkpoints/P4.md)                              |
-| P4-C3     | active  | `--grep=P4-C3`; [P4 record](checkpoints/P4.md)                              |
-| P5        | planned | [Roadmap](ROADMAP.md)                                                       |
+| ID        | State   | Evidence                                                                      |
+| --------- | ------- | ----------------------------------------------------------------------------- |
+| P0-C1     | done    | `35d4059`; [P0 record](checkpoints/P0.md)                                     |
+| P0-C2     | done    | `1df7e26`; [tooling evidence](checkpoints/P0.md)                              |
+| P0-C3     | done    | `d8f8b38`; [verification](checkpoints/P0.md)                                  |
+| P1-C1     | done    | `2c619ed`; [P1 record](checkpoints/P1.md)                                     |
+| P1-C2     | done    | `c4768e0`; [P1 record](checkpoints/P1.md)                                     |
+| P1-C3     | done    | `08f3cbd`, `ae25a13`, `6683d2f`; [P1 record](checkpoints/P1.md)               |
+| P2-C1     | done    | `aab4afa`; [P2 record](checkpoints/P2.md)                                     |
+| P2-C2     | done    | `f9cb3b1`… (`--grep=P2-C2`); [P2 record](checkpoints/P2.md)                   |
+| P2-C3     | done    | `ec511a5`… (`--grep=P2-C3`); [P2 record](checkpoints/P2.md)                   |
+| P2 review | done    | Codex `gpt-6-astra`, 4/4 fixed; [P2 record](checkpoints/P2.md#phase-review)   |
+| P3-C1–C3  | done    | `09c6ec9`… (`--grep=P3-C`); [P3 record](checkpoints/P3.md)                    |
+| P3 review | done    | Codex `gpt-6-astra`, 3/3 fixed; [P3 record](checkpoints/P3.md)                |
+| P4-C1     | done    | `--grep=P4-C1`; [P4 record](checkpoints/P4.md)                                |
+| P4-C2     | done    | `--grep=P4-C2`; [P4 record](checkpoints/P4.md)                                |
+| P4-C3     | active  | `--grep=P4-C3`; needs the real-model check; [P4](checkpoints/P4.md)           |
+| P4 review | done    | Fresh review agent, 9 fixed, 2 rejected; [P4](checkpoints/P4.md#phase-review) |
+| P5-C1     | active  | Tooling done (`--grep=P5-C1`); laptop runs pending; [P5](checkpoints/P5.md)   |
+| P5-C2, C3 | planned | [P5](phases/P5-release.md)                                                    |
 
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
 ## Verified
+
+P4 review and P5-C1 tooling: 9 review fixes with tests; bench route, frame/run summaries
+and `make bench` verified headless (software GL, not a performance result); unit tests
+pass except the shipped-GLB check; Chromium browser 29/29 against a local stand-in model.
 
 P4-C3: favicon; graphics presets (pixel ratio, draw distance, car LOD; saved); sound
 model and Web Audio playback with a saved toggle; anchored chase/cockpit cameras; car
