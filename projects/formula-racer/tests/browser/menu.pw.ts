@@ -107,3 +107,26 @@ test("@smoke the graphics preset changes the render resolution and is remembered
   await expect(page.locator("#quality")).toHaveValue("low");
   await expect.poll(bufferWidth).toBe(Math.floor(cssWidth * 0.6));
 });
+
+test("@smoke the gearbox menu choice shows on the gear readout and is remembered; Z selects reverse", async ({
+  page,
+}) => {
+  await lowQuality(page);
+  await freezeFrames(page);
+  await openGame(page);
+  await page.clock.runFor(3_100);
+  await page.keyboard.press("KeyZ");
+  await page.clock.runFor(200);
+  await expect(page.locator("#gear")).toHaveText("R");
+
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog", { name: "Paused" }).getByLabel("Gearbox").selectOption("manual");
+  await page.keyboard.press("Escape");
+  await page.clock.runFor(200);
+  await expect(page.locator("#gear")).toHaveText("1 M");
+
+  // lowQuality's init script rewrites the saved preferences on every load, so check the
+  // saved choice directly rather than through a reload.
+  const saved = await page.evaluate(() => localStorage.getItem("formula-racer:prefs"));
+  expect(JSON.parse(saved ?? "{}")).toMatchObject({ gearboxMode: "manual" });
+});

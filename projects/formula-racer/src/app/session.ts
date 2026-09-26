@@ -25,11 +25,13 @@ import type { Pose } from "../simulation/physics.ts";
 import type { KeyAction } from "./keyboard.ts";
 import type { EnergyRules } from "../content/energy-rules.ts";
 import type { EnergyMode } from "../simulation/energy.ts";
+import type { GearboxMode, ShiftRequest } from "../simulation/gearbox.ts";
 
 /** A completed lap and the conditions it was driven under. */
 export interface SessionLap extends LapRecord {
   physicsVersion: string;
   assists: DriverAssists;
+  gearboxMode: GearboxMode;
   tuned: boolean;
 }
 
@@ -43,6 +45,7 @@ export interface SessionState {
   surface: GroundSurface;
   camera: CameraMode;
   assists: DriverAssists;
+  gearboxMode: GearboxMode;
   physicsVersion: string;
 
   /** The running car differs from the shipped definition; laps should say so. */
@@ -92,6 +95,7 @@ export interface DrivingSession {
   action(action: KeyAction): void;
   focusLost(): void;
   setAssists(assists: DriverAssists): void;
+  setGearboxMode(mode: GearboxMode): void;
 
   /**
    * Validates a change to the car and applies it on the next reset, since changing mass,
@@ -255,6 +259,10 @@ export async function createDrivingSession(
 
   // Kept here too so a rebuilt (retuned) vehicle starts in the driver's mode.
   let energyMode: EnergyMode = "balanced";
+  let gearboxMode: GearboxMode = "automatic";
+
+  // A pressed shift key, applied on the next simulation step that drives the car.
+  let pendingShift: ShiftRequest | undefined;
   let hint: number | undefined;
 
   const locate = () => {
@@ -285,6 +293,7 @@ export async function createDrivingSession(
           if (countdownLeft > 0) {
             // Held on the brakes; steering still responds so the grid feels live.
             sim.step({ throttle: 0, brake: 1, steer: controls.steer });
+            pendingShift = undefined;
             countdownLeft -= 1;
             if (countdownLeft === 0) {
               lapTimer.start(sim.snapshot().simSeconds, locate().distanceM);
@@ -297,7 +306,8 @@ export async function createDrivingSession(
           const here = locate().distanceM;
           const inZone = track.activeAeroZones.some((z) => here >= z.startM && here <= z.endM);
           sim.setWingMode(inZone && controls.throttle > 0 && controls.brake === 0 ? "straight" : "corner");
-          sim.step(controls);
+          sim.step(pendingShift ? { ...controls, shift: pendingShift } : controls);
+          pendingShift = undefined;
           const location = locate();
           const before = lapTimer.laps().length;
 
@@ -318,6 +328,7 @@ export async function createDrivingSession(
             laps.push({
               ...record,
               physicsVersion: sim.snapshot().physicsVersion,
+              gearboxMode,
               assists: sim.snapshot().assists,
               tuned: JSON.stringify(current) !== stock,
             });
@@ -345,6 +356,7 @@ export async function createDrivingSession(
           pending = undefined;
           sim = buildVehicleSimulation(current, { ...options, assists });
           sim.setEnergyMode(energyMode);
+          sim.setGearboxMode(gearboxMode);
         } else {
           sim.reset();
         }
@@ -357,16 +369,32 @@ export async function createDrivingSession(
         hint = undefined;
         lapTimer.abort();
         countdownLeft = countdownSteps;
+        pendingShift = undefined;
+      } else if (action === "shiftUp" || action === "shiftDown") {
+        // A key pressed while paused must not shift the moment play resumes.
+        pendingShift = undefined;
+        if (!paused) {
+          pendingShift = action === "shiftUp" ? "up" : "down";
+        }
       } else if (action === "energyMode") {
         const next: EnergyMode = sim.snapshot().energy?.mode === "harvest" ? "balanced" : "harvest";
         energyMode = next;
         sim.setEnergyMode(next);
       } else {
+        // Fails to compile if a new action reaches here unhandled.
+        action satisfies "camera";
         cameraMode = camera.cycle();
       }
     },
     focusLost() {
       paused = true;
+    },
+    setGearboxMode(mode) {
+      gearboxMode = mode;
+      sim.setGearboxMode(mode);
+
+      // Best laps are kept per gearbox mode, so a lap must be driven under one mode.
+      session.action("reset");
     },
     setAssists(assists) {
       sim.setAssists(assists);
@@ -393,6 +421,7 @@ export async function createDrivingSession(
         surface: trackside.surfaceAt(location),
         camera: cameraMode,
         assists: snapshot.assists,
+        gearboxMode,
         physicsVersion: snapshot.physicsVersion,
         tuned: JSON.stringify(current) !== stock,
         pendingTuning: pending !== undefined,

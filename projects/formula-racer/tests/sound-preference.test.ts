@@ -34,3 +34,13 @@ test("sound stays on for saves without it or with a non-boolean value", () => {
   storage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, sound: "off" }));
   expect(createPreferences(storage, liveries).sound()).toBe(true);
 });
+
+test("the gearbox mode defaults to automatic, is remembered, and ignores unknown values", () => {
+  const storage = memory();
+  const prefs = createPreferences(storage, liveries);
+  expect(prefs.gearboxMode()).toBe("automatic");
+  prefs.setGearboxMode("manual");
+  expect(createPreferences(storage, liveries).gearboxMode()).toBe("manual");
+  storage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, gearboxMode: "sequential" }));
+  expect(createPreferences(storage, liveries).gearboxMode()).toBe("automatic");
+});

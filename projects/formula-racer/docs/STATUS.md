@@ -16,7 +16,7 @@ summary: P0–P5 complete; P6 (user feedback after playing) planned and Codex-re
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)); P3 — time trial and energy ([record](checkpoints/P3.md)); P4 — content and presentation ([record](checkpoints/P4.md)).
 - Active phase: P6 — driving aids, views and presentation ([phase](phases/P6-polish.md)).
-- Next checkpoint: P6-C1 manual gears and reverse ([P6](phases/P6-polish.md)).
+- Next checkpoint: P6-C2 pause menu and keyboard help ([P6](checkpoints/P6.md)).
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 

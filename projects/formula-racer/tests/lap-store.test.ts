@@ -40,6 +40,14 @@ describe("lap store", () => {
     expect(store.best(key)).toBeUndefined();
   });
 
+  test("each gearbox mode keeps its own best; automatic keeps the key it always had", () => {
+    const parts = { trackId: "harbour", physicsVersion: "p3.1", assists: allAssists };
+    expect(lapKey({ ...parts, gearboxMode: "automatic" })).toBe(lapKey(parts));
+    const manual = lapKey({ ...parts, gearboxMode: "manual" });
+    const hybrid = lapKey({ ...parts, gearboxMode: "hybrid" });
+    expect(new Set([lapKey(parts), manual, hybrid]).size).toBe(3);
+  });
+
   test("physics versions and assist sets keep separate bests", () => {
     const store = createLapStore(memoryStorage());
     store.record(key, lap(100));

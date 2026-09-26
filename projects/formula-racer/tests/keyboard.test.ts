@@ -118,6 +118,17 @@ describe("keyboard input", () => {
     expect(actions).toEqual(["energyMode"]);
   });
 
+  test("X shifts up and Z shifts down, once per press", () => {
+    const { window, document, key } = page();
+    const keyboard = createKeyboard(window, document);
+    const actions: string[] = [];
+    keyboard.onAction((action) => actions.push(action));
+    key("keydown", "KeyX");
+    key("keyup", "KeyX");
+    key("keydown", "KeyZ");
+    expect(actions).toEqual(["shiftUp", "shiftDown"]);
+  });
+
   test("a focused checkbox or button still lets game keys through", () => {
     const { window, document } = page();
     const keyboard = createKeyboard(window, document);

@@ -44,6 +44,7 @@ const menu = {
   traction: element("#assist-traction", HTMLInputElement),
   livery: element("#livery", HTMLSelectElement),
   quality: element("#quality", HTMLSelectElement),
+  gearbox: element("#gearbox", HTMLSelectElement),
   sound: element("#sound", HTMLInputElement),
 };
 

@@ -110,6 +110,47 @@ describe("driving session", () => {
     expect(state.countdownS).toBeGreaterThan(0);
   });
 
+  test("Z at a standstill selects reverse once the countdown is over, and does not cycle the camera", async () => {
+    const s = ready(await start());
+    const camera = s.state().camera;
+    s.action("shiftDown");
+    const state = drive(s, idle, 0.1);
+    expect(state.gear).toBe(-1);
+    expect(state.camera).toBe(camera);
+  });
+
+  test("gear requests are ignored during the countdown and while paused", async () => {
+    const s = await start();
+    s.action("shiftDown");
+    expect(drive(s, idle, 0.1).gear).toBe(1);
+    ready(s);
+    s.action("pause");
+    s.action("shiftDown");
+    s.action("pause");
+    expect(drive(s, idle, 0.1).gear).toBe(1);
+  });
+
+  test("changing the gearbox mode restarts the lap; manual then holds a gear, even after a restart", async () => {
+    const s = ready(await start());
+    drive(s, throttle, 2);
+    s.setGearboxMode("manual");
+    expect(s.state().countdownS).toBeGreaterThan(0);
+    ready(s);
+    expect(drive(s, throttle, 4).gear).toBe(1);
+    s.action("reset");
+    expect(s.state().gearboxMode).toBe("manual");
+    ready(s);
+    expect(drive(s, throttle, 4).gear).toBe(1);
+  });
+
+  test("a restart leaves reverse for first", async () => {
+    const s = ready(await start());
+    s.action("shiftDown");
+    drive(s, idle, 0.1);
+    s.action("reset");
+    expect(drive(s, idle, 0.1).gear).toBe(1);
+  });
+
   test("R puts the car back on the start line at rest", async () => {
     const s = await start();
     drive(s, { ...throttle, right: true }, 3);

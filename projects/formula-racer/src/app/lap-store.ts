@@ -1,3 +1,4 @@
+import type { GearboxMode } from "../simulation/gearbox.ts";
 import type { DriverAssists } from "../simulation/vehicle.ts";
 import { isRecord } from "../content/validate.ts";
 
@@ -46,11 +47,21 @@ const SCHEMA = 1;
  * Bests are only comparable under the same track, physics model and assists, so each
  * combination keeps its own.
  */
-export function lapKey(parts: { trackId: string; physicsVersion: string; assists: DriverAssists }): string {
+const BOX_SUFFIX: Record<GearboxMode, string> = { automatic: "", hybrid: "|H", manual: "|M" };
+
+export function lapKey(parts: {
+  trackId: string;
+  physicsVersion: string;
+  assists: DriverAssists;
+  gearboxMode?: GearboxMode;
+}): string {
   const a = parts.assists;
   const flags = `${a.steering ? "S" : "-"}${a.abs ? "A" : "-"}${a.traction ? "T" : "-"}`;
 
-  return `${parts.trackId}|${parts.physicsVersion}|${flags}`;
+  // Automatic adds nothing, so bests saved before gearbox modes existed still match.
+  const box = BOX_SUFFIX[parts.gearboxMode ?? "automatic"];
+
+  return `${parts.trackId}|${parts.physicsVersion}|${flags}${box}`;
 }
 
 const isLap = (lap: unknown): lap is StoredLap =>

@@ -11,7 +11,10 @@ export type ShiftRequest = "up" | "down";
  * Automatic shifts itself. Manual shifts only when the driver asks. Hybrid takes the
  * driver's shifts and steps in only at the limiter or when the engine would bog down.
  */
-export type GearboxMode = "automatic" | "hybrid" | "manual";
+export const GEARBOX_MODES = ["automatic", "hybrid", "manual"] as const;
+export type GearboxMode = (typeof GEARBOX_MODES)[number];
+
+export const isGearboxMode = (value: unknown): value is GearboxMode => GEARBOX_MODES.some((mode) => mode === value);
 
 export interface GearState {
   gear: Gear;

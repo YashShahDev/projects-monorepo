@@ -56,13 +56,15 @@ const DRIVE_KEYS: Record<string, keyof HeldKeys> = {
   ShiftRight: "deploy",
 };
 
-export type KeyAction = "reset" | "camera" | "pause" | "energyMode";
+export type KeyAction = "reset" | "camera" | "pause" | "energyMode" | "shiftUp" | "shiftDown";
 
 const ACTION_KEYS: Record<string, KeyAction> = {
   KeyR: "reset",
   KeyC: "camera",
   Escape: "pause",
   KeyE: "energyMode",
+  KeyX: "shiftUp",
+  KeyZ: "shiftDown",
 };
 
 export interface Keyboard {

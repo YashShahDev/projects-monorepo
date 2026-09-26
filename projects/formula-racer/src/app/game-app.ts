@@ -16,7 +16,7 @@ import modelInterface from "../../content/cars/model-interface.json";
 import { QUALITY_PRESETS, qualitySettings } from "../rendering/quality.ts";
 import { createKeyboard } from "./keyboard.ts";
 import type { HeldKeys } from "./keyboard.ts";
-import { formatLapTime } from "./format.ts";
+import { formatGear, formatLapTime } from "./format.ts";
 import { createLapStore, lapKey, storageNotice } from "./lap-store.ts";
 import type { StorageLike } from "./lap-store.ts";
 import { createPreferences } from "./preferences.ts";
@@ -78,6 +78,7 @@ export interface Menu {
   traction: HTMLInputElement;
   livery: HTMLSelectElement;
   quality: HTMLSelectElement;
+  gearbox: HTMLSelectElement;
   sound: HTMLInputElement;
 }
 
@@ -165,10 +166,12 @@ export async function startGameApp(
   const presetNames = { low: "Low", medium: "Medium", high: "High" };
   menu.quality.replaceChildren(...QUALITY_PRESETS.map((preset) => new Option(presetNames[preset], preset)));
   menu.quality.value = preferences.quality();
+  menu.gearbox.value = preferences.gearboxMode();
+  session.setGearboxMode(preferences.gearboxMode());
   view.setQuality(qualitySettings(preferences.quality(), window.devicePixelRatio));
   let storedLaps = 0;
-  const keyOf = (assists: SessionState["assists"], physicsVersion: string) =>
-    lapKey({ trackId: track.id, physicsVersion, assists });
+  const keyOf = (assists: SessionState["assists"], physicsVersion: string, gearboxMode: SessionState["gearboxMode"]) =>
+    lapKey({ trackId: track.id, physicsVersion, assists, gearboxMode });
 
   const keyboard = createKeyboard(window, document);
   keyboard.onAction((action) => {
@@ -279,6 +282,13 @@ export async function startGameApp(
 
   menu.livery.addEventListener("change", onLivery);
   menu.quality.addEventListener("change", onQuality);
+  const onGearbox = () => {
+    preferences.setGearboxMode(menu.gearbox.value);
+    session.setGearboxMode(preferences.gearboxMode());
+    show();
+  };
+
+  menu.gearbox.addEventListener("change", onGearbox);
   menu.sound.addEventListener("change", onSound);
   addEventListener("keydown", onGesture);
   addEventListener("pointerdown", onGesture);
@@ -305,7 +315,7 @@ export async function startGameApp(
   const show = (): SessionState => {
     const s = session.state();
     hud.speed.textContent = String(Math.round(Math.abs(s.speedKmh)));
-    hud.gear.textContent = String(s.gear);
+    hud.gear.textContent = formatGear(s.gear, s.gearboxMode);
     hud.paused.hidden = !s.paused;
 
     // Nudged below whole seconds so 2.0 s left reads "2", not "3".
@@ -325,7 +335,7 @@ export async function startGameApp(
 
     hud.wing.textContent = s.wing.mode === "straight" ? "Straight" : "Corner";
     for (const lap of s.laps.slice(storedLaps)) {
-      store.record(keyOf(lap.assists, lap.physicsVersion), lap);
+      store.record(keyOf(lap.assists, lap.physicsVersion, lap.gearboxMode), lap);
     }
 
     storedLaps = s.laps.length;
@@ -334,7 +344,7 @@ export async function startGameApp(
     const note = storageNotice(store.status);
     hud.storageNote.textContent = note;
     hud.storageNote.hidden = note === "";
-    const best = store.best(keyOf(s.assists, s.physicsVersion));
+    const best = store.best(keyOf(s.assists, s.physicsVersion, s.gearboxMode));
     hud.bestLap.textContent = best ? formatLapTime(best.timeS) : "–";
     menu.steering.checked = s.assists.steering;
     menu.abs.checked = s.assists.abs;
@@ -439,6 +449,7 @@ export async function startGameApp(
     menu.restart.removeEventListener("click", onRestart);
     menu.livery.removeEventListener("change", onLivery);
     menu.quality.removeEventListener("change", onQuality);
+    menu.gearbox.removeEventListener("change", onGearbox);
     menu.sound.removeEventListener("change", onSound);
     removeEventListener("keydown", onGesture);
     removeEventListener("pointerdown", onGesture);
