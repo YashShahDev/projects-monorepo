@@ -35,7 +35,7 @@ From the repository root, use `make test PROJECT=formula-racer` and
 
 ## Credits
 
-The Riviera Streets, Ardennes Ring and Royal Park layouts are converted from centrelines
+The Riviera Streets, Ardennes Ring, Royal Park and Corniche Night layouts are converted from centrelines
 in [bacinger/f1-circuits](https://github.com/bacinger/f1-circuits) (MIT, © Tomislav
 Bacinger); the sources and licence are in `content/tracks/sources/`, and
 `tools/import-circuit.ts` does the conversion. Track names are our own.

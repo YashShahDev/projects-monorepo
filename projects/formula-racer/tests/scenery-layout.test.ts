@@ -34,7 +34,7 @@ function corners(f: Footprint) {
 }
 
 describe("scenery layout", () => {
-  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "test-loop"]) {
+  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "corniche", "test-loop"]) {
     test(`on ${id}, no stand or building comes within its barrier's reach of the track`, () => {
       const { geometry, trackside, scenery } = id === "harbour" ? harbour : load(id);
       const clear = geometry.halfWidthM + geometry.kerbWidthM + 4;
@@ -48,7 +48,7 @@ describe("scenery layout", () => {
     });
   }
 
-  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "test-loop"]) {
+  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "corniche", "test-loop"]) {
     test(`on ${id}, no barrier runs through a stand or building`, () => {
       const { trackside, scenery } = id === "harbour" ? harbour : load(id);
       for (const f of [...scenery.grandstands, ...scenery.buildings, ...scenery.marshals]) {
@@ -157,5 +157,28 @@ describe("scenery layout", () => {
 
   test("marshal posts stand behind the barriers around the lap", () => {
     expect(harbour.scenery.marshals.length).toBeGreaterThanOrEqual(6);
+  });
+});
+
+describe("floodlights", () => {
+  test("a night track is lit all the way round from poles behind its barriers", () => {
+    const { track, geometry, trackside } = load("corniche");
+    const lit = layoutScenery(geometry, trackside, track.startDistanceM, { lighting: track.lighting });
+    const edge = geometry.halfWidthM + geometry.kerbWidthM;
+    expect(track.lighting).toBe("night");
+    for (const pole of lit.floodlights) {
+      expect(trackside.distanceToTrack(pole.x, pole.z, 80)).toBeGreaterThan(edge + 3);
+      expect(pole.heightM).toBeGreaterThan(12);
+    }
+
+    for (let i = 0; i < geometry.count; i += 1) {
+      const [x, z] = [geometry.x[i] ?? 0, geometry.z[i] ?? 0];
+      const nearest = Math.min(...lit.floodlights.map((pole) => Math.hypot(pole.x - x, pole.z - z)));
+      expect(nearest).toBeLessThan(45);
+    }
+  });
+
+  test("a day track has none", () => {
+    expect(harbour.scenery.floodlights).toEqual([]);
   });
 });

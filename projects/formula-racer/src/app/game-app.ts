@@ -168,7 +168,7 @@ export async function startGameApp(
     throw error;
   });
   const view = await stage("Renderer failed to start", () =>
-    createTrackView(canvas, context, session.geometry, track.startDistanceM, model, session.trackside),
+    createTrackView(canvas, context, session.geometry, track.startDistanceM, model, session.trackside, track.lighting),
   ).catch((error: unknown) => {
     session.dispose();
     model.dispose();

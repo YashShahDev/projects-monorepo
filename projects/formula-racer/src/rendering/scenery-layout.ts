@@ -1,3 +1,4 @@
+import type { TrackLighting } from "../content/track.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
 import type { Trackside } from "../simulation/trackside.ts";
 
@@ -48,6 +49,16 @@ export interface Attachment {
   b: { x: number; z: number };
 }
 
+/** A floodlight tower: its lamps hang over the track at `heightM`. */
+export interface Floodlight {
+  x: number;
+  z: number;
+  heightM: number;
+
+  /** The point on the centreline it lights. */
+  aim: { x: number; z: number };
+}
+
 export interface SceneryLayout {
   grandstands: Footprint[];
   buildings: Building[];
@@ -55,6 +66,7 @@ export interface SceneryLayout {
   spans: Span[];
   attachments: Attachment[];
   marshals: Footprint[];
+  floodlights: Floodlight[];
 }
 
 const STAND = { lengthM: 48, depthM: 14 };
@@ -83,6 +95,15 @@ const FENCE_REACH_M = 70;
 const MARSHAL = { lengthM: 2.5, depthM: 2.5 };
 const MARSHAL_EVERY_M = 300;
 
+// Alternating sides, so each side has a tower every 70 m and no stretch of road is
+// more than about 25 m from one.
+const FLOODLIGHT_EVERY_M = 35;
+const FLOODLIGHT = { lengthM: 1, depthM: 1 };
+
+// On the service road, so towers fit between the barrier and the pits or stands.
+const FLOODLIGHT_SETBACK_M = 2;
+const FLOODLIGHT_HEIGHT_M = 16;
+
 /** Mulberry32: small, fast and the same on every engine, so scenery never shifts. */
 function random(seed: number) {
   let a = seed >>> 0;
@@ -106,17 +127,22 @@ export function layoutScenery(
   track: TrackGeometry,
   trackside: Trackside,
   startDistanceM: number,
-  seed = 1,
+  { lighting = "day", seed = 1 }: { lighting?: TrackLighting; seed?: number } = {},
 ): SceneryLayout {
   const edge = track.halfWidthM + track.kerbWidthM;
   const n = track.count;
 
   /** A footprint beside sample `i`, its track-facing side `setback` behind the barrier. */
-  const beside = (i: number, side: "left" | "right", size: { lengthM: number; depthM: number }) => {
+  const beside = (
+    i: number,
+    side: "left" | "right",
+    size: { lengthM: number; depthM: number },
+    setback = SETBACK_M,
+  ) => {
     const sign = side === "left" ? 1 : -1;
     const sideEdge = side === "left" ? trackside.left : trackside.right;
     const barrier = sideEdge.barrierM[i] ?? Number.NaN;
-    const face = (Number.isNaN(barrier) ? (sideEdge.runoffM[i] ?? edge) : barrier) + SETBACK_M;
+    const face = (Number.isNaN(barrier) ? (sideEdge.runoffM[i] ?? edge) : barrier) + setback;
     const offset = (face + size.depthM / 2) * sign;
     const tx = track.tx[i] ?? 0;
     const tz = track.tz[i] ?? 1;
@@ -280,6 +306,42 @@ export function layoutScenery(
     }
   }
 
+  // A tower is small enough to stand close to the barrier and beside the buildings, so
+  // it only has to keep off the road and the barrier line and out of every footprint.
+  const towerFits = (t: Footprint) =>
+    trackside.distanceToTrack(t.x, t.z, 80) > edge + FLOODLIGHT_SETBACK_M &&
+    trackside.barriers.every((run) => run.points.every((p) => Math.hypot(p.x - t.x, p.z - t.z) > 1.5)) &&
+    placed.every((o) => {
+      const dx = t.x - o.x;
+      const dz = t.z - o.z;
+      const [fx, fz] = [Math.sin(o.headingRad), Math.cos(o.headingRad)];
+
+      return Math.abs(dx * fx + dz * fz) > o.lengthM / 2 + 1 || Math.abs(dx * fz - dz * fx) > o.depthM / 2 + 1;
+    });
+
+  // Where neither side has room, a tower moves a few metres along.
+  const floodlights: Floodlight[] = [];
+  if (lighting === "night") {
+    const towerEvery = Math.round(FLOODLIGHT_EVERY_M / track.spacingM);
+    const shifts = [0, 2, -2, 4, -4, 6, -6];
+    for (let k = 0; k * towerEvery < n; k += 1) {
+      const sides = k % 2 === 0 ? (["left", "right"] as const) : (["right", "left"] as const);
+      const spot = shifts
+        .flatMap((shift) => sides.map((side) => ({ i: (start + k * towerEvery + shift + n) % n, side })))
+        .map(({ i, side }) => ({ i, tower: beside(i, side, FLOODLIGHT, FLOODLIGHT_SETBACK_M) }))
+        .find(({ tower }) => towerFits(tower));
+      if (spot) {
+        const { i, tower } = spot;
+        floodlights.push({
+          x: tower.x,
+          z: tower.z,
+          heightM: FLOODLIGHT_HEIGHT_M,
+          aim: { x: track.x[i] ?? 0, z: track.z[i] ?? 0 },
+        });
+      }
+    }
+  }
+
   return {
     grandstands,
     buildings,
@@ -287,6 +349,7 @@ export function layoutScenery(
     spans,
     attachments: layoutAttachments(track, trackside, grandstands, buildings[0]),
     marshals,
+    floodlights,
   };
 }
 

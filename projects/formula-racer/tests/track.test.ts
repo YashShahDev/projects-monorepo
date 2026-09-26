@@ -128,6 +128,12 @@ describe("track content", () => {
     expect(() => parseTrack({ ...raw, setting: "oval" })).toThrow("track.setting must be circuit or street");
   });
 
+  test("races by day unless it says night", () => {
+    expect(parseTrack(raw).lighting).toBe("day");
+    expect(parseTrack({ ...raw, lighting: "night" }).lighting).toBe("night");
+    expect(() => parseTrack({ ...raw, lighting: "dusk" })).toThrow("track.lighting must be day or night");
+  });
+
   test("rejects consecutive duplicate points, including across the loop's seam", () => {
     const loop = [
       [0, 0],

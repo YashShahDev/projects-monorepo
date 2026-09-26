@@ -34,6 +34,7 @@ export interface CircuitConfig {
   /** Zones to use instead, where the straights curve too much to be found. */
   fixedZones?: { startM: number; endM: number }[];
   setting?: "street";
+  lighting?: "night";
 }
 
 // In-game names are our own; the layouts are the real ones.
@@ -74,6 +75,27 @@ export const CIRCUITS: CircuitConfig[] = [
     widthM: 13,
     kerbWidthM: 1.5,
     zones: 3,
+  },
+  {
+    id: "corniche",
+    name: "Corniche Night",
+    source: "sa-2021",
+    startM: 0,
+    publishedLengthM: 6174,
+    clockwise: false,
+    widthM: 12,
+    kerbWidthM: 1,
+    zones: 3,
+
+    // Its straights bend too gently to be found: the run to the line, on past it to
+    // Turn 1, and the back straight.
+    fixedZones: [
+      { startM: 20, endM: 380 },
+      { startM: 1960, endM: 2270 },
+      { startM: 5620, endM: 6150 },
+    ],
+    setting: "street",
+    lighting: "night",
   },
 ];
 
@@ -231,6 +253,7 @@ export function importCircuit(geojson: unknown, circuit: CircuitConfig) {
     widthM: circuit.widthM,
     kerbWidthM: circuit.kerbWidthM,
     ...(circuit.setting ? { setting: circuit.setting } : {}),
+    ...(circuit.lighting ? { lighting: circuit.lighting } : {}),
     controlPoints: points.filter((_, i) => i % CONTROL_EVERY === 0).map((p) => [round(p.x), round(p.z)]),
     startDistanceM: circuit.startM,
     surfaceGrip: { road: 1, kerb: 0.85, grass: 0.45, gravel: 0.5 },

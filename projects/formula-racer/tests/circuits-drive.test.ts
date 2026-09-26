@@ -11,7 +11,7 @@ let session: DrivingSession | undefined;
 afterEach(() => session?.dispose());
 
 // The real-layout circuits must be drivable end to end, hairpins included.
-test.each(["riviera", "ardennes", "royal-park"])(
+test.each(["riviera", "ardennes", "royal-park", "corniche"])(
   "the autopilot completes a lap of %s",
   async (id) => {
     const track = parseTrack(

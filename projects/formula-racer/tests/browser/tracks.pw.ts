@@ -37,7 +37,31 @@ test("@smoke an unknown track names the available ones and offers a reload", asy
   await page.goto("./?track=nowhere");
   const alert = page.getByRole("alert");
   await expect(alert).toContainText(
-    'unknown track "nowhere"; available: harbour, riviera, ardennes, royal-park, test-loop',
+    'unknown track "nowhere"; available: harbour, riviera, ardennes, royal-park, corniche, test-loop',
   );
   await expect(alert.getByRole("button", { name: "Reload" })).toBeVisible();
+});
+
+test("@smoke a night track has a dark sky, glowing floodlights and a lit road", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openGame(page, "./?track=corniche");
+  await expect(page.locator("#track-name")).toHaveText("Corniche Night");
+  const sky = await scenePixels(page, { left: 0, top: 0, right: 1, bottom: 0.2 });
+  expect(sky.sky).toBe(0);
+  expect(sky.dark).toBeGreaterThan(0.8 * 1280 * 720 * 0.2);
+
+  const above = await scenePixels(page, { left: 0, top: 0, right: 1, bottom: 0.55 });
+  expect(above.glow).toBeGreaterThan(20);
+
+  // The strips either side of the car read as road, not as darkness.
+  for (const [left, right] of [
+    [0.27, 0.37],
+    [0.63, 0.73],
+  ]) {
+    const near = await scenePixels(page, { left: left ?? 0, right: right ?? 1, top: 0.72, bottom: 0.95 });
+    expect(near.road).toBeGreaterThan(near.dark * 4);
+  }
+
+  expect(errors).toEqual([]);
 });

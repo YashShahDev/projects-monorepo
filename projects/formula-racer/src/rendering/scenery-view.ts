@@ -20,6 +20,7 @@ const SPONSORS = [0x1f4fbf, 0xf2f2f2, 0xd81e2c, 0x1b1b1b, 0xf5c400, 0x00a19a];
 const TECPRO = [0x2456b0, 0xd23a2a];
 const FENCE_GREY = 0x8a9096;
 const RUNOFF_STRIPE = 0x2f5fa8;
+const LAMP = 0xfff4d6;
 
 interface Box {
   centre: [number, number, number];
@@ -347,6 +348,20 @@ function marshalPosts(layout: SceneryLayout, batches: CellBatches): void {
   }
 }
 
+/** Floodlight towers: grey masts among the dressing, and lamp heads that glow. */
+function floodlightTowers(layout: SceneryLayout, batches: CellBatches, lamps: CellBatches): void {
+  const colour = new THREE.Color();
+  for (const tower of layout.floodlights) {
+    const heading = Math.atan2(tower.aim.x - tower.x, tower.aim.z - tower.z);
+    const mast = { along: 0.5, across: 0.5, height: tower.heightM };
+    worldBox(batches, { x: tower.x, y: 0, z: tower.z }, heading, mast, colour.set(FENCE_GREY));
+
+    // The lamp bank faces the road, so it lies across the line to its aim.
+    const bank = { along: 0.5, across: 3.2, height: 1.2 };
+    worldBox(lamps, { x: tower.x, y: tower.heightM - bank.height, z: tower.z }, heading, bank, colour.set(LAMP));
+  }
+}
+
 /**
  * Everything around the circuit, in a handful of draw calls: runoff, barriers, stands and
  * buildings as vertex-coloured meshes, and trees as two instanced meshes.
@@ -378,8 +393,16 @@ export function createScenery(
   dressing(layout, dressed);
   spans(layout, dressed);
   marshalPosts(layout, dressed);
+  const lamps = new CellBatches(CELL_M);
+  floodlightTowers(layout, dressed, lamps);
   for (const geometry of dressed.geometries()) {
     group.add(Object.assign(new THREE.Mesh(own(geometry), walls), { name: "dressing" }));
+  }
+
+  // Unlit, so the lamps read as light sources whatever lights the scene.
+  const glowing = own(new THREE.MeshBasicMaterial({ vertexColors: true }));
+  for (const geometry of lamps.geometries()) {
+    group.add(Object.assign(new THREE.Mesh(own(geometry), glowing), { name: "floodlights" }));
   }
 
   const [first] = layout.grandstands;

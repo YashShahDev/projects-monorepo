@@ -18,6 +18,10 @@
       "name": "Royal Park"
     },
     {
+      "id": "corniche",
+      "name": "Corniche Night"
+    },
+    {
       "id": "test-loop",
       "name": "Test Loop"
     }

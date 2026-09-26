@@ -44,6 +44,12 @@ export interface ScenePixels {
   grass: number;
   road: number;
   car: number;
+
+  /** Near black, as a night sky. */
+  dark: number;
+
+  /** Near white, as a lit lamp. */
+  glow: number;
 }
 
 /** A part of the view, as fractions of its width and height. */
@@ -79,9 +85,11 @@ export async function scenePixels(page: Page, region: ViewRegion = WHOLE_VIEW): 
       const width = Math.round(part.right * image.width) - x;
       const height = Math.round(part.bottom * image.height) - y;
       const { data: rgba } = context.getImageData(x, y, width, height);
-      const counts = { sky: 0, grass: 0, road: 0, car: 0 };
+      const counts = { sky: 0, grass: 0, road: 0, car: 0, dark: 0, glow: 0 };
       for (let i = 0; i < rgba.length; i += 4) {
         const [r, g, b] = [rgba[i] ?? 0, rgba[i + 1] ?? 0, rgba[i + 2] ?? 0];
+        counts.dark += Math.max(r, g, b) < 40 ? 1 : 0;
+        counts.glow += Math.min(r, g, b) > 225 ? 1 : 0;
         if (r > 150 && g < 80 && b < 80) {
           counts.car += 1;
         } else if (b > 170 && b > r + 30) {

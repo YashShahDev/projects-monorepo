@@ -23,6 +23,7 @@ function circle(): TrackDefinition {
     surfaceGrip: { road: 1, kerb: 1, grass: 1, gravel: 1 },
     activeAeroZones: [],
     setting: "circuit",
+    lighting: "day",
   };
 }
 

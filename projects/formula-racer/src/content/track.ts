@@ -3,6 +3,9 @@ import { array, ContentError, fetchJson, finite, inRange, object, positive, text
 /** Open circuits get run-off by corner; street circuits are walled in close. */
 export type TrackSetting = "circuit" | "street";
 
+/** Night tracks get a dark sky and floodlights; see `layoutScenery`. */
+export type TrackLighting = "day" | "night";
+
 /** A flat closed circuit described by its centreline, in metres on the x/z ground plane. */
 export interface TrackDefinition {
   version: 1;
@@ -25,6 +28,7 @@ export interface TrackDefinition {
 
   /** Street circuits are walled in close; see `buildTrackside`. */
   setting: TrackSetting;
+  lighting: TrackLighting;
 }
 
 export function parseTrack(value: unknown, source = "track"): TrackDefinition {
@@ -50,6 +54,11 @@ export function parseTrack(value: unknown, source = "track"): TrackDefinition {
   const setting = root.setting ?? "circuit";
   if (setting !== "circuit" && setting !== "street") {
     throw new ContentError(`${source}.setting must be circuit or street`);
+  }
+
+  const lighting = root.lighting ?? "day";
+  if (lighting !== "day" && lighting !== "night") {
+    throw new ContentError(`${source}.lighting must be day or night`);
   }
 
   const grip = object(root.surfaceGrip, `${source}.surfaceGrip`);
@@ -78,6 +87,7 @@ export function parseTrack(value: unknown, source = "track"): TrackDefinition {
       return { startM, endM };
     }),
     setting,
+    lighting,
   };
 }
 

@@ -122,3 +122,24 @@ test("dresses the circuit: hoardings on the walls, spans over the road and marsh
   // Twelve triangles a box keeps the whole dressing well under the frame budget.
   expect(vertices / 3).toBeLessThan(120_000);
 });
+
+test("floodlight towers stand at their height with a glowing, unlit lamp bank on top", () => {
+  const tower = { x: 0, z: 0, heightM: 16, aim: { x: 10, z: 0 } };
+  const group = createScenery(geometry, trackside, { ...layout, floodlights: [tower] }, (r) => r);
+  const lamps = group.children.filter((c): c is THREE.Mesh => c instanceof THREE.Mesh && c.name === "floodlights");
+  expect(lamps).toHaveLength(1);
+  expect(lamps[0]?.material).toBeInstanceOf(THREE.MeshBasicMaterial);
+  const lamp = lamps[0]?.geometry ?? new THREE.BufferGeometry();
+  lamp.computeBoundingBox();
+  const box = lamp.boundingBox ?? new THREE.Box3();
+  expect(box.max.y).toBeCloseTo(16, 5);
+  expect(box.min.y).toBeGreaterThan(14);
+
+  // It faces its aim along +x, so the bank lies across it, along z.
+  expect(box.max.z - box.min.z).toBeGreaterThan(box.max.x - box.min.x);
+
+  // A day layout has no lamps.
+  expect(createScenery(geometry, trackside, layout, (r) => r).children.some((c) => c.name === "floodlights")).toBe(
+    false,
+  );
+});

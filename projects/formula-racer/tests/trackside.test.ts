@@ -29,6 +29,7 @@ function ring(): TrackGeometry {
     surfaceGrip: { road: 1, kerb: 1, grass: 1, gravel: 0.5 },
     activeAeroZones: [],
     setting: "circuit",
+    lighting: "day",
   };
 
   return buildTrackGeometry(track);
@@ -69,7 +70,7 @@ describe("trackside runoff", () => {
 });
 
 describe("trackside barriers", () => {
-  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "test-loop"]) {
+  for (const id of ["harbour", "riviera", "ardennes", "royal-park", "corniche", "test-loop"]) {
     test(`on ${id}, no barrier comes within the kerb plus 2 m of any part of the track`, () => {
       const track = shipped(id);
       const side = buildTrackside(track, definition(id).setting);
