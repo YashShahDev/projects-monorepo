@@ -161,5 +161,9 @@
     [1.2, -11.7]
   ],
   "startDistanceM": 150,
-  "surfaceGrip": { "road": 1, "kerb": 0.85, "grass": 0.45 }
+  "surfaceGrip": { "road": 1, "kerb": 0.85, "grass": 0.45 },
+  "activeAeroZones": [
+    { "startM": 40, "endM": 260 },
+    { "startM": 2380, "endM": 3450 }
+  ]
 }

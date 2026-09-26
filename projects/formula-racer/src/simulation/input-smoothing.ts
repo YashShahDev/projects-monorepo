@@ -6,6 +6,7 @@ export interface DigitalInput {
   brake: boolean;
   left: boolean;
   right: boolean;
+  deploy: boolean;
 }
 
 export interface InputSmoother {
@@ -31,7 +32,12 @@ export function createInputSmoother(): InputSmoother {
       const returning = Math.abs(target) < Math.abs(steer) || target * steer < 0;
       const rate = (returning ? STEER_OUT_PER_S : STEER_IN_PER_S) * dtSeconds;
       steer += Math.max(-rate, Math.min(rate, target - steer));
-      return { throttle: input.throttle ? 1 : 0, brake: input.brake ? 1 : 0, steer };
+      return {
+        throttle: input.throttle ? 1 : 0,
+        brake: input.brake ? 1 : 0,
+        steer,
+        deploy: input.deploy,
+      };
     },
     reset() {
       steer = 0;

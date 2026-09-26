@@ -24,7 +24,7 @@
   "steering": { "maxAngleRad": 0.38 },
   "brakes": { "maxForceN": 32000, "frontBias": 0.58 },
   "powertrain": {
-    "maxPowerW": 700000,
+    "maxPowerW": 400000,
     "maxDriveForceN": 11000,
     "powerCurve": [
       [4000, 0.45],
@@ -41,5 +41,11 @@
       "gearTopSpeedsKmh": [95, 130, 165, 200, 235, 270, 305, 345]
     }
   },
-  "aero": { "dragAreaM2": 1.36, "downforceAreaM2": 4.0, "frontShare": 0.38 }
+  "aero": {
+    "dragAreaM2": 1.36,
+    "downforceAreaM2": 4.0,
+    "frontShare": 0.38,
+    "straightMode": { "dragAreaM2": 0.95, "downforceAreaM2": 1.6 },
+    "wingTransitionS": 0.4
+  }
 }

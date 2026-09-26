@@ -3,6 +3,9 @@ import type { CarDefinition } from "../content/car.ts";
 import type { Vec3 } from "../content/validate.ts";
 import { initPhysics } from "./physics.ts";
 import { createPowertrain } from "./powertrain.ts";
+import { createEnergySystem } from "./energy.ts";
+import type { EnergyMode } from "./energy.ts";
+import type { EnergyRules } from "../content/energy-rules.ts";
 import type { Pose, Quat } from "./physics.ts";
 import { PHYSICS_VERSION } from "./version.ts";
 
@@ -11,6 +14,8 @@ export interface DriverControls {
   throttle: number;
   brake: number;
   steer: number;
+  /** Request the full permitted ERS deployment (held Shift). */
+  deploy?: boolean;
 }
 
 export const NO_CONTROLS: Readonly<DriverControls> = Object.freeze({
@@ -56,6 +61,26 @@ export interface VehicleSnapshot {
   gear: number;
   rpm: number;
   assists: DriverAssists;
+  /** Absent for a car without an energy system. */
+  energy: EnergyTelemetry | undefined;
+  wing: WingState;
+}
+
+export type WingMode = "corner" | "straight";
+
+export interface WingState {
+  /** The commanded mode; braking always commands Corner Mode. */
+  mode: WingMode;
+  /** 0 in Corner Mode, 1 fully in Straight Mode, between while moving. */
+  opening: number;
+}
+
+export interface EnergyTelemetry {
+  mode: EnergyMode;
+  socJ: number;
+  deployW: number;
+  regenW: number;
+  lapRechargeJ: number;
 }
 
 export interface StartPose {
@@ -69,6 +94,11 @@ export interface VehicleSimulation {
   readonly car: CarDefinition;
   step(controls: DriverControls): void;
   setAssists(assists: DriverAssists): void;
+  setEnergyMode(mode: EnergyMode): void;
+  /** Commands the wings; Straight Mode is refused while braking. */
+  setWingMode(mode: WingMode): void;
+  /** Starts a new lap's energy Recharge allowance. */
+  newLap(): void;
   reset(): void;
   snapshot(): VehicleSnapshot;
   dispose(): void;
@@ -80,6 +110,8 @@ export interface VehicleOptions {
   groundHalfExtentM?: number;
   /** Defaults to every assist on. */
   assists?: DriverAssists;
+  /** Hybrid energy rules; without them the car runs on the ICE alone. */
+  energy?: EnergyRules;
   /** Multiplier on tyre friction for the surface at a ground position; default 1. */
   gripAt?: (x: number, z: number, wheel: number) => number;
 }
@@ -172,6 +204,15 @@ export function buildVehicleSimulation(
   let simSeconds = 0;
   let applied: DriverControls = { ...NO_CONTROLS };
   const powertrain = createPowertrain(car.powertrain);
+  let wingMode: WingMode = "corner";
+  let wingOpening = 0;
+  const dragAreaM2 = () =>
+    car.aero.dragAreaM2 + (car.aero.straightMode.dragAreaM2 - car.aero.dragAreaM2) * wingOpening;
+  const rules = options.energy;
+  const energy = rules ? createEnergySystem(rules) : undefined;
+  let energyMode: EnergyMode = "balanced";
+  let deployRequest = false;
+  let flow = { deployW: 0, regenW: 0 };
   let drivetrain = powertrain.update(0, 0, stepSeconds);
   let assists: DriverAssists = { ...(options.assists ?? ALL_ASSISTS) };
   let disposed = false;
@@ -208,7 +249,7 @@ export function buildVehicleSimulation(
     const v = body.linvel();
     const speed = Math.hypot(v.x, v.y, v.z);
     if (speed > 1e-3) {
-      const drag = (dynamicPressure * car.aero.dragAreaM2 * stepSeconds) / speed;
+      const drag = (dynamicPressure * dragAreaM2() * stepSeconds) / speed;
       body.applyImpulse({ x: -v.x * drag, y: -v.y * drag, z: -v.z * drag }, true);
     }
     if (downforceN <= 0) return;
@@ -234,6 +275,7 @@ export function buildVehicleSimulation(
     car,
     step(controls) {
       assertLive();
+      deployRequest = controls.deploy === true;
       applied = {
         throttle: clamp(controls.throttle, 0, 1),
         brake: clamp(controls.brake, 0, 1),
@@ -241,7 +283,24 @@ export function buildVehicleSimulation(
       };
       const speed = Math.abs(vehicle.currentVehicleSpeed());
       drivetrain = powertrain.update(applied.throttle, speed, stepSeconds);
-      const drive = drivetrain.driveForceN;
+      let drive = drivetrain.driveForceN;
+      if (energy && rules) {
+        const brakingN = applied.brake * car.brakes.maxForceN;
+        const v = Math.max(speed, 1);
+        const result = energy.update({
+          speedMps: speed,
+          // Rapier drops engine force on a braking wheel, so braking also stops deployment.
+          throttle: brakingN > 0 ? 0 : applied.throttle,
+          brakePowerW: brakingN * speed,
+          mode: energyMode,
+          deployRequest,
+          dtS: stepSeconds,
+          // C5.2.11 caps MGU-K torque at the crankshaft, so its power at engine speed.
+          limitW: rules.mgukMaxTorqueNm * ((drivetrain.rpm * 2 * Math.PI) / 60),
+        });
+        flow = result;
+        drive += result.deployW / v;
+      }
       if (options.gripAt) {
         for (let i = 0; i < 4; i += 1) {
           const p = wheelPoints[i] ?? { x: 0, y: 0, z: 0 };
@@ -252,7 +311,15 @@ export function buildVehicleSimulation(
       }
       const a = car.aero;
       const dynamicPressure = 0.5 * AIR_DENSITY_KG_M3 * speed * speed;
-      const downforceN = dynamicPressure * a.downforceAreaM2;
+      if (applied.brake > 0) wingMode = "corner";
+      const target = wingMode === "straight" ? 1 : 0;
+      const move = stepSeconds / a.wingTransitionS;
+      wingOpening += Math.max(-move, Math.min(move, target - wingOpening));
+      // Snap once within float noise of the end so "fully open" is exact.
+      if (Math.abs(target - wingOpening) < 1e-9) wingOpening = target;
+      const downforceN =
+        dynamicPressure *
+        (a.downforceAreaM2 + (a.straightMode.downforceAreaM2 - a.downforceAreaM2) * wingOpening);
       let steerRad = -applied.steer * car.steering.maxAngleRad;
       if (assists.steering) {
         // Past the angle that already uses all the front grip, extra lock only scrubs
@@ -286,6 +353,15 @@ export function buildVehicleSimulation(
     setAssists(next) {
       assists = { ...next };
     },
+    setEnergyMode(mode) {
+      energyMode = mode;
+    },
+    setWingMode(mode) {
+      wingMode = mode === "straight" && applied.brake > 0 ? "corner" : mode;
+    },
+    newLap() {
+      energy?.newLap();
+    },
     reset() {
       assertLive();
       body.setTranslation(startPosition, true);
@@ -302,6 +378,10 @@ export function buildVehicleSimulation(
       surfaceGrip.fill(1);
       powertrain.reset();
       drivetrain = powertrain.update(0, 0, stepSeconds);
+      energy?.reset();
+      flow = { deployW: 0, regenW: 0 };
+      wingMode = "corner";
+      wingOpening = 0;
     },
     snapshot() {
       assertLive();
@@ -327,6 +407,13 @@ export function buildVehicleSimulation(
         applied: { ...applied },
         gear: drivetrain.gear,
         rpm: drivetrain.rpm,
+        wing: { mode: wingMode, opening: wingOpening },
+        energy: energy && {
+          mode: energyMode,
+          ...energy.state(),
+          deployW: flow.deployW,
+          regenW: flow.regenW,
+        },
         assists: { ...assists },
       };
     },

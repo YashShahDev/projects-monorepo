@@ -3,7 +3,13 @@ import { createInputSmoother } from "../src/simulation/input-smoothing.ts";
 import type { DigitalInput } from "../src/simulation/input-smoothing.ts";
 
 const DT = 1 / 60;
-const idle: DigitalInput = { throttle: false, brake: false, left: false, right: false };
+const idle: DigitalInput = {
+  throttle: false,
+  brake: false,
+  left: false,
+  right: false,
+  deploy: false,
+};
 const kmh = (v: number) => v / 3.6;
 
 function hold(input: DigitalInput, seconds: number, speedMps = 0) {
@@ -35,8 +41,8 @@ describe("keyboard input smoothing", () => {
   });
 
   test("opposite keys cancel and pedals are on/off", () => {
-    const { controls } = hold({ throttle: true, brake: false, left: true, right: true }, 0.4);
-    expect(controls).toEqual({ throttle: 1, brake: 0, steer: 0 });
+    const { controls } = hold({ ...idle, throttle: true, left: true, right: true }, 0.4);
+    expect(controls).toEqual({ throttle: 1, brake: 0, steer: 0, deploy: false });
     expect(hold({ ...idle, brake: true }, DT).controls.brake).toBe(1);
   });
 
@@ -44,5 +50,9 @@ describe("keyboard input smoothing", () => {
     const { smoother } = hold({ ...idle, right: true }, 0.4);
     smoother.reset();
     expect(smoother.update(idle, 0, DT).steer).toBe(0);
+  });
+
+  test("the deploy request passes straight through", () => {
+    expect(hold({ ...idle, throttle: true, deploy: true }, DT).controls.deploy).toBe(true);
   });
 });

@@ -17,6 +17,10 @@ const hud = {
   countdown: element("#countdown"),
   lapTime: element("#lap-time"),
   lastLap: element("#last-lap"),
+  energyMode: element("#energy-mode"),
+  charge: element("#charge"),
+  ers: element("#ers"),
+  wing: element("#wing"),
 };
 
 function showFatal(message: string): void {

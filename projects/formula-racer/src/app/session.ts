@@ -15,6 +15,9 @@ import type { VehicleOptions } from "../simulation/vehicle.ts";
 import type { DriverAssists, VehicleSnapshot } from "../simulation/vehicle.ts";
 import type { Pose } from "../simulation/physics.ts";
 import type { KeyAction } from "./keyboard.ts";
+import type { EnergyRules } from "../content/energy-rules.ts";
+import type { EnergyMode } from "../simulation/energy.ts";
+import type { EnergyTelemetry, WingState } from "../simulation/vehicle.ts";
 
 /** A completed lap and the conditions it was driven under. */
 export interface SessionLap extends LapRecord {
@@ -43,6 +46,12 @@ export interface SessionState {
   /** The lap being timed, once the countdown ends. */
   lap: CurrentLap | undefined;
   laps: SessionLap[];
+  energy: EnergyTelemetry | undefined;
+  wing: WingState;
+}
+
+export interface SessionOptions {
+  energy?: EnergyRules;
 }
 
 export interface FrameView {
@@ -111,12 +120,14 @@ function blend(a: Pose, b: Pose, t: number): Pose {
 export async function createDrivingSession(
   car: CarDefinition,
   track: TrackDefinition,
+  sessionOptions: SessionOptions = {},
 ): Promise<DrivingSession> {
   const geometry = buildTrackGeometry(track);
   const start = geometry.pointAt(track.startDistanceM);
   // One lookup hint per wheel keeps each locate to a short windowed search.
   const wheelHints: (number | undefined)[] = [undefined, undefined, undefined, undefined];
   const options: VehicleOptions = {
+    ...(sessionOptions.energy ? { energy: sessionOptions.energy } : {}),
     start: {
       position: { x: start.x, y: 0, z: start.z },
       headingRad: Math.atan2(start.tx, start.tz),
@@ -148,6 +159,8 @@ export async function createDrivingSession(
   // The first frame after a pause reports the whole paused gap; it must not be simulated.
   let skipNextFrame = false;
   let cameraMode: CameraMode = "chase";
+  // Kept here too so a rebuilt (retuned) vehicle starts in the driver's mode.
+  let energyMode: EnergyMode = "balanced";
   let hint: number | undefined;
 
   const locate = () => {
@@ -178,6 +191,12 @@ export async function createDrivingSession(
             if (countdownLeft === 0) lapTimer.start(sim.snapshot().simSeconds, locate().distanceM);
             continue;
           }
+          // Straight Mode only on throttle, off the brakes, inside an activation zone.
+          const here = locate().distanceM;
+          const inZone = track.activeAeroZones.some((z) => here >= z.startM && here <= z.endM);
+          sim.setWingMode(
+            inZone && controls.throttle > 0 && controls.brake === 0 ? "straight" : "corner",
+          );
           sim.step(controls);
           const location = locate();
           const before = lapTimer.laps().length;
@@ -188,6 +207,7 @@ export async function createDrivingSession(
             geometry.halfWidthM + geometry.kerbWidthM;
           lapTimer.update(sim.snapshot().simSeconds, location.distanceM, withinLimits);
           const done = lapTimer.laps();
+          if (done.length > before) sim.newLap();
           for (const record of done.slice(before)) {
             laps.push({
               ...record,
@@ -215,6 +235,7 @@ export async function createDrivingSession(
           current = pending;
           pending = undefined;
           sim = buildVehicleSimulation(current, { ...options, assists });
+          sim.setEnergyMode(energyMode);
         } else {
           sim.reset();
         }
@@ -226,6 +247,10 @@ export async function createDrivingSession(
         hint = undefined;
         lapTimer.abort();
         countdownLeft = countdownSteps;
+      } else if (action === "energyMode") {
+        const next: EnergyMode = sim.snapshot().energy?.mode === "harvest" ? "balanced" : "harvest";
+        energyMode = next;
+        sim.setEnergyMode(next);
       } else {
         cameraMode = camera.cycle();
       }
@@ -260,6 +285,8 @@ export async function createDrivingSession(
         countdownS: countdownLeft * sim.stepSeconds,
         lap: lapTimer.current(),
         laps: laps.map((lap) => ({ ...lap })),
+        energy: snapshot.energy,
+        wing: snapshot.wing,
       };
     },
     dispose() {

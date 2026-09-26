@@ -51,6 +51,10 @@ export interface CarDefinition {
     downforceAreaM2: number;
     /** Share of downforce acting at the front axle. */
     frontShare: number;
+    /** Low-drag wing settings used inside active-aero zones. */
+    straightMode: { dragAreaM2: number; downforceAreaM2: number };
+    /** Time to move between Corner and Straight Mode (C3.10.10 o: at most 0.4 s). */
+    wingTransitionS: number;
   };
 }
 
@@ -73,6 +77,22 @@ export interface GearboxDefinition {
   redlineRpm: number;
   /** Road speed at the redline in each gear, lowest first. */
   gearTopSpeedsKmh: number[];
+}
+
+function parseStraightMode(aero: Record<string, unknown>, source: string) {
+  const mode = object(aero.straightMode, `${source}.straightMode`);
+  const drag = positive(aero.dragAreaM2, `${source}.dragAreaM2`);
+  const downforce = inRange(aero.downforceAreaM2, `${source}.downforceAreaM2`, 0, 20);
+  return {
+    // Straight Mode exists to shed drag; a setting that adds any is a content error.
+    dragAreaM2: inRange(mode.dragAreaM2, `${source}.straightMode.dragAreaM2`, 0.01, drag),
+    downforceAreaM2: inRange(
+      mode.downforceAreaM2,
+      `${source}.straightMode.downforceAreaM2`,
+      0,
+      downforce,
+    ),
+  };
 }
 
 function parsePowerCurve(value: unknown, source: string): [number, number][] {
@@ -163,6 +183,8 @@ export function parseCar(value: unknown, source = "car"): CarDefinition {
       dragAreaM2: positive(aero.dragAreaM2, `${source}.aero.dragAreaM2`),
       downforceAreaM2: inRange(aero.downforceAreaM2, `${source}.aero.downforceAreaM2`, 0, 20),
       frontShare: inRange(aero.frontShare, `${source}.aero.frontShare`, 0, 1),
+      straightMode: parseStraightMode(aero, `${source}.aero`),
+      wingTransitionS: inRange(aero.wingTransitionS, `${source}.aero.wingTransitionS`, 0.05, 0.4),
     },
   };
   return car;

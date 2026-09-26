@@ -14,6 +14,7 @@ export interface Layout {
   kerbWidthM: number;
   startDistanceM: number;
   surfaceGrip: { road: number; kerb: number; grass: number };
+  activeAeroZones: { startM: number; endM: number }[];
   segments: Segment[];
 }
 
@@ -94,6 +95,7 @@ export function generateTrack(layout: Layout): GeneratedTrack {
       controlPoints: points.map((p) => [round(p.x), round(p.z)]),
       startDistanceM: layout.startDistanceM,
       surfaceGrip: layout.surfaceGrip,
+      activeAeroZones: layout.activeAeroZones,
     },
     solvedM: [l1, l2],
     points,

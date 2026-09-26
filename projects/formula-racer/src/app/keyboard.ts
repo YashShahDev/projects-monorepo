@@ -25,6 +25,8 @@ export interface HeldKeys {
   brake: boolean;
   left: boolean;
   right: boolean;
+  /** Held Shift: request full ERS deployment. */
+  deploy: boolean;
 }
 
 const DRIVE_KEYS: Record<string, keyof HeldKeys> = {
@@ -36,14 +38,17 @@ const DRIVE_KEYS: Record<string, keyof HeldKeys> = {
   KeyA: "left",
   ArrowRight: "right",
   KeyD: "right",
+  ShiftLeft: "deploy",
+  ShiftRight: "deploy",
 };
 
-export type KeyAction = "reset" | "camera" | "pause";
+export type KeyAction = "reset" | "camera" | "pause" | "energyMode";
 
 const ACTION_KEYS: Record<string, KeyAction> = {
   KeyR: "reset",
   KeyC: "camera",
   Escape: "pause",
+  KeyE: "energyMode",
 };
 
 export interface Keyboard {
@@ -80,7 +85,13 @@ export function createKeyboard(
   document.addEventListener("visibilitychange", onVisibility);
   return {
     held() {
-      const held: HeldKeys = { throttle: false, brake: false, left: false, right: false };
+      const held: HeldKeys = {
+        throttle: false,
+        brake: false,
+        left: false,
+        right: false,
+        deploy: false,
+      };
       for (const code of down) {
         const control = DRIVE_KEYS[code];
         if (control) held[control] = true;

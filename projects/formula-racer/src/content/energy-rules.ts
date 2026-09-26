@@ -10,6 +10,8 @@ export interface EnergyRules {
   name: string;
   source: string;
   ersMaxPowerW: number;
+  /** C5.2.11: MGU-K torque referenced to the crankshaft. */
+  mgukMaxTorqueNm: number;
   /** [km/h, kW] points; permitted deployment is linear between them, zero past the last. */
   deployCurveKphKw: [number, number][];
   socWindowJ: number;
@@ -46,6 +48,7 @@ export function parseEnergyRules(value: unknown, source = "energy rules"): Energ
     name: text(root.name, `${source}.name`),
     source: text(root.source, `${source}.source`),
     ersMaxPowerW,
+    mgukMaxTorqueNm: positive(root.mgukMaxTorqueNm, `${source}.mgukMaxTorqueNm`),
     deployCurveKphKw: curve,
     socWindowJ: positive(root.socWindowJ, `${source}.socWindowJ`),
     rechargePerLapJ: positive(root.rechargePerLapJ, `${source}.rechargePerLapJ`),

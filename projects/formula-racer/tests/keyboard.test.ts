@@ -18,7 +18,13 @@ describe("keyboard input", () => {
     const keyboard = createKeyboard(window, document);
     key("keydown", "ArrowUp");
     key("keydown", "KeyA");
-    expect(keyboard.held()).toEqual({ throttle: true, brake: false, left: true, right: false });
+    expect(keyboard.held()).toEqual({
+      throttle: true,
+      brake: false,
+      left: true,
+      right: false,
+      deploy: false,
+    });
     key("keyup", "ArrowUp");
     expect(keyboard.held().throttle).toBe(false);
   });
@@ -29,7 +35,13 @@ describe("keyboard input", () => {
     key("keydown", "KeyW");
     key("keydown", "ArrowRight");
     window.dispatchEvent(new Event("blur"));
-    expect(keyboard.held()).toEqual({ throttle: false, brake: false, left: false, right: false });
+    expect(keyboard.held()).toEqual({
+      throttle: false,
+      brake: false,
+      left: false,
+      right: false,
+      deploy: false,
+    });
   });
 
   test("hiding the tab releases every held key", () => {
@@ -87,5 +99,19 @@ describe("keyboard input", () => {
     window.dispatchEvent(event);
     expect(keyboard.held().throttle).toBe(false);
     expect(event.defaultPrevented).toBe(false);
+  });
+
+  test("either Shift key held requests deployment; E cycles the energy mode", () => {
+    const { window, document, key } = page();
+    const keyboard = createKeyboard(window, document);
+    const actions: string[] = [];
+    keyboard.onAction((action) => actions.push(action));
+    key("keydown", "ShiftLeft");
+    expect(keyboard.held().deploy).toBe(true);
+    key("keyup", "ShiftLeft");
+    key("keydown", "ShiftRight");
+    expect(keyboard.held().deploy).toBe(true);
+    key("keydown", "KeyE");
+    expect(actions).toEqual(["energyMode"]);
   });
 });

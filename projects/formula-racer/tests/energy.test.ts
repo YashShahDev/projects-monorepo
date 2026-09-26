@@ -176,4 +176,9 @@ describe("energy system", () => {
     }
     expect(energy.state().socJ).toBeCloseTo(expected, 3);
   });
+
+  test("deployment never exceeds what the drivetrain can use", () => {
+    const flow = rolling().update(cruise({ deployRequest: true, limitW: 50_000 }));
+    expect(flow.deployW).toBe(50_000);
+  });
 });

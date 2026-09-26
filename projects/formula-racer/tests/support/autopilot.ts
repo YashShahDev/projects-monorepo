@@ -34,5 +34,6 @@ export function autopilot(session: DrivingSession, cornerGripG = 1.0): DigitalIn
     brake: speed > target * 1.05,
     left: steer > 0.03,
     right: steer < -0.03,
+    deploy: false,
   };
 }

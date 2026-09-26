@@ -11,7 +11,7 @@ const track = parseTrack(
     readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8"),
   ),
 );
-const idle = { throttle: false, brake: false, left: false, right: false };
+const idle = { throttle: false, brake: false, left: false, right: false, deploy: false };
 const throttle = { ...idle, throttle: true };
 
 let session: DrivingSession | undefined;

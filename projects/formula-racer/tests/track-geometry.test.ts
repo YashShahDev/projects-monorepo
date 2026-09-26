@@ -20,6 +20,7 @@ function circle(): TrackDefinition {
     controlPoints,
     startDistanceM: 0,
     surfaceGrip: { road: 1, kerb: 1, grass: 1 },
+    activeAeroZones: [],
   };
 }
 

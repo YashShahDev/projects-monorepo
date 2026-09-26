@@ -1,5 +1,6 @@
 import { fetchCar } from "../content/car.ts";
 import type { CarDefinition } from "../content/car.ts";
+import { fetchEnergyRules } from "../content/energy-rules.ts";
 import { fetchTrack } from "../content/track.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import { createTrackView } from "../rendering/track-view.ts";
@@ -35,6 +36,10 @@ export interface Hud {
   countdown: HTMLElement;
   lapTime: HTMLElement;
   lastLap: HTMLElement;
+  energyMode: HTMLElement;
+  charge: HTMLElement;
+  ers: HTMLElement;
+  wing: HTMLElement;
 }
 
 async function stage<T>(label: string, work: () => T | Promise<T>): Promise<T> {
@@ -55,15 +60,16 @@ export async function startGameApp(
   if (!context) throw new StartupError("WebGL2 is not available in this browser");
   // Resolve against the document so the build works from any URL subpath.
   const asset = (path: string) => new URL(path, document.baseURI);
-  const [car, track] = await stage("Could not load game content", () =>
+  const [car, track, energy] = await stage("Could not load game content", () =>
     Promise.all([
       fetchCar(asset("assets/cars/fr26.json")),
       fetchTrack(asset("assets/tracks/harbour.json")),
+      fetchEnergyRules(asset("assets/rules/energy-2026-c18.json")),
     ]),
   );
   await stage("Physics engine (WebAssembly) failed to start", initPhysics);
   const session = await stage("Could not start the simulation", () =>
-    createDrivingSession(car, track),
+    createDrivingSession(car, track, { energy }),
   );
   const view = await stage("Renderer failed to start", () =>
     createTrackView(canvas, context, session.geometry, track.startDistanceM, car),
@@ -104,6 +110,13 @@ export async function startGameApp(
     hud.countdown.textContent = count > 0 ? String(count) : "";
     hud.lapTime.textContent = s.lap ? formatLapTime(s.lap.elapsedS) : "–";
     hud.lapTime.classList.toggle("invalid", s.lap?.valid === false);
+    if (s.energy) {
+      hud.energyMode.textContent = s.energy.mode === "harvest" ? "Harvest" : "Balanced";
+      hud.charge.textContent = `${String(Math.round((100 * s.energy.socJ) / energy.socWindowJ))}%`;
+      const netKw = Math.round((s.energy.deployW - s.energy.regenW) / 1000);
+      hud.ers.textContent = `${netKw > 0 ? "+" : ""}${String(netKw)} kW`;
+    }
+    hud.wing.textContent = s.wing.mode === "straight" ? "Straight" : "Corner";
     const last = s.laps.at(-1);
     hud.lastLap.textContent = last ? `${formatLapTime(last.timeS)}${last.valid ? "" : " ✕"}` : "–";
   };
@@ -151,7 +164,7 @@ export async function startGameApp(
   frameRequest = requestAnimationFrame(frame);
   return {
     step(count, throttle) {
-      const held = { throttle, brake: false, left: false, right: false };
+      const held = { throttle, brake: false, left: false, right: false, deploy: false };
       // One step's worth of time always yields exactly one fixed step.
       for (let i = 0; i < count; i += 1) session.frame(session.stepSeconds, held);
       draw(0, held);

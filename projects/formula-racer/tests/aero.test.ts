@@ -9,7 +9,11 @@ const NONE = { steering: false, abs: false, traction: false };
 
 describe("aerodynamics", () => {
   test("drag bounds top speed near 340 km/h", async () => {
-    const sim = await settledVehicle();
+    // 700 kW against CdA 1.36 balances near 340 km/h. The shipped ICE alone is 400 kW,
+    // so this checks the drag model with the power stated explicitly.
+    const sim = await settledVehicle(
+      parseCar({ ...car, powertrain: { ...car.powertrain, maxPowerW: 700_000 } }),
+    );
     // 24 s of full throttle covers about 2 km, inside the 3 km test ground.
     run(sim, { throttle: 1, brake: 0, steer: 0 }, 20);
     const top = kmh(sim);
@@ -52,7 +56,14 @@ describe("aerodynamics", () => {
       sim.dispose();
       return Math.abs(yaw(end.rotation) - start);
     };
-    const noDownforce = parseCar({ ...car, aero: { ...car.aero, downforceAreaM2: 0 } });
+    const noDownforce = parseCar({
+      ...car,
+      aero: {
+        ...car.aero,
+        downforceAreaM2: 0,
+        straightMode: { ...car.aero.straightMode, downforceAreaM2: 0 },
+      },
+    });
     expect(await turned(car)).toBeGreaterThan((await turned(noDownforce)) * 1.15);
   });
 

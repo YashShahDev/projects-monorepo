@@ -16,18 +16,17 @@ summary: P2 done and reviewed; P3 time trial and energy in progress.
   foundation ([record](checkpoints/P1.md)); P2 — driving prototype
   ([record](checkpoints/P2.md)).
 - Active phase: P3 — time trial and energy ([record](checkpoints/P3.md)).
-- Next checkpoint: P3-C2 energy rules, deployment and active aero.
+- Next checkpoint: P3-C3 HUD, session menu and persistence.
 - Draft PR: [#7](https://github.com/YashShahDev/projects-monorepo/pull/7).
 - Session boundary: P2–P5 authorized; Codex review (`gpt-6-astra`) after each phase.
 
 ## Next action
 
-P3-C2 in progress: regulation selected (Section C Iss 18, Section B Iss 07), deviations
-recorded, sourced rules file and pure energy system done. Next, test-first: split the
-car's power into ICE curve plus ERS deployment in the vehicle adapter; Shift and E keys
-and energy mode in the session; regeneration from requested braking; new lap resets
-Recharge; active-wing zones in track content with braking override; charge/power
-telemetry; then HUD (P3-C3).
+P3-C2 is done. Next, P3-C3, test-first: session menu (start, resume, restart,
+assist toggles), fuller HUD (sectors, best lap, deltas), and local persistence of best
+laps keyed by track id, physics version and assists, with graceful recovery from
+unavailable or corrupt storage. Then close P3 with `make test-full` and the phase review
+(Codex `gpt-6-astra`, falling back to `/antigravity:review`).
 
 ## Checkpoints
 
@@ -50,6 +49,11 @@ telemetry; then HUD (P3-C3).
 Find checkpoint commits with `git log --oneline --grep='P[0-9]-C'`.
 
 ## Verified
+
+P3-C2: Section C Iss 18 energy rules (sourced file), ICE + ERS deployment with MGU-K
+torque limit, regeneration blended with friction braking, Balanced/Harvest and Shift
+deploy, active-aero zones with braking override; physics `p3.1`; 193 unit tests;
+`make test-full` 43/43.
 
 P3-C1: ordered sectors, lap timing interpolated within a step, reverse-crossing and
 shortcut rules, four-wheels track limits, 3 s countdown, reset abandons the lap, laps

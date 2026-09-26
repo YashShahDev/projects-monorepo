@@ -138,3 +138,9 @@ body {
 #countdown[hidden] {
   display: none;
 }
+
+#energy {
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.9;
+}

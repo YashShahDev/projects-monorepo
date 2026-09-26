@@ -11,6 +11,8 @@ export interface EnergyInput {
   /** Driver holding the deploy key: the full permitted power instead of the mode's share. */
   deployRequest: boolean;
   dtS: number;
+  /** Most deployment the drivetrain can turn into drive, e.g. below the traction cap. */
+  limitW?: number;
 }
 
 export interface EnergyFlow {
@@ -52,12 +54,15 @@ export function createEnergySystem(rules: EnergyRules): EnergySystem {
   let lapRechargeJ = 0;
   let launched = false;
   return {
-    update({ speedMps, throttle, brakePowerW, mode, deployRequest, dtS }) {
+    update({ speedMps, throttle, brakePowerW, mode, deployRequest, dtS, limitW }) {
       if (Math.abs(speedMps) * 3.6 >= rules.standingStartDeployKph) launched = true;
       let deployW = 0;
       if (launched && throttle > 0 && mode !== "harvest") {
         const share = deployRequest ? 1 : rules.balancedDeployShare;
-        deployW = throttle * share * permittedDeployW(rules, speedMps);
+        deployW = Math.min(
+          throttle * share * permittedDeployW(rules, speedMps),
+          limitW ?? Number.POSITIVE_INFINITY,
+        );
         // Never draw more than is stored.
         deployW = Math.min(deployW, (socJ * rules.deployEfficiency) / dtS);
       }

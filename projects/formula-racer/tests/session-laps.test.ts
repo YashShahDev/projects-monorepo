@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { createDrivingSession } from "../src/app/session.ts";
 import type { DrivingSession } from "../src/app/session.ts";
 import { parseTrack } from "../src/content/track.ts";
+import { parseEnergyRules } from "../src/content/energy-rules.ts";
 import { PHYSICS_VERSION } from "../src/simulation/version.ts";
 import { autopilot } from "./support/autopilot.ts";
 import { car } from "./support/vehicle.ts";
@@ -13,7 +14,7 @@ const track = parseTrack(
     readFileSync(resolve(import.meta.dirname, "../public/assets/tracks/harbour.json"), "utf8"),
   ),
 );
-const idle = { throttle: false, brake: false, left: false, right: false };
+const idle = { throttle: false, brake: false, left: false, right: false, deploy: false };
 const throttle = { ...idle, throttle: true };
 
 let session: DrivingSession | undefined;
@@ -70,5 +71,49 @@ describe("session laps", () => {
     expect(lap?.physicsVersion).toBe(PHYSICS_VERSION);
     expect(lap?.assists).toEqual({ steering: true, abs: true, traction: true });
     expect(lap?.tuned).toBe(false);
+  }, 30_000);
+});
+
+describe("session energy", () => {
+  const rules = parseEnergyRules(
+    JSON.parse(
+      readFileSync(
+        resolve(import.meta.dirname, "../public/assets/rules/energy-2026-c18.json"),
+        "utf8",
+      ),
+    ),
+  );
+
+  test("E cycles Balanced → Harvest → Balanced", async () => {
+    session = await createDrivingSession(car, track, { energy: rules });
+    expect(session.state().energy?.mode).toBe("balanced");
+    session.action("energyMode");
+    expect(session.state().energy?.mode).toBe("harvest");
+    session.action("energyMode");
+    expect(session.state().energy?.mode).toBe("balanced");
+  });
+
+  test("holding Shift deploys more than Balanced", async () => {
+    const deployed = async (deploy: boolean) => {
+      const s = await createDrivingSession(car, track, { energy: rules });
+      hold(s, idle, 3);
+      hold(s, { ...throttle, deploy }, 4);
+      const used = rules.socWindowJ - (s.state().energy?.socJ ?? 0);
+      s.dispose();
+      return used;
+    };
+    expect(await deployed(true)).toBeGreaterThan((await deployed(false)) * 1.3);
+  });
+
+  test("crossing the line starts a new Recharge allowance", async () => {
+    session = await createDrivingSession(car, track, { energy: rules });
+    hold(session, idle, 3);
+    let before = 0;
+    for (let t = 0; t < 200 && session.state().laps.length === 0; t += 1 / 60) {
+      before = session.state().energy?.lapRechargeJ ?? 0;
+      session.frame(1 / 60, autopilot(session));
+    }
+    expect(before).toBeGreaterThan(1_000_000);
+    expect(session.state().energy?.lapRechargeJ ?? 0).toBeLessThan(200_000);
   }, 30_000);
 });

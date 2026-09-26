@@ -59,3 +59,20 @@ test("@smoke Escape pauses the car and shows it", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(page.locator("#paused")).toBeHidden();
 });
+
+test("@smoke E switches the energy mode and Shift deploys from the battery", async ({ page }) => {
+  await freezeFrames(page);
+  await openGame(page);
+  await expect(page.locator("#energy-mode")).toHaveText("Balanced");
+  await expect(page.locator("#charge")).toHaveText("100%");
+  await page.keyboard.press("KeyE");
+  await expect(page.locator("#energy-mode")).toHaveText("Harvest");
+  await page.keyboard.press("KeyE");
+  await page.clock.runFor(3_000);
+  await page.keyboard.down("Shift");
+  await page.keyboard.down("ArrowUp");
+  // Still inside the main-straight zone (40–260 m from a 150 m grid slot).
+  await page.clock.runFor(2_000);
+  await expect(page.locator("#wing")).toHaveText("Straight");
+  expect(Number((await page.locator("#charge").textContent())?.replace("%", ""))).toBeLessThan(97);
+});

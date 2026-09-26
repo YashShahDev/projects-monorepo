@@ -55,9 +55,10 @@ describe("surface grip in a session", () => {
       surfaceGrip: { ...track.surfaceGrip, grass: trackGrass },
     });
     sessions.push(s);
-    const held = { throttle: true, brake: false, left: false, right: false };
+    const held = { throttle: true, brake: false, left: false, right: false, deploy: false };
     let firstGrass: number | undefined;
-    for (let t = 0; t < 9; t += 1 / 60) {
+    // 3 s standing-start countdown, then flat out past turn 1.
+    for (let t = 0; t < 12; t += 1 / 60) {
       s.frame(1 / 60, held);
       if (firstGrass === undefined && s.state().surface === "grass") firstGrass = t;
     }

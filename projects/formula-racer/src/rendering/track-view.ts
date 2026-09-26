@@ -87,7 +87,13 @@ export function createTrackView(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }),
   );
 
-  const grass = new THREE.Mesh(own(new THREE.PlaneGeometry(6000, 6000)), flat(GRASS));
+  // Road, kerbs and grass are nearly coplanar. A 2 cm gap alone z-fought at 640×360 in
+  // headless SwiftShader (no road visible), so polygon offset orders the layers instead.
+  const grassMaterial = flat(GRASS);
+  grassMaterial.polygonOffset = true;
+  grassMaterial.polygonOffsetFactor = 4;
+  grassMaterial.polygonOffsetUnits = 4;
+  const grass = new THREE.Mesh(own(new THREE.PlaneGeometry(6000, 6000)), grassMaterial);
   grass.rotation.x = -Math.PI / 2;
   grass.position.y = -0.02;
   scene.add(grass);
@@ -104,7 +110,11 @@ export function createTrackView(
   scene.add(new THREE.Mesh(own(ribbon(track, -kerb, -half, 0.005, stripe)), painted));
 
   const start = track.pointAt(startDistanceM);
-  const line = new THREE.Mesh(own(new THREE.PlaneGeometry(half * 2, 0.8)), flat(KERB_WHITE));
+  const lineMaterial = flat(KERB_WHITE);
+  lineMaterial.polygonOffset = true;
+  lineMaterial.polygonOffsetFactor = -4;
+  lineMaterial.polygonOffsetUnits = -4;
+  const line = new THREE.Mesh(own(new THREE.PlaneGeometry(half * 2, 0.8)), lineMaterial);
   line.rotation.set(-Math.PI / 2, 0, Math.atan2(start.tx, start.tz));
   line.position.set(start.x, 0.01, start.z);
   scene.add(line);

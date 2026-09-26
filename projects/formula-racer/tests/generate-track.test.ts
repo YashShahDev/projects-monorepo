@@ -13,6 +13,7 @@ const base = {
   kerbWidthM: 1.5,
   startDistanceM: 10,
   surfaceGrip: { road: 1, kerb: 0.85, grass: 0.45 },
+  activeAeroZones: [],
 };
 // A rounded square: two adjacent (perpendicular) solved sides close it against the two
 // fixed ones; parallel solved sides could not fix both axes.

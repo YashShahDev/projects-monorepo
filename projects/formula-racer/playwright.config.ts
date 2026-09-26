@@ -6,6 +6,10 @@ const subpath = "http://localhost:4312/games/formula-racer/";
 
 // Tags: @smoke runs everywhere, @dev needs development hooks, @prod checks production-only
 // guarantees. Untagged tests run on the Chromium production servers.
+// Headless software GL renders a 1280×720 frame in ~31 ms and 640×360 in ~15 ms (one
+// worker); clock-driven tests render every frame, so the smaller view halves their time.
+const viewport = { width: 640, height: 360 };
+
 export default defineConfig({
   testDir: "tests/browser",
   testMatch: "**/*.pw.ts",
@@ -26,27 +30,27 @@ export default defineConfig({
     {
       name: "chromium-dev",
       grep: /@smoke|@dev/u,
-      use: { ...devices["Desktop Chrome"], baseURL: dev },
+      use: { ...devices["Desktop Chrome"], viewport, baseURL: dev },
     },
     {
       name: "chromium-prod",
       grepInvert: /@dev/u,
-      use: { ...devices["Desktop Chrome"], baseURL: root },
+      use: { ...devices["Desktop Chrome"], viewport, baseURL: root },
     },
     {
       name: "chromium-prod-subpath",
       grepInvert: /@dev/u,
-      use: { ...devices["Desktop Chrome"], baseURL: subpath },
+      use: { ...devices["Desktop Chrome"], viewport, baseURL: subpath },
     },
     {
       name: "firefox-dev",
       grep: /@smoke/u,
-      use: { ...devices["Desktop Firefox"], baseURL: dev },
+      use: { ...devices["Desktop Firefox"], viewport, baseURL: dev },
     },
     {
       name: "firefox-prod-subpath",
       grep: /@smoke/u,
-      use: { ...devices["Desktop Firefox"], baseURL: subpath },
+      use: { ...devices["Desktop Firefox"], viewport, baseURL: subpath },
     },
   ],
 });
