@@ -15,8 +15,9 @@ export interface QualitySettings {
 export const isQualityPreset = (value: unknown): value is QualityPreset =>
   QUALITY_PRESETS.includes(value as QualityPreset);
 
-// Fill rate dominates on integrated GPUs, so presets mostly trade resolution. Low
-// renders below native even on a 1× display.
+// Hypothesis, not yet measured: fill rate limits integrated GPUs, so presets mostly
+// trade resolution; Low renders below native even on a 1× display. P5-C1's `make bench`
+// runs on the reference laptop decide whether that holds.
 export function qualitySettings(preset: QualityPreset, devicePixelRatio: number): QualitySettings {
   switch (preset) {
     case "low":
