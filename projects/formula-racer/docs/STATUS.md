@@ -26,6 +26,10 @@ P4 is done: implemented, reviewed (9 findings fixed, 2 rejected) and verified ag
 the real `fr26.glb` with chase and cockpit screenshots ([record](checkpoints/P4.md)).
 The P5-C1 benchmark route and `make bench` runner are built ([record](checkpoints/P5.md)).
 
+P4-C4 (trackside, map, telemetry, braking harvest) is built and green; Codex review of
+`63cab94^..HEAD` next, then fixes. Benchmarks wait until the user says the laptop is
+idle (user, 2026-09-26).
+
 Next, on the reference laptop:
 
 1. `make bench QUALITY=low|medium|high` (GPU headless, AC power noted); commit the summaries,
@@ -57,6 +61,7 @@ repository sources.
 | P4-C2     | done    | `--grep=P4-C2`; [P4 record](checkpoints/P4.md)                                |
 | P4-C3     | active  | `--grep=P4-C3`; needs the real-model check; [P4](checkpoints/P4.md)           |
 | P4 review | done    | Fresh review agent, 9 fixed, 2 rejected; [P4](checkpoints/P4.md#phase-review) |
+| P4-C4     | review  | `--grep=P4-C4`; trackside, map, telemetry, harvest; [P4](checkpoints/P4.md)   |
 | P5-C1     | active  | Tooling done (`--grep=P5-C1`); laptop runs pending; [P5](checkpoints/P5.md)   |
 | P5-C2, C3 | planned | [P5](phases/P5-release.md)                                                    |
 
