@@ -1,3 +1,5 @@
+import { AI_LEVELS } from "../ai/driver.ts";
+import type { AiLevelName } from "../ai/driver.ts";
 import { isEnergyMode } from "../content/energy-rules.ts";
 import type { EnergyMode } from "../content/energy-rules.ts";
 import type { Livery } from "../content/livery.ts";
@@ -39,9 +41,20 @@ export interface Preferences {
 
   /** Ignores values that are not a ghost mode. */
   setGhost(mode: string): void;
+  opponents(): { count: number; level: AiLevelName };
+
+  /** Ignores a count that is not 0 to 3, or a level that is not an AI level. */
+  setOpponents(count: string, level: string): void;
 }
 
 const STORAGE_KEY = "formula-racer:prefs";
+
+/** The frame budget is measured with this many opponents. */
+export const MAX_OPPONENTS = 3;
+
+const isOpponentCount = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_OPPONENTS;
+const isAiLevel = (value: unknown): value is AiLevelName => AI_LEVELS.some((level) => level === value);
 const SCHEMA = 1;
 
 /**
@@ -63,6 +76,8 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
   let energyMode: EnergyMode = "balanced";
   let racingLine: GuideMode = "off";
   let ghost: GhostMode = "best";
+  let opponents = 0;
+  let opponentLevel: AiLevelName = "club";
   let newerSave = false;
   try {
     const raw = storage?.getItem(STORAGE_KEY);
@@ -78,6 +93,8 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
       energyMode = isEnergyMode(saved.energyMode) ? saved.energyMode : energyMode;
       racingLine = isGuideMode(saved.racingLine) ? saved.racingLine : racingLine;
       ghost = isGhostMode(saved.ghost) ? saved.ghost : ghost;
+      opponents = isOpponentCount(saved.opponents) ? saved.opponents : opponents;
+      opponentLevel = isAiLevel(saved.opponentLevel) ? saved.opponentLevel : opponentLevel;
     }
 
     // A newer game version wrote this; keep it for that version rather than downgrade it.
@@ -103,6 +120,8 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
           energyMode,
           racingLine,
           ghost,
+          opponents,
+          opponentLevel,
         }),
       );
     } catch {
@@ -169,6 +188,17 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
       }
 
       ghost = mode;
+      save();
+    },
+    opponents: () => ({ count: opponents, level: opponentLevel }),
+    setOpponents(count, level) {
+      const n = Number(count);
+      if (count.trim() === "" || !isOpponentCount(n) || !isAiLevel(level)) {
+        return;
+      }
+
+      opponents = n;
+      opponentLevel = level;
       save();
     },
   };

@@ -11,7 +11,7 @@ import { loadCatalogTrack } from "../content/track-catalog.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import type { DriverControls, VehicleSnapshot } from "../simulation/vehicle.ts";
 import { createTrackView } from "../rendering/track-view.ts";
-import { createGhostView } from "../rendering/ghost-view.ts";
+import { createGhostView, createOpponentView } from "../rendering/ghost-view.ts";
 import type { GhostMode } from "../rendering/ghost-view.ts";
 import { createGuideView } from "../rendering/guide-view.ts";
 import { createTyreMarksView } from "../rendering/tyre-marks-view.ts";
@@ -31,7 +31,9 @@ import type { HeldKeys } from "./keyboard.ts";
 import { formatGear, formatLapTime } from "./format.ts";
 import { createLapStore, lapKey, storageNotice } from "./lap-store.ts";
 import type { StorageLike } from "./lap-store.ts";
-import { createPreferences } from "./preferences.ts";
+import { createPreferences, MAX_OPPONENTS } from "./preferences.ts";
+import { createRace } from "./race.ts";
+import type { Race, RaceFrame } from "./race.ts";
 import { createDrivingSession, TYRE_HALF_WIDTH_M } from "./session.ts";
 import { autopilot } from "./autopilot.ts";
 import { createBenchRecorder } from "./bench.ts";
@@ -42,7 +44,10 @@ import { createAiDriver } from "../ai/driver.ts";
 import type { AiDriver } from "../ai/driver.ts";
 import { createDashboard } from "./dashboard.ts";
 import type { BenchOptions, BenchReport } from "./bench.ts";
-import type { SessionState } from "./session.ts";
+import type { FrameView, SessionState } from "./session.ts";
+
+const yawOf = (q: { x: number; y: number; z: number; w: number }) =>
+  Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y));
 
 export class StartupError extends Error {
   override name = "StartupError";
@@ -65,6 +70,9 @@ export interface GameAppState extends SessionState {
 
   /** Centreline samples where the racing line plans on less grip, from `make tune-lines`. */
   loweredGripSamples: number;
+
+  /** With AI opponents: the player's position, the cars racing, and how many are drawn. */
+  race: { position: number; cars: number; drawn: number } | undefined;
 }
 
 export interface GameApp {
@@ -98,6 +106,7 @@ export interface Hud {
   aiDriving: HTMLElement;
   storageNote: HTMLElement;
   trackName: HTMLElement;
+  position: HTMLElement;
   telemetry: HTMLElement;
   map: SVGSVGElement | undefined;
   preview: HTMLElement;
@@ -115,6 +124,8 @@ export interface Menu {
   energy: HTMLSelectElement;
   racingLine: HTMLSelectElement;
   ghost: HTMLSelectElement;
+  opponents: HTMLSelectElement;
+  opponentLevel: HTMLSelectElement;
   sound: HTMLInputElement;
   controls: HTMLButtonElement;
   help: HTMLElement;
@@ -218,6 +229,13 @@ export async function startGameApp(
   const ghosts = createGhostStore(records);
   const ghostView = createGhostView(model);
   view.add(ghostView);
+  const opponentViews = [0x3b82f6, 0x2fb56a, 0xf2b134]
+    .slice(0, MAX_OPPONENTS)
+    .map((color) => createOpponentView(model, color));
+  for (const opponent of opponentViews) {
+    view.add(opponent);
+  }
+
   const marksView = createTyreMarksView();
   view.add(marksView);
   let markSerial = 0;
@@ -250,6 +268,8 @@ export async function startGameApp(
   session.setEnergyMode(preferences.energyMode());
   menu.racingLine.value = preferences.racingLine();
   menu.ghost.value = preferences.ghost();
+  menu.opponents.value = String(preferences.opponents().count);
+  menu.opponentLevel.value = preferences.opponents().level;
   view.setQuality(qualitySettings(preferences.quality(), window.devicePixelRatio));
   let storedLaps = 0;
 
@@ -330,6 +350,34 @@ export async function startGameApp(
       link: createControlLink(session, track.id),
     };
     ai.driver.reset();
+  };
+
+  // Opponents join from the grid behind the player, whose lap restarts with them. Outside
+  // software steps only its own car, so a controlled page races nobody.
+  let race: Race | undefined;
+  let raceSerial = 0;
+  const setUpRace = async () => {
+    const { count, level } = preferences.opponents();
+    raceSerial += 1;
+    const serial = raceSerial;
+    race?.dispose();
+    race = undefined;
+    if (count > 0 && !controlled) {
+      const line = racingLine ?? buildLine(carDefinition);
+      racingLine = line;
+      const next = await createRace(session, { car: carDefinition, track, energy, level, count, line });
+
+      // A newer choice, or the page closing, overtook this one while it was built.
+      if (serial !== raceSerial || disposed) {
+        next.dispose();
+
+        return;
+      }
+
+      race = next;
+    }
+
+    session.action("reset");
   };
 
   keyboard.onAction((action) => {
@@ -490,6 +538,17 @@ export async function startGameApp(
   };
 
   menu.ghost.addEventListener("change", onGhost);
+  const onOpponents = () => {
+    preferences.setOpponents(menu.opponents.value, menu.opponentLevel.value);
+    setUpRace()
+      .then(show)
+      .catch((error: unknown) => {
+        fail(`Could not start the opponents: ${error instanceof Error ? error.message : String(error)}`);
+      });
+  };
+
+  menu.opponents.addEventListener("change", onOpponents);
+  menu.opponentLevel.addEventListener("change", onOpponents);
 
   // Building the line takes a noticeable fraction of a second, so it waits until the
   // game is already on screen.
@@ -497,7 +556,7 @@ export async function startGameApp(
   let guideState: GuideState | undefined;
   const guideTimer = setTimeout(() => {
     const limits = lineLimits(carDefinition);
-    const line = buildLine(carDefinition);
+    const line = racingLine ?? buildLine(carDefinition);
     racingLine = line;
     guide = createGuideView(session.geometry, line, limits);
     view.add(guide);
@@ -532,6 +591,7 @@ export async function startGameApp(
     ghost: { mode: preferences.ghost(), visible: ghostView.object.visible, deltaS },
     marks: marksState,
     aiDriving,
+    race: race && { ...race.standings(), drawn: opponentViews.filter((v) => v.object.visible).length },
   });
   let racing: Ghost | undefined;
   let deltaS: number | undefined;
@@ -542,6 +602,9 @@ export async function startGameApp(
     hud.speed.textContent = String(Math.round(Math.abs(s.speedKmh)));
     hud.gear.textContent = formatGear(s.gear, s.gearboxMode);
     hud.paused.hidden = !s.paused;
+    const standing = race?.standings();
+    hud.position.hidden = standing === undefined;
+    hud.position.textContent = standing ? `P${String(standing.position)} / ${String(standing.cars)}` : "";
 
     // Nudged below whole seconds so 2.0 s left reads "2", not "3".
     const count = Math.ceil(s.countdownS - 1e-9);
@@ -631,6 +694,27 @@ export async function startGameApp(
   // Where the car was drawn last frame: the route's distance is where it went, which a
   // frame too long for the simulation to catch up on does not inflate.
   let benchAt: { x: number; z: number } | undefined;
+
+  // The player's frame, with any opponents stepped alongside and drawn where they are.
+  const advance = (
+    frameSeconds: number,
+    held: HeldKeys | (() => HeldKeys),
+    driver?: () => DriverControls,
+  ): FrameView => {
+    const frame: RaceFrame = race
+      ? race.frame(frameSeconds, held, driver)
+      : { player: session.frame(frameSeconds, held, driver), opponents: [] };
+    opponentViews.forEach((opponent, i) => {
+      const car = frame.opponents[i];
+      opponent.update(
+        car && { x: car.position.x, z: car.position.z, heading: yawOf(car.rotation) },
+        car?.position.y ?? 0,
+      );
+    });
+
+    return frame.player;
+  };
+
   const draw = (
     frameSeconds: number,
     held: HeldKeys | (() => HeldKeys),
@@ -639,7 +723,7 @@ export async function startGameApp(
   ): void => {
     const t0 = performance.now();
     const { car, camera, lapTimeS, gripShare } =
-      how === "look" ? session.look(frameSeconds) : session.frame(frameSeconds, held, driver);
+      how === "look" ? session.look(frameSeconds) : advance(frameSeconds, held, driver);
     const t1 = performance.now();
     guideState = guide?.update({ position: car.position, speedMps: car.speedMps, gripShare }, preferences.racingLine());
     ghostView.update(racing && lapTimeS !== undefined ? ghostPoseAt(racing, lapTimeS) : undefined, car.position.y);
@@ -759,6 +843,8 @@ export async function startGameApp(
     menu.energy.removeEventListener("change", onEnergy);
     menu.racingLine.removeEventListener("change", onRacingLine);
     menu.ghost.removeEventListener("change", onGhost);
+    menu.opponents.removeEventListener("change", onOpponents);
+    menu.opponentLevel.removeEventListener("change", onOpponents);
     clearTimeout(guideTimer);
     menu.sound.removeEventListener("change", onSound);
     removeEventListener("keydown", onGesture);
@@ -772,9 +858,16 @@ export async function startGameApp(
     keyboard.dispose();
     control?.dispose();
     view.dispose();
+    race?.dispose();
     session.dispose();
   }
 
+  // Before the first frame, so the whole grid starts on the same step.
+  await setUpRace().catch((error: unknown) => {
+    dispose();
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new StartupError(`Could not start the opponents: ${reason}`, { cause: error });
+  });
   canvas.addEventListener("webglcontextlost", onContextLost);
   frameRequest = requestAnimationFrame(frame);
 
@@ -784,7 +877,7 @@ export async function startGameApp(
 
       // One step's worth of time always yields exactly one fixed step.
       for (let i = 0; i < count; i += 1) {
-        session.frame(session.stepSeconds, held);
+        advance(session.stepSeconds, held);
       }
 
       draw(0, held);
@@ -793,7 +886,7 @@ export async function startGameApp(
     },
     drive(seconds) {
       for (let t = 0; t < seconds; t += session.stepSeconds) {
-        session.frame(session.stepSeconds, () => autopilot(session));
+        advance(session.stepSeconds, () => autopilot(session));
       }
 
       draw(0, keyboard.held());

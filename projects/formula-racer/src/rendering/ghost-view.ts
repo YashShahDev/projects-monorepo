@@ -18,17 +18,11 @@ export interface GhostView {
 const isMesh = (object: THREE.Object3D): object is THREE.Mesh => object instanceof THREE.Mesh;
 
 /**
- * A see-through copy of the car. It shares the model's geometry, and keeps only the
- * coarsest level of detail: a translucent car shows little detail anyway.
+ * A copy of the car's coarsest level of detail, drawn with one material. It shares the
+ * model's geometry; a car seen at a distance, or see-through, shows little detail anyway.
  */
-export function createGhostView(model: BoundCarModel): GhostView {
+function coarseCopy(model: BoundCarModel, material: THREE.Material, name: string): THREE.Object3D {
   const root = model.root.clone(true);
-  const material = new THREE.MeshBasicMaterial({
-    color: 0x9fd4ff,
-    transparent: true,
-    opacity: 0.45,
-    depthWrite: false,
-  });
   root.traverse((object) => {
     if (isMesh(object)) {
       object.material = material;
@@ -44,9 +38,14 @@ export function createGhostView(model: BoundCarModel): GhostView {
       });
     }
   });
-  root.name = "ghost";
+  root.name = name;
   root.visible = false;
-  root.renderOrder = 1;
+
+  return root;
+}
+
+function poseView(root: THREE.Object3D, material: THREE.Material): GhostView {
+  const up = new THREE.Vector3(0, 1, 0);
 
   return {
     object: root,
@@ -54,7 +53,7 @@ export function createGhostView(model: BoundCarModel): GhostView {
       root.visible = pose !== undefined;
       if (pose) {
         root.position.set(pose.x, y, pose.z);
-        root.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.heading);
+        root.quaternion.setFromAxisAngle(up, pose.heading);
       }
     },
     dispose() {
@@ -62,4 +61,25 @@ export function createGhostView(model: BoundCarModel): GhostView {
       material.dispose();
     },
   };
+}
+
+/** A see-through copy of the car. */
+export function createGhostView(model: BoundCarModel): GhostView {
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x9fd4ff,
+    transparent: true,
+    opacity: 0.45,
+    depthWrite: false,
+  });
+  const root = coarseCopy(model, material, "ghost");
+  root.renderOrder = 1;
+
+  return poseView(root, material);
+}
+
+/** An AI opponent: the ghost's shape, solid and lit, in one colour per car. */
+export function createOpponentView(model: BoundCarModel, color: number): GhostView {
+  const material = new THREE.MeshLambertMaterial({ color });
+
+  return poseView(coarseCopy(model, material, "opponent"), material);
 }

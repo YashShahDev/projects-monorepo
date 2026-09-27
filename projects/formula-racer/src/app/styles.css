@@ -342,6 +342,12 @@ kbd {
   color: #ff6b5e;
 }
 
+#position {
+  margin-right: 6px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
 #ai-driving {
   margin-left: 8px;
   padding: 1px 6px;

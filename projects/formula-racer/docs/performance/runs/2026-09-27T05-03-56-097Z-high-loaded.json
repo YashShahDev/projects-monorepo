@@ -1,0 +1,172 @@
+{
+  "summary": {
+    "route": "harbour-autopilot-v1",
+    "quality": "high",
+    "passes": 3,
+    "p95Ms": 16.70000000001164,
+    "medianMs": 16.69999999999709,
+    "simP95Ms": 1.699999988079071,
+    "renderP95Ms": 1.5999999940395355,
+    "worstP95Ms": 16.70000000001164,
+    "overBudget": 0,
+    "drawCalls": 69.93778641855297,
+    "triangles": 62697.7308707124,
+    "drawingBuffer": {
+      "width": 1280,
+      "height": 720
+    },
+    "gl": {
+      "vendor": "Google Inc. (Intel)",
+      "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+    },
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+    "transferBytes": 6853197,
+    "hardware": true,
+    "meetsTarget": true
+  },
+  "loaded": true,
+  "heapBytes": [39600000, 60300000, 37300000],
+  "passes": [
+    {
+      "route": "harbour-autopilot-v1",
+      "quality": "high",
+      "pixelRatio": 1,
+      "drawingBuffer": {
+        "width": 1280,
+        "height": 720
+      },
+      "gl": {
+        "vendor": "Google Inc. (Intel)",
+        "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+      },
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "transferBytes": 6853197,
+      "measuredSeconds": 120.0119,
+      "frames": {
+        "frames": 7201,
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.70000000001164,
+        "p99Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "simMs": {
+        "frames": 7201,
+        "medianMs": 1,
+        "p95Ms": 1.699999988079071,
+        "p99Ms": 1.9000000059604645,
+        "maxMs": 6.300000011920929,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "renderMs": {
+        "frames": 7201,
+        "medianMs": 0.7999999821186066,
+        "p95Ms": 1.5999999940395355,
+        "p99Ms": 1.7000000178813934,
+        "maxMs": 6.699999988079071,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "drawCalls": 69.93764754895153,
+      "triangles": 62641.39036244966,
+      "distanceM": 4186.417104619851,
+      "pausedFrames": 0
+    },
+    {
+      "route": "harbour-autopilot-v1",
+      "quality": "high",
+      "pixelRatio": 1,
+      "drawingBuffer": {
+        "width": 1280,
+        "height": 720
+      },
+      "gl": {
+        "vendor": "Google Inc. (Intel)",
+        "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+      },
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "transferBytes": 6853197,
+      "measuredSeconds": 120.01190000000001,
+      "frames": {
+        "frames": 7201,
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.70000000001164,
+        "p99Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "simMs": {
+        "frames": 7201,
+        "medianMs": 1.2999999821186066,
+        "p95Ms": 1.699999988079071,
+        "p99Ms": 1.9000000059604645,
+        "maxMs": 3.5,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "renderMs": {
+        "frames": 7201,
+        "medianMs": 0.9000000059604645,
+        "p95Ms": 1.5999999940395355,
+        "p99Ms": 1.699999988079071,
+        "maxMs": 3.899999976158142,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "drawCalls": 69.93806415775586,
+      "triangles": 62697.7308707124,
+      "distanceM": 4187.487398428056,
+      "pausedFrames": 0
+    },
+    {
+      "route": "harbour-autopilot-v1",
+      "quality": "high",
+      "pixelRatio": 1,
+      "drawingBuffer": {
+        "width": 1280,
+        "height": 720
+      },
+      "gl": {
+        "vendor": "Google Inc. (Intel)",
+        "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+      },
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "transferBytes": 6853197,
+      "measuredSeconds": 120.0118,
+      "frames": {
+        "frames": 7201,
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.70000000001164,
+        "p99Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "simMs": {
+        "frames": 7201,
+        "medianMs": 1.2999999821186066,
+        "p95Ms": 1.7000000178813934,
+        "p99Ms": 2,
+        "maxMs": 2.800000011920929,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "renderMs": {
+        "frames": 7201,
+        "medianMs": 0.9000000059604645,
+        "p95Ms": 1.5999999940395355,
+        "p99Ms": 1.7000000178813934,
+        "maxMs": 2.9000000059604645,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "drawCalls": 69.93778641855297,
+      "triangles": 62702.24663241216,
+      "distanceM": 4187.572969215636,
+      "pausedFrames": 0
+    }
+  ]
+}

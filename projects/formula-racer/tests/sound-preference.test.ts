@@ -71,3 +71,16 @@ test("the energy mode defaults to balanced, is remembered, and ignores unknown v
   prefs.setEnergyMode("turbo");
   expect(createPreferences(storage, liveries).energyMode()).toBe("attack");
 });
+
+test("opponents default to none at Club level; the count stays 0 to 3 and the level a real one", () => {
+  const storage = memory();
+  const prefs = createPreferences(storage, liveries);
+  expect(prefs.opponents()).toEqual({ count: 0, level: "club" });
+  prefs.setOpponents("3", "ace");
+  prefs.setOpponents("4", "pro");
+  prefs.setOpponents("2", "legend");
+  prefs.setOpponents("1.5", "pro");
+  expect(createPreferences(storage, liveries).opponents()).toEqual({ count: 3, level: "ace" });
+  storage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, opponents: -1, opponentLevel: "god" }));
+  expect(createPreferences(storage, liveries).opponents()).toEqual({ count: 0, level: "club" });
+});

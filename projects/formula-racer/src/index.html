@@ -25,6 +25,7 @@
     </div>
     <div id="timing" aria-label="Lap timing">
       <span id="track-name"></span>
+      <span id="position" hidden></span>
       <span class="label">Lap</span> <span id="lap-time">–</span> <span class="label">Last</span>
       <span id="last-lap">–</span> <span class="label">Best</span> <span id="best-lap">–</span>
       <span id="delta" hidden></span>
@@ -75,6 +76,24 @@
             <option value="off">Off</option>
             <option value="best">Best lap</option>
             <option value="last">Last lap</option>
+          </select></label
+        >
+        <label class="row"
+          >Opponents
+          <select id="opponents">
+            <option value="0">Off</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select></label
+        >
+        <label class="row"
+          >Opponent level
+          <select id="opponent-level">
+            <option value="rookie">Rookie</option>
+            <option value="club">Club</option>
+            <option value="pro">Pro</option>
+            <option value="ace">Ace</option>
           </select></label
         >
       </section>

@@ -3,8 +3,9 @@
 //   bun run tools/bench.ts [--quality medium] [--passes 3] [--seconds 120]
 //                          [--warmup 10] [--headed] [--loaded] [--out docs/performance/runs]
 //
-// --loaded is the heaviest view a player can pick: full racing line, best-lap ghost
-// and the far chase camera. The ghost appears once the route completes its first lap.
+// --loaded is the heaviest view a player can pick: full racing line, best-lap ghost,
+// three AI opponents and the far chase camera. The ghost appears once the route
+// completes its first lap.
 //
 // Headless by default so runs don't open windows on the desktop, with the GPU forced on:
 // plain headless Chromium renders in software, whose numbers say nothing about the
@@ -229,7 +230,7 @@ async function main() {
   try {
     for (let pass = 1; pass <= values.passes; pass += 1) {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-      const extras = values.loaded ? { racingLine: "full", ghost: "best" } : {};
+      const extras = values.loaded ? { racingLine: "full", ghost: "best", opponents: 3, opponentLevel: "ace" } : {};
       const prefs = JSON.stringify({ version: 1, quality, ...extras });
       await page.addInitScript({ content: `localStorage.setItem("formula-racer:prefs", ${JSON.stringify(prefs)});` });
       const query = `?bench&warmupSeconds=${String(values.warmup)}&benchSeconds=${String(values.seconds)}`;

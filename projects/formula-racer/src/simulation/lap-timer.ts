@@ -28,8 +28,11 @@ export interface LapTimerOptions {
 }
 
 export interface LapTimer {
-  /** Starts timing a lap from a standing start at `distanceM`. */
-  start(simSeconds: number, distanceM: number): void;
+  /**
+   * Starts timing a lap from a standing start at `distanceM`, `progressM` along the lap:
+   * negative for a grid slot behind the line.
+   */
+  start(simSeconds: number, distanceM: number, progressM?: number): void;
   update(simSeconds: number, distanceM: number, onTrack: boolean): void;
 
   /** Discards the lap in progress, e.g. after a reset. */
@@ -68,8 +71,8 @@ export function createLapTimer({ lengthM, sectors, maxStepM = 30 }: LapTimerOpti
   });
 
   return {
-    start(t, d) {
-      lap = fresh(t, d);
+    start(t, d, progressM = 0) {
+      lap = { ...fresh(t, d), progress: progressM };
     },
     update(t, d, onTrack) {
       if (!lap) {

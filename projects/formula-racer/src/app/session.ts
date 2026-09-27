@@ -81,6 +81,9 @@ export interface SessionOptions {
 
   /** From the car model; the rig's defaults stand in when there is none. */
   cameraAnchors?: CameraAnchors;
+
+  /** Place on a race grid: 0, the default, is the time-trial start on the line. */
+  gridSlot?: number;
 }
 
 export interface FrameView {
@@ -92,6 +95,9 @@ export interface FrameView {
 
   /** The grip the tyres have now against clean road, for the guide. */
   gripShare: number;
+
+  /** How far the drawn pose is from the step before the latest toward the latest. */
+  alpha: number;
 }
 
 export interface DrivingSession {
@@ -120,9 +126,10 @@ export interface DrivingSession {
 
   /**
    * The car as it is, with the camera moved on by `frameSeconds`, without stepping the
-   * simulation: for a page whose car outside software is driving.
+   * simulation: for a page whose car outside software is driving. `alpha`, when given,
+   * draws the car that far between its last two steps, to match another car's frame.
    */
-  look(frameSeconds: number): FrameView;
+  look(frameSeconds: number, alpha?: number): FrameView;
 
   /**
    * One simulation step with analog controls as given, for AI drivers and outside
@@ -160,6 +167,9 @@ export const TYRE_HALF_WIDTH_M = 0.2;
 const MAX_STEPS_PER_FRAME = 8;
 const COUNTDOWN_S = 3;
 const SECTORS = 3;
+
+/** Distance between grid slots along the track; later slots alternate sides. */
+export const GRID_GAP_M = 8;
 
 const poseOf = (s: VehicleSnapshot): Pose => ({ position: s.position, rotation: s.rotation });
 
@@ -246,7 +256,10 @@ export async function createDrivingSession(
     );
   }
 
-  const start = geometry.pointAt(track.startDistanceM);
+  const slot = sessionOptions.gridSlot ?? 0;
+  const behindM = slot * GRID_GAP_M;
+  const start = geometry.pointAt(track.startDistanceM - behindM);
+  const sideM = slot === 0 ? 0 : (slot % 2 === 1 ? -1 : 1) * (geometry.halfWidthM / 2);
   const trackside = buildTrackside(geometry, track.setting);
 
   // One lookup hint per wheel keeps each locate to a short windowed search.
@@ -257,7 +270,7 @@ export async function createDrivingSession(
   const options: VehicleOptions = {
     ...(sessionOptions.energy ? { energy: sessionOptions.energy } : {}),
     start: {
-      position: { x: start.x, y: 0, z: start.z },
+      position: { x: start.x + sideM * start.tz, y: 0, z: start.z - sideM * start.tx },
       headingRad: Math.atan2(start.tx, start.tz),
     },
     gripAt: (x, z, wheel) => {
@@ -345,8 +358,9 @@ export async function createDrivingSession(
       pendingShift = undefined;
       countdownLeft -= 1;
       if (countdownLeft === 0) {
-        lapTimer.start(sim.snapshot().simSeconds, locate().distanceM);
-        recorder.begin(ghostSample(poseOf(sim.snapshot()), 0, 0));
+        // From behind the line the first lap is longer, so its boundaries stay on the line.
+        lapTimer.start(sim.snapshot().simSeconds, locate().distanceM, -behindM);
+        recorder.begin(ghostSample(poseOf(sim.snapshot()), 0, -behindM));
       }
 
       return;
@@ -416,6 +430,7 @@ export async function createDrivingSession(
         latest.wheels.map((wheel) => wheel.slip),
         track.surfaceGrip,
       ),
+      alpha,
     };
   };
 
@@ -448,7 +463,11 @@ export async function createDrivingSession(
 
       return present(frameSeconds);
     },
-    look: (frameSeconds) => present(frameSeconds),
+    look(frameSeconds, at) {
+      alpha = at ?? alpha;
+
+      return present(frameSeconds);
+    },
     drive(controls) {
       stepOnce(controls);
       alpha = 1;
