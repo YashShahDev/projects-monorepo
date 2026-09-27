@@ -94,15 +94,21 @@ export function lineGripScale(data: LineData, samples: number): Float64Array | u
   return scale;
 }
 
-/** The saved line at `url`, or undefined when the track has none. */
+/** The saved line at `url`, or undefined when the track has none; it must be for `track` when given. */
 export async function fetchLineData(
   url: URL,
   fetchImpl: (url: URL) => Promise<Response> = fetch,
+  track?: string,
 ): Promise<LineData | undefined> {
   const response = await fetchImpl(url);
   if (response.status === 404) {
     return undefined;
   }
 
-  return parseLineData(await fetchJson(url, () => Promise.resolve(response)), url.pathname);
+  const data = parseLineData(await fetchJson(url, () => Promise.resolve(response)), url.pathname);
+  if (track !== undefined && data.track !== track) {
+    throw new ContentError(`${url.pathname} is for ${data.track}, not ${track}`);
+  }
+
+  return data;
 }

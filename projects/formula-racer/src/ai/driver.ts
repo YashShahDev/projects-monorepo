@@ -99,6 +99,15 @@ const OFF_LINE_M = 1;
 const OFF_LINE_GRIP_PER_M = 0.2;
 const OFF_LINE_GRIP_FLOOR = 0.6;
 
+// Shifts are asked for only past where an automatic box would already have made them
+// (it upshifts before the limiter, downshifts at the downshift point), so they matter
+// only in a manual box, whose mode the observation does not show.
+const LIMITER_MARGIN_RPM = 100;
+const DOWNSHIFT_SHARE = 0.95;
+
+// After asking for a shift, wait this long for it to show (the driver reacts late).
+const SHIFT_SETTLE_S = 0.4;
+
 // Held at a standstill on the throttle this long, the car is stuck (nose in a wall) and
 // backs out in reverse for a while before driving on.
 const STUCK_S = 1;
@@ -143,6 +152,7 @@ export function createAiDriver(options: AiDriverOptions): AiDriver {
   let throttle = 0;
   let hint: number | undefined;
   let stuckS = 0;
+  let shiftWaitS = 0;
   let recovery: { phase: "back" | "stop"; leftS: number; shifted: boolean } | undefined;
 
   const reset = () => {
@@ -150,6 +160,7 @@ export function createAiDriver(options: AiDriverOptions): AiDriver {
     throttle = 0;
     hint = undefined;
     stuckS = 0;
+    shiftWaitS = 0;
     recovery = undefined;
   };
 
@@ -256,7 +267,18 @@ export function createAiDriver(options: AiDriverOptions): AiDriver {
       const pedal = plan.pedal[0] ?? 0;
       const wanted = Math.max(0, pedal);
       throttle = wanted > throttle ? Math.min(wanted, throttle + level.throttleRate * stepSeconds) : wanted;
-      queue.push({ throttle, brake: Math.max(0, -pedal), steer });
+      const box = car.powertrain.gearbox;
+      let shift: "up" | "down" | undefined;
+      shiftWaitS = Math.max(0, shiftWaitS - stepSeconds);
+      const top = box.gearTopSpeedsKmh.length;
+      if (shiftWaitS === 0 && o.gear >= 1 && o.gear < top && o.rpm >= box.redlineRpm - LIMITER_MARGIN_RPM) {
+        shift = "up";
+      } else if (shiftWaitS === 0 && o.gear > 1 && o.rpm < box.downshiftRpm * DOWNSHIFT_SHARE) {
+        shift = "down";
+      }
+
+      shiftWaitS = shift ? SHIFT_SETTLE_S : shiftWaitS;
+      queue.push({ throttle, brake: Math.max(0, -pedal), steer, ...(shift ? { shift } : {}) });
 
       return queue.shift() ?? { throttle: 0, brake: 0, steer: 0 };
     },

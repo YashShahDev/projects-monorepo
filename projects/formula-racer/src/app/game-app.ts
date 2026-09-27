@@ -171,7 +171,7 @@ export async function startGameApp(
     ]),
   );
   const lineData = await stage("Could not load the racing line", () =>
-    fetchLineData(asset(`assets/lines/${track.id}.json`)),
+    fetchLineData(asset(`assets/lines/${track.id}.json`), fetch, track.id),
   );
   const model = await stage("Could not load the car model", () =>
     loadCarModel(asset("assets/cars/fr26.glb"), parseCarModelInterface(modelInterface), carDefinition),
@@ -603,9 +603,15 @@ export async function startGameApp(
   let lastCountdownS = Number.POSITIVE_INFINITY;
   const recorder = bench ? createBenchRecorder(bench.options) : undefined;
   let benchReported = false;
-  const draw = (frameSeconds: number, held: HeldKeys | (() => HeldKeys), driver?: () => DriverControls): void => {
+  const draw = (
+    frameSeconds: number,
+    held: HeldKeys | (() => HeldKeys),
+    driver?: () => DriverControls,
+    how: "step" | "look" = "step",
+  ): void => {
     const t0 = performance.now();
-    const { car, camera, lapTimeS, gripShare } = session.frame(frameSeconds, held, driver);
+    const { car, camera, lapTimeS, gripShare } =
+      how === "look" ? session.look(frameSeconds) : session.frame(frameSeconds, held, driver);
     const t1 = performance.now();
     guideState = guide?.update({ position: car.position, speedMps: car.speedMps, gripShare }, preferences.racingLine());
     ghostView.update(racing && lapTimeS !== undefined ? ghostPoseAt(racing, lapTimeS) : undefined, car.position.y);
@@ -685,7 +691,7 @@ export async function startGameApp(
       // The benchmark route drives itself, deciding every simulation step, so every run
       // sees the same inputs whatever its frame rate.
       if (control?.driving() === true) {
-        draw(0, coasting);
+        draw(frameSeconds, coasting, undefined, "look");
       } else {
         const at = aiDriving ? ai : undefined;
         draw(

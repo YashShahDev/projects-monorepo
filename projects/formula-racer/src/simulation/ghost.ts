@@ -285,5 +285,8 @@ export function decodeGhost(text: string): Ghost | undefined {
     [ghost.x, ghost.z, ghost.heading, ghost.progressM].every((column) => column.every(Number.isFinite)) &&
     ghost.marks.every((m) => [m.ax, m.az, m.bx, m.bz].every(Number.isFinite));
 
-  return finite ? ghost : undefined;
+  // Poses are looked up by time and by progress, both of which a lap only ever adds to.
+  const ascending = (column: Float64Array) => column.every((v, i) => i === 0 || v >= (column[i - 1] ?? v));
+
+  return finite && ascending(ghost.timeS) && ascending(ghost.progressM) ? ghost : undefined;
 }

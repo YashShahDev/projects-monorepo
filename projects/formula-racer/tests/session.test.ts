@@ -331,3 +331,28 @@ test("a frame can take analog controls per step from a driver instead of the key
   expect(asked).toBe(60);
   expect(s.state().speedKmh).toBeGreaterThan(20);
 });
+
+describe("presenting without stepping", () => {
+  // Outside software steps the car itself; the page then only presents it, and the
+  // chase camera must still swing round behind a car that has turned.
+  test("look moves the camera toward the car but never the car", async () => {
+    const s = ready(await start());
+    s.frame(1 / 60, idle);
+    for (let k = 0; k < 120; k += 1) {
+      s.drive({ throttle: 0.6, brake: 0, steer: -1 });
+    }
+
+    const first = s.look(1 / 60);
+    let last = first;
+    for (let k = 0; k < 120; k += 1) {
+      last = s.look(1 / 60);
+    }
+
+    expect(last.car.simSeconds).toBe(first.car.simSeconds);
+    expect(last.car.position).toEqual(first.car.position);
+    const aim = (v: typeof first) =>
+      Math.atan2(v.camera.target.x - v.camera.position.x, v.camera.target.z - v.camera.position.z);
+    const turned = Math.abs(aim(last) - aim(first));
+    expect(Math.min(turned, 2 * Math.PI - turned)).toBeGreaterThan(0.05);
+  });
+});

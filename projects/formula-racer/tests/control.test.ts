@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { createControlEnvironment } from "../src/control/environment.ts";
 import type { ControlEnvironment, ControlReply } from "../src/control/environment.ts";
 import { AHEAD_SAMPLES } from "../src/control/link.ts";
@@ -48,6 +51,41 @@ describe("control environment", () => {
     expect(o.track.ahead.leftBarrierM).toHaveLength(AHEAD_SAMPLES);
     expect(o.wheels.map((wheel) => wheel.surface)).toEqual(["road", "road", "road", "road"]);
     expect(o.energy?.mode).toBe("balanced");
+  });
+
+  // Riviera's start line is 2.4 km round its spline from the spline's first point.
+  test("track distance counts from the start line, and wraps there", async () => {
+    const environment = open();
+    const start = observation(await environment.handle({ type: "reset", track: "riviera" })).observation.track;
+    const fromLine = Math.min(start.distanceM, start.lengthM - start.distanceM);
+    expect(fromLine).toBeLessThan(20);
+
+    let reply = observation(await environment.handle({ type: "step", throttle: 1, brake: 0, steer: 0, steps: 180 }));
+    expect(reply.events.some((e) => e.type === "sector")).toBe(false);
+    reply = observation(await environment.handle({ type: "step", throttle: 0, brake: 0, steer: 0, steps: 1 }));
+    expect(reply.observation.track.distanceM).toBeGreaterThan(50);
+    expect(reply.observation.track.distanceM).toBeLessThan(300);
+  });
+
+  test("a headless track whose file is for another track is refused", async () => {
+    const root = mkdtempSync(join(tmpdir(), "formula-racer-"));
+    try {
+      const assets = resolve(import.meta.dirname, "../public/assets");
+      cpSync(join(assets, "cars"), join(root, "public/assets/cars"), { recursive: true });
+      cpSync(join(assets, "rules"), join(root, "public/assets/rules"), { recursive: true });
+      cpSync(join(assets, "tracks/harbour.json"), join(root, "public/assets/tracks/copy.json"));
+      writeFileSync(
+        join(root, "public/assets/tracks/tracks.json"),
+        JSON.stringify({ version: 1, tracks: [{ id: "copy", name: "Copy" }] }),
+      );
+      const environment = createControlEnvironment(fileSessions(root));
+      environments.push(environment);
+      const reply = await environment.handle({ type: "reset", track: "copy" });
+      expect(reply).toMatchObject({ type: "error" });
+      expect(reply.type === "error" ? reply.error : "").toContain("harbour");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test("the same reset and actions give the same observations", async () => {

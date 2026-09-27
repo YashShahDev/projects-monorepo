@@ -186,6 +186,20 @@ describe("storage format", () => {
     expect(back?.marks).toEqual([]);
   });
 
+  // Interpolation looks samples up by time and progress, so both must never go back.
+  test("rejects a saved lap whose time or progress goes backwards", () => {
+    const back = (column: "timeS" | "progressM") => {
+      const ghost = straightLap(30, 1 / 60);
+      ghost[column][5] = (ghost[column][3] ?? 0) - 1;
+
+      return decodeGhost(encodeGhost(ghost));
+    };
+
+    expect(decodeGhost(encodeGhost(straightLap(30, 1 / 60)))).toBeDefined();
+    expect(back("timeS")).toBeUndefined();
+    expect(back("progressM")).toBeUndefined();
+  });
+
   test("rejects a lap with more marks than a lap keeps", () => {
     const mark = { ax: 0, az: 0, bx: 0, bz: 1, timeS: 1 };
     const text = encodeGhost(

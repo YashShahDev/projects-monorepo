@@ -133,7 +133,7 @@ export function createControlLink(session: DrivingSession, trackId: string): Con
         id: trackId,
         lengthM: g.lengthM,
         halfWidthM: g.halfWidthM,
-        distanceM: location.distanceM,
+        distanceM: (location.distanceM - session.startDistanceM + g.lengthM) % g.lengthM,
         lateralM: location.lateralM,
         headingErrorRad: wrap(yawRad - trackHeading),
         ahead: {

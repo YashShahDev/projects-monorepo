@@ -183,6 +183,13 @@ describe("corner speed hint", () => {
       line.speedMps[5] ?? Infinity,
     );
     expect(wrapped).toBeLessThanOrEqual(either);
+
+    // findCorners gives a corner over the seam as start near the end and end near 0.
+    expect(slowestBetween(line, harbour.spacingM, lap - 10, 10)).toBe(wrapped);
+    const seamCorner = findCorners(harbour).find((c) => c.endM < c.startM);
+    expect(seamCorner).toBeDefined();
+    const seamHint = slowestBetween(line, harbour.spacingM, seamCorner?.startM ?? 0, seamCorner?.endM ?? 0);
+    expect(Number.isFinite(seamHint)).toBe(true);
   });
 });
 

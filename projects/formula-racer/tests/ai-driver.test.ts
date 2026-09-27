@@ -28,12 +28,18 @@ const trackOf = (id: string) => {
 const driverFor = (id: string, level: AiLevelName, seed = 1) => createAiDriver({ car, ...trackOf(id), level, seed });
 
 /** Drives laps through the control API, as outside software would. */
-async function race(id: string, driver: AiDriver, laps: number) {
+async function race(id: string, driver: AiDriver, laps: number, reset: object = {}) {
   const environment = createControlEnvironment(sources);
   const times: number[] = [];
   const events: string[] = [];
   let offRoadSteps = 0;
-  let reply: ControlReply = await environment.handle({ type: "reset", track: id, maxLaps: laps, maxSeconds: 900 });
+  let reply: ControlReply = await environment.handle({
+    type: "reset",
+    track: id,
+    maxLaps: laps,
+    maxSeconds: 900,
+    ...reset,
+  });
   while (reply.type === "observation" && !reply.done) {
     reply = await environment.handle({ type: "step", ...driver.decide(reply.observation), steps: 1 });
     const wheels = reply.type === "observation" ? reply.observation.wheels : [];
@@ -81,6 +87,16 @@ describe("AI drivers", () => {
       const best = Math.min(...times.slice(1));
       expect(Math.abs(best / estimatedLapTimeS(ace.line) - 1)).toBeLessThan(0.02);
     }
+  }, 120_000);
+
+  // The observation does not say which gearbox mode is on, so the driver shifts where an
+  // automatic box already would have: in automatic it never needs to.
+  test("in a manual gearbox, it changes gear itself and laps about as fast", async () => {
+    const automatic = await race("harbour", driverFor("harbour", "ace"), 2);
+    const manual = await race("harbour", driverFor("harbour", "ace"), 2, { gearbox: "manual" });
+    expect(manual.times).toHaveLength(2);
+    expect(manual.offRoadSteps).toBe(0);
+    expect(manual.times[1] ?? Infinity).toBeLessThan((automatic.times[1] ?? 0) * 1.03);
   }, 120_000);
 
   test("a seed repeats a driver exactly, and another seed drives differently", async () => {

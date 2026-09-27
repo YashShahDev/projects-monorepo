@@ -767,8 +767,16 @@ export function buildRacingLine(
 /** The slowest the profile goes between two lap distances (either may pass the lap line). */
 export function slowestBetween(line: RacingLine, spacingM: number, fromM: number, toM: number): number {
   const n = line.count;
+  const from = Math.round(fromM / spacingM);
+  let to = Math.round(toM / spacingM);
+
+  // An end before the start is on the next lap, as a corner over the seam is given.
+  if (to < from) {
+    to += n;
+  }
+
   let slowest = Infinity;
-  for (let k = Math.round(fromM / spacingM); k <= Math.round(toM / spacingM); k += 1) {
+  for (let k = from; k <= to; k += 1) {
     slowest = Math.min(slowest, line.speedMps[((k % n) + n) % n] ?? Infinity);
   }
 

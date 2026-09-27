@@ -83,6 +83,7 @@ async function drive(options: LineMeasureOptions, line: RacingLine): Promise<Run
   const trouble = new Uint8Array(n);
   const laps: number[] = [];
   let offRoadSteps = 0;
+  let hint: number | undefined;
   let reply: ControlReply = await environment.handle({
     type: "reset",
     track: options.trackId,
@@ -97,7 +98,8 @@ async function drive(options: LineMeasureOptions, line: RacingLine): Promise<Run
     }
 
     const o = reply.observation;
-    const i = Math.round(o.track.distanceM / g.spacingM) % n;
+    const i = g.locate(o.position.x, o.position.z, hint).index;
+    hint = i;
     const offRoad = o.wheels.some((w) => w.surface !== "road" && w.surface !== "kerb");
     offRoadSteps += offRoad ? 1 : 0;
     if (offRoad) {

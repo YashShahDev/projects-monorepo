@@ -46,4 +46,12 @@ describe("saved racing line data", () => {
     const failure = await fetchLineData(url, reply(500)).catch((error: unknown) => error);
     expect(String(failure)).toContain("HTTP 500");
   });
+
+  test("a line saved for another track is an error, even when its sample count fits", async () => {
+    const url = new URL("https://example.test/assets/lines/harbour.json");
+    const wrong = () => Promise.resolve(new Response(JSON.stringify(data)));
+    const failure = await fetchLineData(url, wrong, "harbour").catch((error: unknown) => error);
+    expect(String(failure)).toContain("is for riviera");
+    expect(await fetchLineData(url, wrong, "riviera")).toEqual(data);
+  });
 });

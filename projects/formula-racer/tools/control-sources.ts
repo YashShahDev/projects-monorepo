@@ -5,6 +5,7 @@ import type { SessionSource } from "../src/control/environment.ts";
 import { parseCar } from "../src/content/car.ts";
 import { parseEnergyRules } from "../src/content/energy-rules.ts";
 import { parseTrack } from "../src/content/track.ts";
+import { ContentError } from "../src/content/validate.ts";
 import { parseTrackCatalog } from "../src/content/track-catalog.ts";
 
 /**
@@ -19,7 +20,15 @@ export function fileSessions(root = resolve(import.meta.dirname, "..")): Session
   return {
     trackIds: parseTrackCatalog(json("tracks/tracks.json")).map((entry) => entry.id),
     async open(id) {
-      const session = await createDrivingSession(car, parseTrack(json(`tracks/${id}.json`)), { energy });
+      const path = `tracks/${id}.json`;
+      const track = parseTrack(json(path), path);
+
+      // As the browser's catalog loader does: a file copied under another name is refused.
+      if (track.id !== id) {
+        throw new ContentError(`${path}.id is ${track.id}, but the catalog lists ${id}`);
+      }
+
+      const session = await createDrivingSession(car, track, { energy });
 
       return {
         session,

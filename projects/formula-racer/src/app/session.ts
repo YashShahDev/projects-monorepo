@@ -97,6 +97,9 @@ export interface FrameView {
 export interface DrivingSession {
   readonly geometry: TrackGeometry;
 
+  /** Where the start line is, along the centreline from its first point. */
+  readonly startDistanceM: number;
+
   /** Runoff and barriers, shared with the renderer so what is drawn is what is felt. */
   readonly trackside: Trackside;
   readonly stepSeconds: number;
@@ -114,6 +117,12 @@ export interface DrivingSession {
    * the smoothed keys: an AI driver at the wheel.
    */
   frame(frameSeconds: number, held: DigitalInput | (() => DigitalInput), driver?: () => DriverControls): FrameView;
+
+  /**
+   * The car as it is, with the camera moved on by `frameSeconds`, without stepping the
+   * simulation: for a page whose car outside software is driving.
+   */
+  look(frameSeconds: number): FrameView;
 
   /**
    * One simulation step with analog controls as given, for AI drivers and outside
@@ -386,8 +395,33 @@ export async function createDrivingSession(
     markRecorder.step(snapshot.wheels, clockOffsetS + snapshot.simSeconds, running?.elapsedS);
   };
 
+  // The car as of the latest step (blended toward the one before for smooth motion),
+  // with the camera moved on by the frame's time.
+  const present = (frameSeconds: number): FrameView => {
+    const latest = sim.snapshot();
+    const pose = {
+      ...latest,
+      simSeconds: clockOffsetS + latest.simSeconds,
+      ...blend(previous, poseOf(latest), alpha),
+    };
+
+    const lap = lapTimer.current();
+
+    return {
+      car: pose,
+      camera: camera.update(pose, frameSeconds),
+      lapTimeS: lap && Math.max(0, lap.elapsedS - (1 - alpha) * sim.stepSeconds),
+      gripShare: gripShare(
+        wheelSurfaces,
+        latest.wheels.map((wheel) => wheel.slip),
+        track.surfaceGrip,
+      ),
+    };
+  };
+
   const session: DrivingSession = {
     geometry,
+    startDistanceM: track.startDistanceM,
     trackside,
     stepSeconds: sim.stepSeconds,
     frame(frameSeconds, held, driver) {
@@ -412,26 +446,9 @@ export async function createDrivingSession(
         alpha = plan.alpha;
       }
 
-      const latest = sim.snapshot();
-      const pose = {
-        ...latest,
-        simSeconds: clockOffsetS + latest.simSeconds,
-        ...blend(previous, poseOf(latest), alpha),
-      };
-
-      const lap = lapTimer.current();
-
-      return {
-        car: pose,
-        camera: camera.update(pose, frameSeconds),
-        lapTimeS: lap && Math.max(0, lap.elapsedS - (1 - alpha) * sim.stepSeconds),
-        gripShare: gripShare(
-          wheelSurfaces,
-          latest.wheels.map((wheel) => wheel.slip),
-          track.surfaceGrip,
-        ),
-      };
+      return present(frameSeconds);
     },
+    look: (frameSeconds) => present(frameSeconds),
     drive(controls) {
       stepOnce(controls);
       alpha = 1;
