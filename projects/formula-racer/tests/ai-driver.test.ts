@@ -7,6 +7,8 @@ import { createControlEnvironment } from "../src/control/environment.ts";
 import type { ControlReply } from "../src/control/environment.ts";
 import { lineGripScale, parseLineData } from "../src/content/line-data.ts";
 import { parseTrack } from "../src/content/track.ts";
+import { createDrivingSession } from "../src/app/session.ts";
+import { createControlLink } from "../src/control/link.ts";
 import { estimatedLapTimeS } from "../src/simulation/racing-line.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 import { fileSessions } from "../tools/control-sources.ts";
@@ -111,6 +113,25 @@ describe("AI drivers", () => {
 
   // A street circuit's wall, on asphalt. (A gravel trap beaches a stopped car for good,
   // as it does in real racing; the player restarts from the grid.)
+  // The page hands the car over at any time, the countdown included, where the car is
+  // held still whatever the driver asks.
+  test("handed the car on the grid, it waits for the lights rather than backing out", async () => {
+    const { track, geometry } = trackOf("harbour");
+    const session = await createDrivingSession(car, track);
+    const ace = createAiDriver({ car, track, geometry, level: "ace", seed: 1 });
+    const link = createControlLink(session, track.id);
+    const idle = { throttle: false, brake: false, left: false, right: false, deploy: false };
+    const gears = new Set<number>();
+    for (let t = 0; t < 8; t += 1 / 60) {
+      session.frame(1 / 60, idle, () => ace.decide(link.observe()));
+      gears.add(session.snapshot().gear);
+    }
+
+    expect(gears.has(-1)).toBe(false);
+    expect(session.snapshot().speedMps).toBeGreaterThan(30);
+    session.dispose();
+  });
+
   // A manual box stays in whatever gear hit the wall, so the driver must find reverse itself.
   test.each(["automatic", "manual"] as const)(
     "stuck nose-first in a wall (%s), it backs out and drives on",

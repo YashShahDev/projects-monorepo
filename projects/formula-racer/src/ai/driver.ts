@@ -245,7 +245,10 @@ export function createAiDriver(options: AiDriverOptions): AiDriver {
       const location = g.locate(o.position.x, o.position.z, hint);
       hint = location.index;
       const steer = pursue(o, location.index);
-      stuckS = Math.abs(o.speedMps) < STUCK_SPEED_MPS && throttle > 0.3 ? stuckS + stepSeconds : 0;
+
+      // Before the lights the car is held on the brakes, which is not being stuck.
+      const held = o.lap.elapsedS === null;
+      stuckS = !held && Math.abs(o.speedMps) < STUCK_SPEED_MPS && throttle > 0.3 ? stuckS + stepSeconds : 0;
       if (recovery || stuckS > STUCK_S) {
         return recover(o, steer);
       }

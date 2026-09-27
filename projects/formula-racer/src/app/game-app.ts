@@ -402,10 +402,6 @@ export async function startGameApp(
       return;
     }
 
-    if (action === "reset") {
-      ai?.driver.reset();
-    }
-
     session.action(action);
 
     // Show pause and reset at once rather than on the next frame.
@@ -721,6 +717,15 @@ export async function startGameApp(
     driver?: () => DriverControls,
     how: "step" | "look" = "step",
   ): void => {
+    // The countdown only ever goes up on a restart (R, Restart, an assist, gearbox or
+    // opponents change). Checked before stepping, so the AI driver starts the new lap
+    // fresh, and the new lap is only the AI's if it is driving now.
+    if (session.state().countdownS > lastCountdownS) {
+      ai?.driver.reset();
+      othersDroveLap = aiDriving || control?.driving() === true;
+      dashboard.reset();
+    }
+
     const t0 = performance.now();
     const { car, camera, lapTimeS, gripShare } =
       how === "look" ? session.look(frameSeconds) : advance(frameSeconds, held, driver);
@@ -770,13 +775,7 @@ export async function startGameApp(
 
     listen(car);
 
-    // The countdown only ever restarts on a reset (R, Restart, an assist change).
-    const { countdownS } = show();
-    if (countdownS > lastCountdownS) {
-      dashboard.reset();
-    }
-
-    lastCountdownS = countdownS;
+    lastCountdownS = show().countdownS;
     dashboard.update(car, frameSeconds);
     frames += 1;
     if (frames === 1) {

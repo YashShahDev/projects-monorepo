@@ -59,3 +59,28 @@ test("@dev a lap the AI driver drove is not the player's record", async ({ page 
   expect(ghosts).toBeNull();
   expect(errors).toEqual([]);
 });
+
+test("@dev after a restart, a lap the AI only started is forgotten and the player's next lap counts", async ({
+  page,
+}) => {
+  await lowQuality(page);
+  const errors = collectErrors(page);
+  await freezeFrames(page);
+  await openGame(page, "./?track=test-loop");
+
+  // The AI drives the first seconds of the lap; the player takes over and restarts.
+  await page.keyboard.press("KeyI");
+  await page.clock.runFor(5_000);
+  await page.keyboard.press("KeyI");
+  await page.keyboard.press("KeyR");
+  await page.clock.runFor(200);
+  for (let i = 0; i < 20 && (await lapsDone(page)) === 0; i += 1) {
+    await page.evaluate(() => window.__formulaRacerTest?.drive(5));
+  }
+
+  expect(await lapsDone(page)).toBeGreaterThan(0);
+  await page.clock.runFor(200);
+  const { laps } = await saved(page);
+  expect(JSON.parse(laps ?? "{}")).toHaveProperty(["bests", key]);
+  expect(errors).toEqual([]);
+});
