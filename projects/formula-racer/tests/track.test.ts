@@ -136,6 +136,10 @@ describe("track content", () => {
     expect(() => parseTrack({ ...raw, controlPoints: circle(40, 2600) })).toThrow(
       "track.controlPoints[0][0] must be between -2500 and 2500",
     );
+
+    // Every point in bounds, but zigzagging corner to corner makes a lap of millions of samples.
+    const zigzag = Array.from({ length: 2000 }, (_, i) => [i % 4 < 2 ? -2500 : 2500, i % 2 === 0 ? -2500 : 2500]);
+    expect(() => parseTrack({ ...raw, controlPoints: zigzag })).toThrow("track.controlPoints make a lap longer than");
     expect(() => parseTrack({ ...raw, kerbWidthM: 1e9 })).toThrow("track.kerbWidthM must be between");
     const zone = { startM: 0, endM: 100 };
     expect(() => parseTrack({ ...raw, activeAeroZones: Array.from({ length: 21 }, () => zone) })).toThrow(

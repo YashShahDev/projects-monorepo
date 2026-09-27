@@ -33,6 +33,25 @@ describe("saved racing line data", () => {
     expect(bad({ lowered: [{ from: 0, to: 10, scale: 0.9 }] })).toThrow("riviera.lowered[0]");
     expect(bad({ lowered: [{ from: 0, to: 1, scale: 0 }] })).toThrow("riviera.lowered[0].scale");
     expect(bad({ track: "../x" })).toThrow("riviera.track");
+    expect(
+      bad({
+        lowered: [
+          { from: 5, to: 6, scale: 0.9 },
+          { from: 6, to: 7, scale: 0.8 },
+        ],
+      }),
+    ).toThrow("riviera.lowered[1] must start after the range before it");
+  });
+
+  test("rejects a file with more ranges than any tuning writes", () => {
+    const one = (i: number) => ({ from: i, to: i, scale: 0.9 });
+    const ranges = (count: number) => ({
+      ...data,
+      samples: 5000,
+      lowered: Array.from({ length: count }, (_, i) => one(2 * i)),
+    });
+    expect(() => parseLineData(ranges(1000))).not.toThrow();
+    expect(() => parseLineData(ranges(1001), "riviera")).toThrow("riviera.lowered must be");
   });
 
   test("a track with no saved line loads none; any other failure is an error", async () => {

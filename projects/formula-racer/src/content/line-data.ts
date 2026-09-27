@@ -20,6 +20,10 @@ export interface LineData {
   baselineLapS: number;
 }
 
+// Far more stretches than a tuning run lowers (Riviera has one), so a runaway file is
+// an error rather than a stalled startup.
+const MAX_LOWERED = 1000;
+
 // Four decimals is finer than any step the tuning takes.
 const round = (v: number) => Math.round(v * 1e4) / 1e4;
 
@@ -58,7 +62,8 @@ export function parseLineData(value: unknown, source = "line"): LineData {
   }
 
   const samples = positive(root.samples, `${source}.samples`);
-  const lowered = array(root.lowered, `${source}.lowered`).map((entry, i) => {
+  let previousTo = -1;
+  const lowered = array(root.lowered, `${source}.lowered`, 0, MAX_LOWERED).map((entry, i) => {
     const path = `${source}.lowered[${String(i)}]`;
     const v = object(entry, path);
     const from = inRange(v.from, `${path}.from`, 0, samples - 1);
@@ -66,6 +71,12 @@ export function parseLineData(value: unknown, source = "line"): LineData {
     if (!Number.isInteger(from) || !Number.isInteger(to)) {
       throw new ContentError(`${path} must span whole samples`);
     }
+
+    if (from <= previousTo) {
+      throw new ContentError(`${path} must start after the range before it`);
+    }
+
+    previousTo = to;
 
     return { from, to, scale: inRange(v.scale, `${path}.scale`, 0.1, 2) };
   });

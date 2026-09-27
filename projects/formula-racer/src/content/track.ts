@@ -41,6 +41,10 @@ const MAX_CONTROL_POINTS = 2000;
 const MAX_KERB_WIDTH_M = 3;
 const MAX_AERO_ZONES = 20;
 
+// The spline's length is bounded by a small multiple of its control polygon's, so
+// capping the polygon caps the samples built along it. Real laps are under 7 km.
+const MAX_LAP_M = 25_000;
+
 export function parseTrack(value: unknown, source = "track"): TrackDefinition {
   const root = object(value, source);
   if (root.version !== 1) {
@@ -54,12 +58,20 @@ export function parseTrack(value: unknown, source = "track"): TrackDefinition {
 
     return { x: coordinate(0), z: coordinate(1) };
   });
+  let lapM = 0;
   points.forEach((point, i) => {
     const next = points[(i + 1) % points.length];
-    if (next && Math.hypot(next.x - point.x, next.z - point.z) < 1) {
+    const chordM = next ? Math.hypot(next.x - point.x, next.z - point.z) : 0;
+    if (chordM < 1) {
       throw new ContentError(`${source}.controlPoints[${String(i)}] duplicates its neighbour`);
     }
+
+    lapM += chordM;
   });
+  if (lapM > MAX_LAP_M) {
+    throw new ContentError(`${source}.controlPoints make a lap longer than ${String(MAX_LAP_M)} m`);
+  }
+
   const setting = root.setting ?? "circuit";
   if (setting !== "circuit" && setting !== "street") {
     throw new ContentError(`${source}.setting must be circuit or street`);
