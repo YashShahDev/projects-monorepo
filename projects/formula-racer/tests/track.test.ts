@@ -122,6 +122,27 @@ describe("track content", () => {
     ).toThrow("track.controlPoints[1][0]");
   });
 
+  // A unit slip or a runaway export would otherwise hang startup, or put road where
+  // the ±3000 m ground does not reach and the car falls through it.
+  test("rejects content too big to load quickly or to fit the ground", () => {
+    const circle = (count: number, radiusM: number) =>
+      Array.from({ length: count }, (_, i) => [
+        radiusM * Math.cos((2 * Math.PI * i) / count),
+        radiusM * Math.sin((2 * Math.PI * i) / count),
+      ]);
+    expect(() => parseTrack({ ...raw, controlPoints: circle(2000, 1000) })).not.toThrow();
+    expect(() => parseTrack({ ...raw, controlPoints: circle(2001, 1000) })).toThrow("track.controlPoints must be");
+    expect(() => parseTrack({ ...raw, controlPoints: circle(40, 2500) })).not.toThrow();
+    expect(() => parseTrack({ ...raw, controlPoints: circle(40, 2600) })).toThrow(
+      "track.controlPoints[0][0] must be between -2500 and 2500",
+    );
+    expect(() => parseTrack({ ...raw, kerbWidthM: 1e9 })).toThrow("track.kerbWidthM must be between");
+    const zone = { startM: 0, endM: 100 };
+    expect(() => parseTrack({ ...raw, activeAeroZones: Array.from({ length: 21 }, () => zone) })).toThrow(
+      "track.activeAeroZones must be",
+    );
+  });
+
   test("is an open circuit unless it says it is a street circuit", () => {
     expect(parseTrack(raw).setting).toBe("circuit");
     expect(parseTrack({ ...raw, setting: "street" }).setting).toBe("street");

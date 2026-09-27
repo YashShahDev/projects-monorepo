@@ -100,6 +100,23 @@ test("dresses the circuit: hoardings on the walls, spans over the road and marsh
     expect(board[0]?.top).toBeCloseTo(2.2, 5);
   }
 
+  // TecPro blocks line the wall without standing proud of the face the car stops at.
+  const tyreWalls = layout.attachments.filter((a) => a.kind === "tyres");
+  expect(tyreWalls.length).toBeGreaterThan(0);
+  for (const a of tyreWalls) {
+    const [dx, dz] = [a.b.x - a.a.x, a.b.z - a.a.z];
+    const length = Math.hypot(dx, dz);
+    const toTrack = a.side === "left" ? -1 : 1;
+    const [ix, iz] = [(dz / length) * toTrack, (-dx / length) * toTrack];
+    const mid = { x: (a.a.x + a.b.x) / 2, z: (a.a.z + a.b.z) / 2 };
+    const blocks = boxes.filter(
+      (box) => Math.abs(box.top - 1.05) < 1e-5 && Math.hypot(box.x - mid.x, box.z - mid.z) < 1,
+    );
+    expect(blocks).toHaveLength(1);
+    const centreToward = ((blocks[0]?.x ?? 0) - mid.x) * ix + ((blocks[0]?.z ?? 0) - mid.z) * iz;
+    expect(centreToward + 0.45).toBeLessThan(0.05);
+  }
+
   // Each span's beam hangs over the road with its underside at the clearance height.
   expect(layout.spans.length).toBeGreaterThan(0);
   for (const span of layout.spans) {

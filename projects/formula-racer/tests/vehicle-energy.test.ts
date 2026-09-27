@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseCar } from "../src/content/car.ts";
 import { parseEnergyRules } from "../src/content/energy-rules.ts";
-import { createVehicleSimulation } from "../src/simulation/vehicle.ts";
+import { createVehicleSimulation, SLIDING_GRIP } from "../src/simulation/vehicle.ts";
 import type { DriverControls, VehicleSimulation } from "../src/simulation/vehicle.ts";
 import { car, kmh, run } from "./support/vehicle.ts";
 
@@ -76,7 +76,10 @@ describe("vehicle energy", () => {
     run(sim, { ...flatOut, deploy: true }, 5);
     const after = sim.snapshot().energy;
     expect(after?.deployW).toBeGreaterThan(100_000);
-    expect(after?.socJ ?? 0).toBeLessThan(rules.socWindowJ - 1_000_000);
+
+    // Only what reaches the road: through the traction-limited launch the rear tyres
+    // have no grip to spare, so that part of the run deploys (and drains) nothing.
+    expect(after?.socJ ?? 0).toBeLessThan(rules.socWindowJ - 500_000);
     sim.dispose();
   });
 
@@ -199,6 +202,93 @@ describe("vehicle energy", () => {
     };
 
     expect(await harvest(0.3)).toBeLessThan((await harvest(1)) * 0.5);
+  });
+
+  // Energy only moves through the rear tyres, so neither deployment nor harvesting may
+  // pass more power than they can transmit: all four tyres' grip is a generous bound.
+  describe("on a slippery surface, the ERS moves only the power the tyres transmit", () => {
+    const onIce = async (options: { abs?: boolean } = {}) => {
+      let grip = 1;
+      const sim = await createVehicleSimulation(car, {
+        start: { position: { x: 0, y: 0, z: 0 }, headingRad: 0 },
+        energy: rules,
+        gripAt: () => grip,
+        assists: { steering: true, abs: options.abs ?? true, traction: true },
+      });
+      run(sim, { throttle: 0, brake: 0, steer: 0 }, 1);
+
+      return {
+        sim,
+        slippery: (to: number) => {
+          grip = to;
+        },
+      };
+    };
+
+    // The store starts full, with no room to harvest into: deploy most of it away, then
+    // brake to the test speed.
+    const drainedAt = (sim: VehicleSimulation, targetKmh: number) => {
+      run(sim, { ...flatOut, deploy: true }, 15);
+      while (kmh(sim) > targetKmh) {
+        sim.step({ throttle: 0, brake: 1, steer: 0 });
+      }
+
+      const s = sim.snapshot().energy;
+      expect(s?.socJ ?? Infinity).toBeLessThan(rules.socWindowJ * 0.8);
+    };
+
+    const downforceN = (v: number) => 0.5 * 1.225 * car.aero.downforceAreaM2 * v * v;
+    const allTyresN = (grip: number, v: number) =>
+      car.wheels.frictionCoefficient * grip * (car.massKg * 9.81 + downforceN(v));
+
+    test("deployment", async () => {
+      const { sim, slippery } = await onIce();
+      timeBetween(sim, 0, 70, flatOut);
+      slippery(0.15);
+      let worst = 0;
+      for (let k = 0; k < 30; k += 1) {
+        sim.step({ ...flatOut, deploy: true });
+        const s = sim.snapshot();
+        worst = Math.max(worst, (s.energy?.deployW ?? 0) / (allTyresN(0.15, s.speedMps) * s.speedMps));
+      }
+
+      sim.dispose();
+      expect(worst).toBeLessThanOrEqual(1);
+    });
+
+    test("lift-off harvesting", async () => {
+      const { sim, slippery } = await onIce();
+      drainedAt(sim, 70);
+      sim.setEnergyMode("harvest");
+      slippery(0.15);
+      let worst = 0;
+      for (let k = 0; k < 30; k += 1) {
+        sim.step({ throttle: 0, brake: 0, steer: 0 });
+        const s = sim.snapshot();
+        worst = Math.max(worst, (s.energy?.regenW ?? 0) / (allTyresN(0.15, s.speedMps) * s.speedMps));
+      }
+
+      sim.dispose();
+      expect(worst).toBeLessThanOrEqual(1);
+    });
+
+    // A locked tyre brakes at sliding grip. At 40 km/h downforce is a few per cent of
+    // the weight, and braking moves load off the rear, so the rear's static share of the
+    // weight at sliding grip bounds what it can harvest.
+    test("a locked rear tyre with ABS off", async () => {
+      const { sim, slippery } = await onIce({ abs: false });
+      drainedAt(sim, 40);
+      slippery(0.3);
+      sim.step({ throttle: 0, brake: 1, steer: 0 });
+      sim.step({ throttle: 0, brake: 1, steer: 0 });
+      const s = sim.snapshot();
+      expect(s.wheels[2]?.slip).toBe("locked");
+      const rearShare = car.wheels.frontAxleZ / (car.wheels.frontAxleZ - car.wheels.rearAxleZ);
+      const rearSlidingN =
+        SLIDING_GRIP * car.wheels.frictionCoefficient * 0.3 * (rearShare * car.massKg * 9.81 + downforceN(s.speedMps));
+      expect(s.energy?.regenW ?? 0).toBeLessThanOrEqual(rearSlidingN * s.speedMps);
+      sim.dispose();
+    });
   });
 
   test("braking in Harvest stores no more than braking in Balanced: energy comes from motion", async () => {

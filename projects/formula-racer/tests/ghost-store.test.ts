@@ -103,3 +103,13 @@ test("when a newer ghost cannot be saved, the older one for its key is not left 
   expect(reloaded.get("harbour")).toBeUndefined();
   expect(reloaded.get("riviera")?.lapTimeS).toBeCloseTo(120, 3);
 });
+
+// The best time is saved at once and its ghost a moment later, so a page closed in
+// between keeps the new time with the old ghost.
+test("a ghost from another lap than the saved best is not given back for it", () => {
+  const storage = memory();
+  createGhostStore(storage).save("harbour|p3.9", lap(81.25));
+  const reloaded = createGhostStore(storage);
+  expect(reloaded.get("harbour|p3.9", 81.25)?.lapTimeS).toBeCloseTo(81.25, 3);
+  expect(reloaded.get("harbour|p3.9", 79.5)).toBeUndefined();
+});

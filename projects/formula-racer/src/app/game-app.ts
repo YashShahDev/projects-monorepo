@@ -131,6 +131,18 @@ async function stage<T>(label: string, work: () => T | Promise<T>): Promise<T> {
   }
 }
 
+/** Storage that lasts only as long as the page. */
+function memoryStorage(): StorageLike {
+  const data = new Map<string, string>();
+
+  return {
+    getItem: (key) => data.get(key) ?? null,
+    setItem: (key, value) => {
+      data.set(key, value);
+    },
+  };
+}
+
 /** `localStorage`, or nothing when the browser refuses access to it. */
 function browserStorage(): StorageLike | undefined {
   try {
@@ -199,8 +211,11 @@ export async function startGameApp(
     carDefinition.powertrain.gearbox,
     track.startDistanceM,
   );
-  const store = createLapStore(browserStorage());
-  const ghosts = createGhostStore(browserStorage());
+
+  // The benchmark drives itself, so nothing it does is kept as the player's.
+  const records = bench ? memoryStorage() : browserStorage();
+  const store = createLapStore(records);
+  const ghosts = createGhostStore(records);
   const ghostView = createGhostView(model);
   view.add(ghostView);
   const marksView = createTyreMarksView();
@@ -212,7 +227,8 @@ export async function startGameApp(
   const bestGhosts = new Map<string, Ghost | undefined>();
   const bestGhost = (key: string) => {
     if (!bestGhosts.has(key)) {
-      bestGhosts.set(key, ghosts.get(key));
+      // Only the ghost of the saved best: its write may not have happened (see show).
+      bestGhosts.set(key, ghosts.get(key, store.best(key)?.timeS ?? Infinity));
     }
 
     return bestGhosts.get(key);
@@ -236,6 +252,9 @@ export async function startGameApp(
   menu.ghost.value = preferences.ghost();
   view.setQuality(qualitySettings(preferences.quality(), window.devicePixelRatio));
   let storedLaps = 0;
+
+  // Set by every frame the AI driver or outside software has the car.
+  let othersDroveLap = false;
   const keyOf = (assists: SessionState["assists"], physicsVersion: string, gearboxMode: SessionState["gearboxMode"]) =>
     lapKey({ trackId: track.id, physicsVersion, assists, gearboxMode });
 
@@ -548,8 +567,9 @@ export async function startGameApp(
 
     hud.wing.textContent = s.wing.mode === "straight" ? "Straight" : "Corner";
     for (const lap of s.laps.slice(storedLaps)) {
+      // A lap anyone but the player drove any of is not the player's record.
       const key = keyOf(lap.assists, lap.physicsVersion, lap.gearboxMode);
-      if (store.record(key, lap).isBest) {
+      if (!othersDroveLap && store.record(key, lap).isBest) {
         // A ghost is stored only with its best time, so the two always agree. Encoding
         // and writing it waits until after this frame.
         bestGhosts.set(key, lap.ghost);
@@ -557,6 +577,10 @@ export async function startGameApp(
           ghosts.save(key, lap.ghost);
         }, 0);
       }
+    }
+
+    if (s.laps.length > storedLaps) {
+      othersDroveLap = false;
     }
 
     storedLaps = s.laps.length;
@@ -603,6 +627,10 @@ export async function startGameApp(
   let lastCountdownS = Number.POSITIVE_INFINITY;
   const recorder = bench ? createBenchRecorder(bench.options) : undefined;
   let benchReported = false;
+
+  // Where the car was drawn last frame: the route's distance is where it went, which a
+  // frame too long for the simulation to catch up on does not inflate.
+  let benchAt: { x: number; z: number } | undefined;
   const draw = (
     frameSeconds: number,
     held: HeldKeys | (() => HeldKeys),
@@ -631,9 +659,10 @@ export async function startGameApp(
         renderMs: performance.now() - t1,
         drawCalls: stats.drawCalls,
         triangles: stats.triangles,
-        metres: Math.abs(car.speedMps) * frameSeconds,
+        metres: benchAt ? Math.hypot(car.position.x - benchAt.x, car.position.z - benchAt.z) : 0,
         paused: session.state().paused,
       });
+      benchAt = { x: car.position.x, z: car.position.z };
       if (phase === "done") {
         benchReported = true;
         const resources = performance
@@ -690,6 +719,7 @@ export async function startGameApp(
 
       // The benchmark route drives itself, deciding every simulation step, so every run
       // sees the same inputs whatever its frame rate.
+      othersDroveLap ||= aiDriving || control?.driving() === true;
       if (control?.driving() === true) {
         draw(frameSeconds, coasting, undefined, "look");
       } else {

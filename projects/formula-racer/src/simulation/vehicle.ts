@@ -497,16 +497,33 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
       if (energy && rules && drivetrain.gear !== REVERSE) {
         const v = Math.max(speed, 1);
 
-        // The MGU-K drives the rear axle, so it can only take over braking the rear tyres
-        // are delivering: none from a wheel in the air, and no more than the tyre grips,
-        // whether ABS holds the wheel back or it locks.
-        const rearBrakingN = [2, 3].reduce(
-          (sum, i) => sum + (vehicle.wheelIsInContact(i) ? Math.min(wheelBrakeN[i] ?? 0, tyreBudgetN(i)) : 0),
+        // The MGU-K drives the rear axle, so every watt it moves passes through the rear
+        // tyres: none through a wheel in the air, and a tyre pushed past its grip slides
+        // (as updateSliding decides below) and passes only its sliding grip.
+        const rear = (i: number, wantedN: number): number => {
+          if (!vehicle.wheelIsInContact(i)) {
+            return 0;
+          }
+
+          const slides = sliding[i] === true ? wantedN > SLIDING_GRIP * peakGripN(i) : wantedN > tyreBudgetN(i);
+
+          return slides ? SLIDING_GRIP * peakGripN(i) : wantedN;
+        };
+
+        const rearBrakingN = rear(2, wheelBrakeN[2] ?? 0) + rear(3, wheelBrakeN[3] ?? 0);
+
+        // The most lengthways force the rear tyres pass without spinning, below traction
+        // control's cap when it is on; the ERS may use what the engine leaves of it.
+        const driveCapN = [2, 3].reduce(
+          (sum, i) => sum + rear(i, tyreBudgetN(i, assists.traction ? ASSIST_GRIP_MARGIN : 1)),
           0,
         );
+        const engineN = drivetrain.driveForceN;
 
         // C5.2.11 caps MGU-K torque at the crankshaft, so its power at engine speed.
         const mgukLimitW = rules.mgukMaxTorqueNm * ((drivetrain.rpm * 2 * Math.PI) / 60);
+        const deployRoomW = Math.max(0, driveCapN - Math.max(0, engineN)) * v;
+        const liftOffRoomW = Math.max(0, driveCapN - Math.max(0, -engineN)) * v;
         const result = energy.update({
           speedMps: speed,
 
@@ -517,8 +534,8 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
           mode: energyMode,
           deployRequest,
           dtS: stepSeconds,
-          limitW: drivetrain.limited ? 0 : mgukLimitW,
-          regenLimitW: mgukLimitW,
+          limitW: drivetrain.limited ? 0 : Math.min(mgukLimitW, deployRoomW),
+          regenLimitW: brakeN > 0 ? mgukLimitW : Math.min(mgukLimitW, liftOffRoomW),
         });
         flow = result;
 

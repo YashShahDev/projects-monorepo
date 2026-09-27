@@ -93,8 +93,11 @@ function parseStraightMode(aero: Record<string, unknown>, source: string) {
   };
 }
 
+// The powertrain searches the curve several times a step; real curves need a handful.
+const MAX_CURVE_POINTS = 64;
+
 function parsePowerCurve(value: unknown, source: string): [number, number][] {
-  const curve = array(value, source, 2).map((point, i): [number, number] => {
+  const curve = array(value, source, 2, MAX_CURVE_POINTS).map((point, i): [number, number] => {
     const field = `${source}[${String(i)}]`;
     const pair = array(point, field, 2);
 

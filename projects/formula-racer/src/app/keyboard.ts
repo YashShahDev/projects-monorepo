@@ -9,6 +9,9 @@ interface KeyFields {
 // let Escape and the driving keys through.
 const TEXT_INPUTS = new Set(["text", "number", "search", "email", "password", "tel", "url"]);
 
+const tagOf = (target: EventTarget | null): string | undefined =>
+  target !== null && "tagName" in target && typeof target.tagName === "string" ? target.tagName : undefined;
+
 // Typing into a text field (the dev tuning panel) must not steer the car.
 const isEditable = (target: EventTarget | null): boolean => {
   if (target === null) {
@@ -19,7 +22,7 @@ const isEditable = (target: EventTarget | null): boolean => {
     return true;
   }
 
-  const tagName = "tagName" in target ? target.tagName : undefined;
+  const tagName = tagOf(target);
   if (tagName === "TEXTAREA" || tagName === "SELECT") {
     return true;
   }
@@ -122,11 +125,13 @@ export function createKeyboard(window: EventTarget, document: EventTarget & { vi
   const down = new Set<string>();
   const listeners: ((action: KeyAction) => void)[] = [];
   const onKeyDown = (event: Event) => {
-    if (isEditable(event.target)) {
+    const { code, repeat, key } = keyFields(event);
+
+    // A dropdown has no use for Escape, and keeps focus after a choice in the pause menu,
+    // so Escape still pauses from one; typing in a text field keeps every key.
+    if (isEditable(event.target) && !(tagOf(event.target) === "SELECT" && code === "Escape")) {
       return;
     }
-
-    const { code, repeat, key } = keyFields(event);
 
     // ? sits on different physical keys across layouts, so it is matched by character.
     const action = ACTION_KEYS[code] ?? (key === "?" ? "help" : undefined);

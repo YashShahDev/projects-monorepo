@@ -21,9 +21,12 @@ export function object(value: unknown, path: string): Json {
   return value;
 }
 
-export function array(value: unknown, path: string, minLength = 0): unknown[] {
-  if (!Array.isArray(value) || value.length < minLength) {
-    throw new ContentError(`${path} must be an array of at least ${String(minLength)} items`);
+export function array(value: unknown, path: string, minLength = 0, maxLength = Infinity): unknown[] {
+  if (!Array.isArray(value) || value.length < minLength || value.length > maxLength) {
+    const size =
+      maxLength === Infinity ? `at least ${String(minLength)}` : `${String(minLength)} to ${String(maxLength)}`;
+
+    throw new ContentError(`${path} must be an array of ${size} items`);
   }
 
   return value;

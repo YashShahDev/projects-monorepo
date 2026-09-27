@@ -32,6 +32,14 @@ describe("energy rules content", () => {
     expect(rules.socWindowJ).toBe(4_000_000);
   });
 
+  test("rejects a deployment curve too dense to search every step", () => {
+    const curve = (count: number) => Array.from({ length: count }, (_, i) => [i * 5, 100]);
+    expect(() => parseEnergyRules({ ...raw, deployCurveKphKw: curve(64) })).not.toThrow();
+    expect(() => parseEnergyRules({ ...raw, deployCurveKphKw: curve(65) })).toThrow(
+      "energy rules.deployCurveKphKw must be",
+    );
+  });
+
   test("rejects a deployment curve whose speeds do not increase", () => {
     expect(() =>
       parseEnergyRules({

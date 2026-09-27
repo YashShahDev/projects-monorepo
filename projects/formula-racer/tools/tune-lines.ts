@@ -47,8 +47,16 @@ for (const id of ids) {
   console.log(`${id}: plain line ${describe(tuned.baseline)}; tuned ${describe(measure)}`);
   if (!measure.clean) {
     console.log(`  not saved: Ace still leaves the road`);
-  } else if (saved && !isBetter(measure, saved)) {
-    console.log(`  not saved: the saved line measures ${describe(saved)}`);
+  } else if (saved && savedScale && !isBetter(measure, saved)) {
+    // Kept, but measured again: a physics or driver change moves its laps.
+    const current = parseLineData(json(`lines/${id}.json`), path);
+    if (saved.clean && (current.lapS !== saved.lapS || current.baselineLapS !== tuned.baseline.lapS)) {
+      const refreshed = lineDataFrom(id, savedScale, { lapS: saved.lapS, baselineLapS: tuned.baseline.lapS });
+      writeFileSync(path, `${JSON.stringify(refreshed, null, 2)}\n`);
+      console.log(`  kept the saved line, which measures ${describe(saved)}; its laps are updated`);
+    } else {
+      console.log(`  not saved: the saved line measures ${describe(saved)}`);
+    }
   } else {
     writeFileSync(path, `${JSON.stringify({ ...data, lapS: measure.lapS }, null, 2)}\n`);
     console.log(`  saved, ${String(data.lowered.length)} stretches lowered`);

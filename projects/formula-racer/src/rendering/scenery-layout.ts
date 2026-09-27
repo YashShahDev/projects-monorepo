@@ -361,7 +361,8 @@ function layoutSpans(track: TrackGeometry, trackside: Trackside, start: number, 
       const barrier = side.barrierM[i] ?? Number.NaN;
       const leg = edge + SPAN_LEG_M;
 
-      return Number.isNaN(barrier) || barrier > leg ? leg : barrier + 1;
+      // Legs have no colliders, so where there is a barrier they stand behind it.
+      return Number.isNaN(barrier) ? leg : Math.max(leg, barrier + 1);
     };
 
     // Centred on the road: the wider side sets the width, so neither leg lands inside

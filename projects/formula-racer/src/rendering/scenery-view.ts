@@ -274,8 +274,16 @@ function dressing(layout: SceneryLayout, batches: CellBatches): void {
       const sponsor = SPONSORS[Math.floor(travelled / 8) % SPONSORS.length] ?? 0xffffff;
       worldBox(batches, { ...mid, y: h }, heading, { along, across: 0.12, height: 1 }, colour.set(sponsor));
     } else if (a.kind === "tyres") {
+      // Set into the wall with their face a centimetre proud of it, which is where the
+      // collider stops the car; any deeper in front and the car would drive into them.
       const block = TECPRO[Math.floor(k / 2) % TECPRO.length] ?? 0x2456b0;
-      worldBox(batches, { ...inward(0.5), y: 0 }, heading, { along, across: 0.9, height: 1.05 }, colour.set(block));
+      worldBox(
+        batches,
+        { ...inward(0.01 - 0.45), y: 0 },
+        heading,
+        { along, across: 0.9, height: 1.05 },
+        colour.set(block),
+      );
     } else if (a.kind === "fence") {
       worldBox(batches, { ...a.a, y: h }, heading, { along: 0.1, across: 0.1, height: 3.4 }, colour.set(FENCE_GREY));
       for (const y of [2.3, 3.4, 4.5]) {

@@ -92,10 +92,12 @@ test("@smoke E switches the energy mode and Shift deploys from the battery", asy
   await page.keyboard.down("Shift");
   await page.keyboard.down("ArrowUp");
 
-  // Still inside the main-straight zone (40–260 m from a 150 m grid slot).
-  await page.clock.runFor(2_000);
+  // The rear tyres have no grip to spare for the ERS until about 130 km/h, 3.2 s from
+  // the lights; 3.8 s is still inside the main-straight zone (40–260 m from a 150 m
+  // grid slot).
+  await page.clock.runFor(3_800);
   await expect(page.locator("#wing")).toHaveText("Straight");
-  expect(Number((await page.locator("#charge").textContent())?.replace("%", ""))).toBeLessThan(97);
+  expect(Number((await page.locator("#charge").textContent())?.replace("%", ""))).toBeLessThan(100);
 });
 
 test("@smoke a battery meter shows the charge the readout gives", async ({ page }) => {
@@ -107,9 +109,9 @@ test("@smoke a battery meter shows the charge the readout gives", async ({ page 
   await page.clock.runFor(3_000);
   await page.keyboard.down("Shift");
   await page.keyboard.down("ArrowUp");
-  await page.clock.runFor(2_000);
+  await page.clock.runFor(3_800);
   const shown = Number((await page.locator("#charge").textContent())?.replace("%", ""));
-  expect(shown).toBeLessThan(97);
+  expect(shown).toBeLessThan(100);
   await expect(meter).toHaveAttribute("value", String(shown));
 });
 

@@ -4,7 +4,8 @@ import type { Ghost } from "../simulation/ghost.ts";
 import type { StorageLike } from "./lap-store.ts";
 
 export interface GhostStore {
-  get(key: string): Ghost | undefined;
+  /** The ghost saved for `key`, if it is of the lap `bestLapS` long when that is given. */
+  get(key: string, bestLapS?: number): Ghost | undefined;
 
   /** Keeps the ghost for this visit even when storage refuses it. */
   save(key: string, ghost: Ghost): void;
@@ -12,6 +13,9 @@ export interface GhostStore {
 
 const STORAGE_KEY = "formula-racer:ghosts";
 const SCHEMA = 1;
+
+// The ghost's header keeps its lap time exactly; this only allows for rounding.
+const SAME_LAP_S = 0.001;
 
 // About 29 KB each as base64, so a dozen stay well inside a browser's storage quota.
 const LIMIT = 12;
@@ -36,10 +40,14 @@ export function createGhostStore(storage: StorageLike | undefined): GhostStore {
   }
 
   return {
-    get(key) {
+    get(key, bestLapS) {
       const text = saved.get(key);
+      const ghost = text === undefined ? undefined : decodeGhost(text);
+      if (ghost && bestLapS !== undefined && Math.abs(ghost.lapTimeS - bestLapS) > SAME_LAP_S) {
+        return undefined;
+      }
 
-      return text === undefined ? undefined : decodeGhost(text);
+      return ghost;
     },
     save(key, ghost) {
       saved.delete(key);

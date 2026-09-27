@@ -46,6 +46,9 @@ export interface EnergyRules {
   modes: Record<EnergyMode, EnergyModeRules>;
 }
 
+// Deployment searches the curve every step; real curves need a handful of points.
+const MAX_CURVE_POINTS = 64;
+
 export function parseEnergyRules(value: unknown, source = "energy rules"): EnergyRules {
   const root = object(value, source);
   if (root.version !== 2) {
@@ -54,7 +57,7 @@ export function parseEnergyRules(value: unknown, source = "energy rules"): Energ
 
   const ersMaxPowerW = positive(root.ersMaxPowerW, `${source}.ersMaxPowerW`);
   const curve: [number, number][] = [];
-  array(root.deployCurveKphKw, `${source}.deployCurveKphKw`, 2).forEach((point, i) => {
+  array(root.deployCurveKphKw, `${source}.deployCurveKphKw`, 2, MAX_CURVE_POINTS).forEach((point, i) => {
     const field = `${source}.deployCurveKphKw[${String(i)}]`;
     const pair = array(point, field, 2);
     const kph = inRange(pair[0], `${field}[0]`, 0, 500);

@@ -18,6 +18,12 @@ describe("car content", () => {
     );
     expect(() => parseCar({ ...car, version: 2 })).toThrow("car.version must be 1");
   });
+  test("rejects a power curve too dense to search every step", () => {
+    const curve = (count: number) => Array.from({ length: count }, (_, i) => [4000 + i * 100, 0.5]);
+    const withCurve = (count: number) => ({ ...car, powertrain: { ...car.powertrain, powerCurve: curve(count) } });
+    expect(() => parseCar(withCurve(64))).not.toThrow();
+    expect(() => parseCar(withCurve(65))).toThrow("car.powertrain.powerCurve must be");
+  });
   test("rejects a rear axle ahead of the centre", () => {
     expect(() => parseCar({ ...car, wheels: { ...car.wheels, rearAxleZ: 1 } })).toThrow(
       "car.wheels.rearAxleZ must be between -10 and 0",

@@ -178,4 +178,27 @@ describe("keyboard input", () => {
 
     expect(actions).toEqual(["pause", "pause"]);
   });
+
+  // Focus stays on a pause-menu dropdown after choosing from it; Escape must still resume,
+  // while the arrows keep choosing options rather than driving.
+  test("Escape pauses from a focused dropdown, and the arrows stay with the dropdown", () => {
+    const { window, document } = page();
+    const keyboard = createKeyboard(window, document);
+    const actions: string[] = [];
+    keyboard.onAction((action) => actions.push(action));
+    const select = Object.assign(new EventTarget(), { tagName: "SELECT" });
+    const press = (code: string) => {
+      const event = Object.assign(new Event("keydown", { cancelable: true }), { code, repeat: false, key: "" });
+      Object.defineProperty(event, "target", { value: select });
+      window.dispatchEvent(event);
+
+      return event;
+    };
+
+    press("Escape");
+    const arrow = press("ArrowDown");
+    expect(actions).toEqual(["pause"]);
+    expect(keyboard.held().brake).toBe(false);
+    expect(arrow.defaultPrevented).toBe(false);
+  });
 });

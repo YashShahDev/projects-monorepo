@@ -122,6 +122,21 @@ describe("scenery layout", () => {
     }
   });
 
+  // The legs have no colliders, so a car in the run-off must meet the barrier first.
+  test("span legs stand beyond the barrier wherever there is one", () => {
+    for (const { geometry, trackside, scenery } of [harbour, load("ardennes"), load("corniche")]) {
+      for (const span of scenery.spans) {
+        const i = geometry.locate(span.x, span.z).index;
+        for (const side of [trackside.left, trackside.right]) {
+          const barrier = side.barrierM[i] ?? Number.NaN;
+          if (!Number.isNaN(barrier)) {
+            expect(span.widthM / 2).toBeGreaterThan(barrier);
+          }
+        }
+      }
+    }
+  });
+
   test("barrier dressing follows its barrier: tyre walls at run-off, fences by the stands", () => {
     const { geometry, trackside, scenery } = harbour;
 

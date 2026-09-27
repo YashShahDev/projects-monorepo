@@ -26,3 +26,26 @@ test("@smoke the bench route drives itself and reports frame and render statisti
   expect(report.gl.renderer).not.toBe("");
   expect(report.distanceM).toBeGreaterThan(5);
 });
+
+// Past eight steps a frame the simulation drops the rest of the time, so the distance
+// must come from where the car went, not its speed times the wall-clock frame.
+test("@dev the bench distance is how far the car went, even through long frames", async ({ page }) => {
+  await lowQuality(page);
+  await freezeFrames(page);
+  await page.goto("./?bench&warmupSeconds=5&benchSeconds=2");
+  await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });
+  const along = () => page.evaluate(() => window.__formulaRacerTest?.state().lapDistanceM ?? 0);
+  await page.clock.runFor(5_000);
+  const from = await along();
+  const pre = page.locator("#bench-report");
+  for (let i = 0; i < 10 && !(await pre.isVisible()); i += 1) {
+    await page.clock.fastForward(500);
+  }
+
+  await expect(pre).toBeVisible();
+  const report = parseBenchReport(JSON.parse((await pre.textContent()) ?? ""));
+  const travelled = (await along()) - from;
+  expect(travelled).toBeGreaterThan(5);
+  expect(report.distanceM).toBeGreaterThan(travelled * 0.8);
+  expect(report.distanceM).toBeLessThan(travelled * 1.2);
+});
