@@ -1,6 +1,7 @@
 import type { CarDefinition } from "../content/car.ts";
 import type { TrackDefinition } from "../content/track.ts";
 import type { Observation } from "../control/link.ts";
+import { REVERSE } from "../simulation/gearbox.ts";
 import { gripShare, guidance } from "../simulation/guidance.ts";
 import { buildRacingLine, lineLimits } from "../simulation/racing-line.ts";
 import type { RacingLine } from "../simulation/racing-line.ts";
@@ -153,7 +154,7 @@ export function createAiDriver(options: AiDriverOptions): AiDriver {
   let hint: number | undefined;
   let stuckS = 0;
   let shiftWaitS = 0;
-  let recovery: { phase: "back" | "stop"; leftS: number; shifted: boolean } | undefined;
+  let recovery: { phase: "reverse" | "back" | "stop"; leftS: number } | undefined;
 
   const reset = () => {
     queue = Array.from({ length: delaySteps }, () => ({ throttle: 0, brake: 0, steer: 0 }));
@@ -164,20 +165,30 @@ export function createAiDriver(options: AiDriverOptions): AiDriver {
     recovery = undefined;
   };
 
-  // Backs out of a wall: reverse with the wheel turned the other way, then stop and
-  // select first again.
+  // Backs out of a wall: brake and shift down until in reverse (a manual box may be in
+  // any gear), reverse with the wheel turned the other way, then stop and select first.
   const recover = (o: Observation, steer: number): DriverControls => {
-    const r = recovery ?? { phase: "back", leftS: BACK_OUT_S, shifted: false };
+    const r = recovery ?? { phase: "reverse", leftS: 0 };
     recovery = r;
-    if (r.phase === "back") {
-      const shift = r.shifted ? undefined : "down";
-      r.shifted = true;
-      r.leftS -= stepSeconds;
-      if (r.leftS <= 0) {
-        recovery = { phase: "stop", leftS: 0, shifted: false };
+    shiftWaitS = Math.max(0, shiftWaitS - stepSeconds);
+    if (r.phase === "reverse" && o.gear !== REVERSE) {
+      const shift = shiftWaitS === 0 ? "down" : undefined;
+      shiftWaitS = shift ? SHIFT_SETTLE_S : shiftWaitS;
+
+      return { throttle: 0, brake: 1, steer: 0, ...(shift ? { shift } : {}) };
+    }
+
+    if (r.phase === "reverse") {
+      recovery = { phase: "back", leftS: BACK_OUT_S };
+    }
+
+    if (recovery.phase === "back") {
+      recovery.leftS -= stepSeconds;
+      if (recovery.leftS <= 0) {
+        recovery = { phase: "stop", leftS: 0 };
       }
 
-      return { throttle: 0.6, brake: 0, steer: -steer, ...(shift ? { shift } : {}) };
+      return { throttle: 0.6, brake: 0, steer: -steer };
     }
 
     if (Math.abs(o.speedMps) > STOPPED_MPS) {

@@ -111,32 +111,46 @@ describe("AI drivers", () => {
 
   // A street circuit's wall, on asphalt. (A gravel trap beaches a stopped car for good,
   // as it does in real racing; the player restarts from the grid.)
-  test("stuck nose-first in a wall, it backs out and drives on", async () => {
-    const environment = createControlEnvironment(sources);
-    let reply: ControlReply = await environment.handle({ type: "reset", track: "riviera", maxSeconds: 200 });
+  // A manual box stays in whatever gear hit the wall, so the driver must find reverse itself.
+  test.each(["automatic", "manual"] as const)(
+    "stuck nose-first in a wall (%s), it backs out and drives on",
+    async (gearbox) => {
+      const environment = createControlEnvironment(sources);
+      let reply: ControlReply = await environment.handle({ type: "reset", track: "riviera", maxSeconds: 200, gearbox });
 
-    // Flat out and straight on from the grid ends in the wall at the first bend.
-    reply = await environment.handle({ type: "step", throttle: 1, brake: 0, steer: 0, steps: 600 });
-    reply = await environment.handle({ type: "step", throttle: 1, brake: 0, steer: 0, steps: 360 });
-    if (reply.type !== "observation") {
-      throw new Error(JSON.stringify(reply));
-    }
+      // Flat out and straight on from the grid ends in the wall at the first bend, in
+      // manual having shifted up through the gears on the way.
+      for (let k = 0; k < 16; k += 1) {
+        const shift = gearbox === "manual" && k % 3 === 2 ? { shift: "up" as const } : {};
+        reply = await environment.handle({ type: "step", throttle: 1, brake: 0, steer: 0, ...shift, steps: 60 });
+      }
 
-    const { distanceM: stuckAtM, lengthM } = reply.observation.track;
-    expect(Math.abs(reply.observation.speedMps)).toBeLessThan(1);
-    const ace = driverFor("riviera", "ace");
-    for (let k = 0; k < 60 * 30 && reply.type === "observation" && !reply.done; k += 1) {
-      reply = await environment.handle({ type: "step", ...ace.decide(reply.observation), steps: 1 });
-    }
+      if (reply.type !== "observation") {
+        throw new Error(JSON.stringify(reply));
+      }
 
-    if (reply.type !== "observation") {
-      throw new Error(JSON.stringify(reply));
-    }
+      const { distanceM: stuckAtM, lengthM } = reply.observation.track;
+      expect(Math.abs(reply.observation.speedMps)).toBeLessThan(1);
+      expect(reply.observation.gear).toBeGreaterThan(gearbox === "manual" ? 2 : 0);
+      const ace = driverFor("riviera", "ace");
+      let reversed = false;
+      for (let k = 0; k < 60 * 30 && reply.type === "observation" && !reply.done; k += 1) {
+        reply = await environment.handle({ type: "step", ...ace.decide(reply.observation), steps: 1 });
+        reversed ||= reply.type === "observation" && reply.observation.gear === -1;
+      }
 
-    const { track } = reply.observation;
-    expect((track.distanceM - stuckAtM + lengthM) % lengthM).toBeGreaterThan(500);
-    expect(Math.abs(track.lateralM)).toBeLessThan(track.halfWidthM);
-    expect(reply.observation.speedMps).toBeGreaterThan(15);
-    environment.close();
-  }, 60_000);
+      expect(reversed).toBe(true);
+
+      if (reply.type !== "observation") {
+        throw new Error(JSON.stringify(reply));
+      }
+
+      const { track } = reply.observation;
+      expect((track.distanceM - stuckAtM + lengthM) % lengthM).toBeGreaterThan(500);
+      expect(Math.abs(track.lateralM)).toBeLessThan(track.halfWidthM);
+      expect(reply.observation.speedMps).toBeGreaterThan(15);
+      environment.close();
+    },
+    60_000,
+  );
 });
