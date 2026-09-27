@@ -90,6 +90,10 @@ export async function createRace(player: DrivingSession, options: RaceOptions): 
     }
   };
 
+  // Sessions keep their laps across a reset, so a race counts from these.
+  const sessions = [player, ...opponents.map((o) => o.session)];
+  let lapsBefore = sessions.map((s) => s.state().laps.length);
+
   // The countdown only ever goes up when the player's car goes back to the grid.
   let countdownS = player.state().countdownS;
   const followRestart = () => {
@@ -99,6 +103,8 @@ export async function createRace(player: DrivingSession, options: RaceOptions): 
         session.action("reset");
         driver.reset();
       }
+
+      lapsBefore = sessions.map((s) => s.state().laps.length);
     }
 
     countdownS = now;
@@ -107,7 +113,10 @@ export async function createRace(player: DrivingSession, options: RaceOptions): 
   const progress = (session: DrivingSession, slot: number) => {
     const state = session.state();
 
-    return { laps: state.laps.length, progressM: state.lap?.progressM ?? -slot * GRID_GAP_M };
+    return {
+      laps: state.laps.length - (lapsBefore[slot] ?? 0),
+      progressM: state.lap?.progressM ?? -slot * GRID_GAP_M,
+    };
   };
 
   return {

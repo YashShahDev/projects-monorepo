@@ -78,7 +78,8 @@ export function parseLineData(value: unknown, source = "line"): LineData {
 
     previousTo = to;
 
-    return { from, to, scale: inRange(v.scale, `${path}.scale`, 0.1, 2) };
+    // Tuning only ever lowers grip; above 1 would plan on grip the car does not have.
+    return { from, to, scale: inRange(v.scale, `${path}.scale`, 0.1, 1) };
   });
 
   return {

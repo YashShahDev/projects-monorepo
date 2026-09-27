@@ -5,6 +5,7 @@ import { createDrivingSession, GRID_GAP_M } from "../src/app/session.ts";
 import type { DrivingSession } from "../src/app/session.ts";
 import { createRace, raceOrder } from "../src/app/race.ts";
 import type { Race } from "../src/app/race.ts";
+import { autopilot } from "../src/app/autopilot.ts";
 import { parseTrack } from "../src/content/track.ts";
 import { buildRacingLine, lineLimits } from "../src/simulation/racing-line.ts";
 import { car } from "./support/vehicle.ts";
@@ -115,6 +116,22 @@ describe("a race", () => {
 
     expect(race.standings()).toEqual({ position: 1, cars: 3 });
   }, 30_000);
+
+  // Laps from before the race are the player's, not a head start in it.
+  test("positions count only laps driven since the race began", async () => {
+    const player = await open();
+    for (let t = 0; t < 200 && player.state().laps.length === 0; t += 1 / 60) {
+      player.frame(1 / 60, () => autopilot(player));
+    }
+
+    expect(player.state().laps).toHaveLength(1);
+    player.action("reset");
+    const line = buildRacingLine(player.geometry, lineLimits(car));
+    const race = await createRace(player, { car, track, level: "ace", count: 2, line });
+    races.push(race);
+    run(race, 8);
+    expect(race.standings()).toEqual({ position: 3, cars: 3 });
+  }, 60_000);
 
   test("the drawn opponents sit at the same point between steps as the player", async () => {
     const { race } = await start(1);

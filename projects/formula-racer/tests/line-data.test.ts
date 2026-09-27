@@ -32,6 +32,7 @@ describe("saved racing line data", () => {
     expect(bad({ lowered: [{ from: 5, to: 3, scale: 0.9 }] })).toThrow("riviera.lowered[0]");
     expect(bad({ lowered: [{ from: 0, to: 10, scale: 0.9 }] })).toThrow("riviera.lowered[0]");
     expect(bad({ lowered: [{ from: 0, to: 1, scale: 0 }] })).toThrow("riviera.lowered[0].scale");
+    expect(bad({ lowered: [{ from: 0, to: 1, scale: 1.5 }] })).toThrow("riviera.lowered[0].scale");
     expect(bad({ track: "../x" })).toThrow("riviera.track");
     expect(
       bad({
