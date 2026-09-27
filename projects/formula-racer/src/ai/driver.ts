@@ -116,8 +116,12 @@ const STUCK_SPEED_MPS = 1;
 const BACK_OUT_S = 1.5;
 const STOPPED_MPS = 0.3;
 
-/** A smooth, repeatable wobble in [−1, 1] along the lap: two sines with seeded phases. */
-function wobble(seed: number, salt: number) {
+/**
+ * A smooth, repeatable wobble in [−1, 1] along the lap: two sines with seeded phases.
+ * Each fits a whole number of waves into the lap, so the start line, where the distance
+ * wraps from the lap's length to 0, is no seam.
+ */
+function wobble(seed: number, salt: number, lapM: number) {
   const phase = (k: number) => {
     // Mulberry32-style integer hash; any fixed mixing will do.
     let t = (seed * 0x9e3779b1 + salt * 0x85ebca6b + k * 0xc2b2ae35) >>> 0;
@@ -129,7 +133,10 @@ function wobble(seed: number, salt: number) {
 
   const [a, b] = [phase(1), phase(2)];
 
-  return (distanceM: number) => 0.6 * Math.sin(distanceM / 97 + a) + 0.4 * Math.sin(distanceM / 41 + b);
+  const wave = (wavelengthM: number) => (2 * Math.PI * Math.max(1, Math.round(lapM / wavelengthM))) / lapM;
+  const [ka, kb] = [wave(2 * Math.PI * 97), wave(2 * Math.PI * 41)];
+
+  return (distanceM: number) => 0.6 * Math.sin(distanceM * ka + a) + 0.4 * Math.sin(distanceM * kb + b);
 }
 
 /**
@@ -146,8 +153,8 @@ export function createAiDriver(options: AiDriverOptions): AiDriver {
   const n = line.count;
   const wheelbase = car.wheels.frontAxleZ - car.wheels.rearAxleZ;
   const stepSeconds = options.stepSeconds ?? 1 / 60;
-  const early = wobble(options.seed, 1);
-  const drift = wobble(options.seed, 2);
+  const early = wobble(options.seed, 1, g.lengthM);
+  const drift = wobble(options.seed, 2, g.lengthM);
   const delaySteps = Math.round(level.reactionS / stepSeconds);
   let queue: DriverControls[] = [];
   let throttle = 0;

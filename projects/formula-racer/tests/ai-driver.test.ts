@@ -113,6 +113,34 @@ describe("AI drivers", () => {
 
   // A street circuit's wall, on asphalt. (A gravel trap beaches a stopped car for good,
   // as it does in real racing; the player restarts from the grid.)
+  // The start line is 0 m and a whole lap at once, so the driver's wobble must agree.
+  test("drives the same whether the start line reads 0 m or a whole lap", async () => {
+    const environment = createControlEnvironment(sources);
+    let reply: ControlReply = await environment.handle({ type: "reset", track: "harbour", maxSeconds: 60 });
+    reply = await environment.handle({ type: "step", throttle: 1, brake: 0, steer: 0, steps: 120 });
+    if (reply.type !== "observation") {
+      throw new Error(JSON.stringify(reply));
+    }
+
+    const o = reply.observation;
+    const decide = (distanceM: number) => {
+      const rookie = driverFor("harbour", "rookie");
+      const seen = { ...o, track: { ...o.track, distanceM } };
+      let controls = rookie.decide(seen);
+      for (let k = 0; k < 30; k += 1) {
+        controls = rookie.decide(seen);
+      }
+
+      return controls;
+    };
+
+    const [atZero, atLap] = [decide(0), decide(o.track.lengthM)];
+    expect(atLap.steer).toBeCloseTo(atZero.steer, 6);
+    expect(atLap.throttle).toBeCloseTo(atZero.throttle, 6);
+    expect(atLap.brake).toBeCloseTo(atZero.brake, 6);
+    environment.close();
+  });
+
   // The page hands the car over at any time, the countdown included, where the car is
   // held still whatever the driver asks.
   test("handed the car on the grid, it waits for the lights rather than backing out", async () => {
