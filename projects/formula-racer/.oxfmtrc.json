@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "ignorePatterns": [
+    "bun.lock",
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    "coverage/**",
+    ".cache/**",
+    "test-results/**",
+    "playwright-report/**",
+    "content/tracks/sources/**"
+  ]
+}

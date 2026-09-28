@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["*.ts"],
+
+  // The root config excludes this folder, and `exclude` is inherited with `extends`.
+  "exclude": []
+}

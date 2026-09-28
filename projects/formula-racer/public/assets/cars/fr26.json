@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "id": "fr26",
+  "name": "FR-26",
+  "massKg": 800,
+  "centerOfMass": { "x": 0, "y": -0.12, "z": -0.15 },
+  "inertiaKgM2": { "x": 1200, "y": 1400, "z": 250 },
+  "chassisHalfExtents": { "x": 0.85, "y": 0.22, "z": 2.5 },
+  "wheels": {
+    "frontAxleZ": 1.8,
+    "rearAxleZ": -1.6,
+    "halfTrack": 0.8,
+    "connectionY": 0,
+    "radius": 0.36,
+    "suspensionRestLength": 0.16,
+    "maxSuspensionTravel": 0.08,
+    "suspensionStiffness": 200,
+    "suspensionCompression": 10,
+    "suspensionRelaxation": 8.5,
+    "maxSuspensionForceN": 40000,
+    "frictionCoefficient": 1.8,
+    "sideFrictionStiffness": 1
+  },
+  "steering": { "maxAngleRad": 0.38 },
+  "brakes": { "maxForceN": 32000, "frontBias": 0.58 },
+  "powertrain": {
+    "maxPowerW": 400000,
+    "maxDriveForceN": 11000,
+    "powerCurve": [
+      [4000, 0.45],
+      [7000, 0.75],
+      [10500, 1],
+      [12000, 0.97],
+      [13000, 0.9]
+    ],
+    "shiftTimeS": 0.05,
+    "gearbox": {
+      "idleRpm": 4000,
+      "upshiftRpm": 12300,
+      "downshiftRpm": 8300,
+      "redlineRpm": 13000,
+      "gearTopSpeedsKmh": [99, 136, 172, 209, 245, 282, 318, 360]
+    }
+  },
+  "aero": {
+    "dragAreaM2": 1.36,
+    "downforceAreaM2": 4.0,
+    "frontShare": 0.38,
+    "straightMode": { "dragAreaM2": 0.95, "downforceAreaM2": 1.6 },
+    "wingTransitionS": 0.4
+  }
+}

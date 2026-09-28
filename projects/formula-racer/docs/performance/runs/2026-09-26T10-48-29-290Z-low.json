@@ -1,0 +1,167 @@
+{
+  "summary": {
+    "route": "harbour-autopilot-v1",
+    "quality": "low",
+    "passes": 3,
+    "p95Ms": 16.79999999998836,
+    "medianMs": 16.69999999999709,
+    "simP95Ms": 0.4000000059604645,
+    "renderP95Ms": 0.5,
+    "worstP95Ms": 16.79999999998836,
+    "overBudget": 1829,
+    "drawCalls": 19.17275378419664,
+    "triangles": 13198.345507568394,
+    "drawingBuffer": {
+      "width": 768,
+      "height": 432
+    },
+    "gl": {
+      "vendor": "Google Inc. (Intel)",
+      "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+    },
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+    "transferBytes": 6767019,
+    "hardware": true,
+    "meetsTarget": false
+  },
+  "passes": [
+    {
+      "measuredSeconds": 120.01180000000001,
+      "frames": {
+        "frames": 7201,
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.79999999998836,
+        "p99Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "overBudget": 1841,
+        "budgetMs": 16.7
+      },
+      "simMs": {
+        "frames": 7201,
+        "medianMs": 0.20000000298023224,
+        "p95Ms": 0.4000000059604645,
+        "p99Ms": 0.5,
+        "maxMs": 1.2000000029802322,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "renderMs": {
+        "frames": 7201,
+        "medianMs": 0.20000000298023224,
+        "p95Ms": 0.5999999940395355,
+        "p99Ms": 0.6000000089406967,
+        "maxMs": 1.5,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "drawCalls": 19.17275378419664,
+      "triangles": 13198.345507568394,
+      "distanceM": 4258.873473478702,
+      "route": "harbour-autopilot-v1",
+      "quality": "low",
+      "pixelRatio": 0.6,
+      "drawingBuffer": {
+        "width": 768,
+        "height": 432
+      },
+      "gl": {
+        "vendor": "Google Inc. (Intel)",
+        "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+      },
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "transferBytes": 6767019
+    },
+    {
+      "measuredSeconds": 120.0119,
+      "frames": {
+        "frames": 7201,
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.79999999998836,
+        "p99Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "overBudget": 1829,
+        "budgetMs": 16.7
+      },
+      "simMs": {
+        "frames": 7201,
+        "medianMs": 0.10000000894069672,
+        "p95Ms": 0.3999999910593033,
+        "p99Ms": 0.4000000059604645,
+        "maxMs": 1.0999999940395355,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "renderMs": {
+        "frames": 7201,
+        "medianMs": 0.19999998807907104,
+        "p95Ms": 0.5,
+        "p99Ms": 0.6000000089406967,
+        "maxMs": 1.7999999970197678,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "drawCalls": 19.173031523399526,
+      "triangles": 13198.3460630468,
+      "distanceM": 4259.4123961448795,
+      "route": "harbour-autopilot-v1",
+      "quality": "low",
+      "pixelRatio": 0.6,
+      "drawingBuffer": {
+        "width": 768,
+        "height": 432
+      },
+      "gl": {
+        "vendor": "Google Inc. (Intel)",
+        "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+      },
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "transferBytes": 6767019
+    },
+    {
+      "measuredSeconds": 120.012,
+      "frames": {
+        "frames": 7201,
+        "medianMs": 16.69999999999709,
+        "p95Ms": 16.70000000001164,
+        "p99Ms": 16.80000000000291,
+        "maxMs": 16.80000000000291,
+        "overBudget": 1804,
+        "budgetMs": 16.7
+      },
+      "simMs": {
+        "frames": 7201,
+        "medianMs": 0.20000000298023224,
+        "p95Ms": 0.4000000059604645,
+        "p99Ms": 0.4000000059604645,
+        "maxMs": 1.199999988079071,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "renderMs": {
+        "frames": 7201,
+        "medianMs": 0.20000000298023224,
+        "p95Ms": 0.5,
+        "p99Ms": 0.6000000089406967,
+        "maxMs": 0.800000011920929,
+        "overBudget": 0,
+        "budgetMs": 16.7
+      },
+      "drawCalls": 19.17275378419664,
+      "triangles": 13198.345507568394,
+      "distanceM": 4259.412849545763,
+      "route": "harbour-autopilot-v1",
+      "quality": "low",
+      "pixelRatio": 0.6,
+      "drawingBuffer": {
+        "width": 768,
+        "height": 432
+      },
+      "gl": {
+        "vendor": "Google Inc. (Intel)",
+        "renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (LNL), OpenGL ES 3.2)"
+      },
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36",
+      "transferBytes": 6767019
+    }
+  ]
+}

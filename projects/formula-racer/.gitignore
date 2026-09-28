@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+test-results/
+playwright-report/
+*.blend1
+*.blend2
