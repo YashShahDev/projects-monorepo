@@ -11,7 +11,7 @@ import { loadCatalogTrack } from "../content/track-catalog.ts";
 import { initPhysics } from "../simulation/physics.ts";
 import type { DriverControls, VehicleSnapshot } from "../simulation/vehicle.ts";
 import { createTrackView } from "../rendering/track-view.ts";
-import { createGhostView, createOpponentView } from "../rendering/ghost-view.ts";
+import { createGhostView, createOpponentView, OPPONENT_COLOURS } from "../rendering/ghost-view.ts";
 import type { GhostMode } from "../rendering/ghost-view.ts";
 import { createGuideView } from "../rendering/guide-view.ts";
 import { createTyreMarksView } from "../rendering/tyre-marks-view.ts";
@@ -230,9 +230,7 @@ export async function startGameApp(
   const ghosts = createGhostStore(records);
   const ghostView = createGhostView(model);
   view.add(ghostView);
-  const opponentViews = [0x3b82f6, 0x2fb56a, 0xf2b134]
-    .slice(0, MAX_OPPONENTS)
-    .map((color) => createOpponentView(model, color));
+  const opponentViews = OPPONENT_COLOURS.slice(0, MAX_OPPONENTS).map((color) => createOpponentView(model, color));
   for (const opponent of opponentViews) {
     view.add(opponent);
   }
@@ -353,7 +351,7 @@ export async function startGameApp(
     ai.driver.reset();
   };
 
-  // Opponents join from the grid behind the player, whose lap restarts with them. Outside
+  // Opponents join on the grid ahead of the player, whose lap restarts with them. Outside
   // software steps only its own car, so a controlled page races nobody.
   let race: Race | undefined;
   let raceSerial = 0;
@@ -377,6 +375,8 @@ export async function startGameApp(
 
       race = next;
     }
+
+    dashboard.showOpponents([]);
 
     session.action("reset");
   };
@@ -708,6 +708,7 @@ export async function startGameApp(
   let benchAt: { x: number; z: number } | undefined;
 
   // The player's frame, with any opponents stepped alongside and drawn where they are.
+  let opponentsAt: readonly { x: number; z: number }[] = [];
   const advance = (
     frameSeconds: number,
     held: HeldKeys | (() => HeldKeys),
@@ -716,6 +717,7 @@ export async function startGameApp(
     const frame: RaceFrame = race
       ? race.frame(frameSeconds, held, driver)
       : { player: session.frame(frameSeconds, held, driver), opponents: [] };
+    opponentsAt = frame.opponents.map((car) => car.position);
     opponentViews.forEach((opponent, i) => {
       const car = frame.opponents[i];
       opponent.update(
@@ -793,6 +795,7 @@ export async function startGameApp(
 
     lastCountdownS = show().countdownS;
     dashboard.update(car, frameSeconds);
+    dashboard.showOpponents(race ? opponentsAt : []);
     frames += 1;
     if (frames === 1) {
       performance.mark("formula-racer:first-frame");

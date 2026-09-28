@@ -34,7 +34,7 @@ const open = async (slot?: number) => {
 };
 
 describe("the grid", () => {
-  test("slot 0 is the time-trial start; later slots stand further back, alternating sides", async () => {
+  test("slot 0 is the time-trial start at the back; later slots stand further ahead, alternating sides", async () => {
     const [pole, second, third] = await Promise.all([open(), open(1), open(2)]);
     const where = (s: DrivingSession) => {
       const { x, z } = s.snapshot().position;
@@ -50,19 +50,19 @@ describe("the grid", () => {
 
     expect(back(pole)).toBeCloseTo(0, 0);
     expect(where(pole).lateralM).toBeCloseTo(0, 0);
-    expect(back(second)).toBeCloseTo(GRID_GAP_M, 0);
-    expect(back(third)).toBeCloseTo(2 * GRID_GAP_M, 0);
+    expect(back(second)).toBeCloseTo(-GRID_GAP_M, 0);
+    expect(back(third)).toBeCloseTo(-2 * GRID_GAP_M, 0);
     expect(Math.abs(where(second).lateralM)).toBeGreaterThan(1.5);
     expect(Math.sign(where(second).lateralM)).toBe(-Math.sign(where(third).lateralM));
   });
 
-  test("a car behind the line starts its first lap short of zero, so laps still end on the line", async () => {
+  test("a car ahead of the line starts its first lap past zero, so laps still end on the line", async () => {
     const s = await open(2);
     for (let t = 0; t < 3.05; t += 1 / 60) {
       s.frame(1 / 60, idle);
     }
 
-    expect(s.state().lap?.progressM).toBeCloseTo(-2 * GRID_GAP_M, 0);
+    expect(s.state().lap?.progressM).toBeCloseTo(2 * GRID_GAP_M, 0);
   });
 });
 
@@ -82,10 +82,11 @@ describe("a race", () => {
     }
   };
 
-  test("opponents line up behind the player and wait for the lights", async () => {
+  // The player starts at the back, so the opponents are in view when the lights go out.
+  test("opponents line up ahead of the player and wait for the lights", async () => {
     const { player, race } = await start(3);
     expect(race.opponents).toHaveLength(3);
-    expect(race.standings()).toEqual({ position: 1, cars: 4 });
+    expect(race.standings()).toEqual({ position: 4, cars: 4 });
     run(race, 2.9);
     for (const opponent of race.opponents) {
       expect(opponent.snapshot().simSeconds).toBeCloseTo(player.snapshot().simSeconds, 9);
@@ -114,7 +115,7 @@ describe("a race", () => {
       expect(Math.abs(opponent.snapshot().speedMps)).toBeLessThan(0.5);
     }
 
-    expect(race.standings()).toEqual({ position: 1, cars: 3 });
+    expect(race.standings()).toEqual({ position: 3, cars: 3 });
   }, 30_000);
 
   // Laps from before the race are the player's, not a head start in it.

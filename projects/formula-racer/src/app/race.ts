@@ -57,7 +57,8 @@ export function raceOrder(cars: readonly { laps: number; progressM: number }[]):
 }
 
 /**
- * AI opponents for the player's session, on the grid slots behind it. Each has its own
+ * AI opponents for the player's session, on the grid slots ahead of it, so the player
+ * starts at the back with the field in view. Each has its own
  * vehicle simulation, so they never touch the player or each other. They step once for
  * every step the player takes, which keeps them in time through any frame rate or pause,
  * and they start again from the grid whenever the player's car does.
@@ -115,7 +116,7 @@ export async function createRace(player: DrivingSession, options: RaceOptions): 
 
     return {
       laps: state.laps.length - (lapsBefore[slot] ?? 0),
-      progressM: state.lap?.progressM ?? -slot * GRID_GAP_M,
+      progressM: state.lap?.progressM ?? slot * GRID_GAP_M,
     };
   };
 

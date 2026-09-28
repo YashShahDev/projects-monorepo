@@ -599,3 +599,8 @@ kbd {
 #corner-preview .car {
   fill: #ff5a4a;
 }
+
+#track-map .opponent {
+  stroke: #fff;
+  stroke-width: 1;
+}

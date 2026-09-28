@@ -82,7 +82,10 @@ export interface SessionOptions {
   /** From the car model; the rig's defaults stand in when there is none. */
   cameraAnchors?: CameraAnchors;
 
-  /** Place on a race grid: 0, the default, is the time-trial start on the line. */
+  /**
+   * Place on a race grid, counted from the back: 0, the default, is the time-trial start
+   * on the line, and each later slot stands one gap further ahead.
+   */
   gridSlot?: number;
 }
 
@@ -168,7 +171,7 @@ const MAX_STEPS_PER_FRAME = 8;
 const COUNTDOWN_S = 3;
 const SECTORS = 3;
 
-/** Distance between grid slots along the track; later slots alternate sides. */
+/** Distance between grid slots along the track; slots ahead of the line alternate sides. */
 export const GRID_GAP_M = 8;
 
 const poseOf = (s: VehicleSnapshot): Pose => ({ position: s.position, rotation: s.rotation });
@@ -257,8 +260,8 @@ export async function createDrivingSession(
   }
 
   const slot = sessionOptions.gridSlot ?? 0;
-  const behindM = slot * GRID_GAP_M;
-  const start = geometry.pointAt(track.startDistanceM - behindM);
+  const aheadM = slot * GRID_GAP_M;
+  const start = geometry.pointAt(track.startDistanceM + aheadM);
   const sideM = slot === 0 ? 0 : (slot % 2 === 1 ? -1 : 1) * (geometry.halfWidthM / 2);
   const trackside = buildTrackside(geometry, track.setting);
 
@@ -358,9 +361,9 @@ export async function createDrivingSession(
       pendingShift = undefined;
       countdownLeft -= 1;
       if (countdownLeft === 0) {
-        // From behind the line the first lap is longer, so its boundaries stay on the line.
-        lapTimer.start(sim.snapshot().simSeconds, locate().distanceM, -behindM);
-        recorder.begin(ghostSample(poseOf(sim.snapshot()), 0, -behindM));
+        // From ahead of the line the first lap is shorter, so its boundaries stay on the line.
+        lapTimer.start(sim.snapshot().simSeconds, locate().distanceM, aheadM);
+        recorder.begin(ghostSample(poseOf(sim.snapshot()), 0, aheadM));
       }
 
       return;

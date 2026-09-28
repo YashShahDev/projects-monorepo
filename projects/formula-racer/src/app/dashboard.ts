@@ -1,3 +1,4 @@
+import { OPPONENT_COLOURS } from "../rendering/ghost-view.ts";
 import { slowestBetween } from "../simulation/racing-line.ts";
 import type { RacingLine } from "../simulation/racing-line.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
@@ -26,6 +27,9 @@ export interface DashboardElements {
 
 export interface Dashboard {
   update(car: VehicleSnapshot, frameSeconds: number): void;
+
+  /** Marks the opponents on the map, in `OPPONENT_COLOURS` order; none clears them. */
+  showOpponents(opponents: readonly { x: number; z: number }[]): void;
 
   /** The car was put back on the grid: readings that compare frames start again. */
   reset(): void;
@@ -122,6 +126,7 @@ export function createDashboard(
     svg("circle", { cx: su.toFixed(1), cy: sv.toFixed(1), r: "3", class: "start" }),
     carDot,
   );
+  const opponentDots: SVGCircleElement[] = [];
 
   // Corner preview.
   const corners = findCorners(track, startDistanceM);
@@ -148,6 +153,27 @@ export function createDashboard(
     reset() {
       meter.reset();
       hint = undefined;
+    },
+    showOpponents(opponents) {
+      while (opponentDots.length > opponents.length) {
+        opponentDots.pop()?.remove();
+      }
+
+      opponents.forEach((opponent, i) => {
+        let marker = opponentDots[i];
+        if (!marker) {
+          const colour = OPPONENT_COLOURS[i % OPPONENT_COLOURS.length] ?? 0;
+          marker = svg("circle", { r: "3.5", class: "opponent", fill: `#${colour.toString(16).padStart(6, "0")}` });
+
+          // Under the player's dot, which stays on top where they overlap.
+          carDot.before(marker);
+          opponentDots.push(marker);
+        }
+
+        const [u, v] = map.toMap(opponent.x, opponent.z);
+        marker.setAttribute("cx", u.toFixed(1));
+        marker.setAttribute("cy", v.toFixed(1));
+      });
     },
     update(car, frameSeconds) {
       const location = track.locate(car.position.x, car.position.z, hint);

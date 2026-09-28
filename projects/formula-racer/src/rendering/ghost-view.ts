@@ -77,6 +77,9 @@ export function createGhostView(model: BoundCarModel): GhostView {
   return poseView(root, material);
 }
 
+/** One colour per opponent, in grid order; the map uses them too. */
+export const OPPONENT_COLOURS = [0x3b82f6, 0x2fb56a, 0xf2b134] as const;
+
 /** An AI opponent: the ghost's shape, solid and lit, in one colour per car. */
 export function createOpponentView(model: BoundCarModel, color: number): GhostView {
   const material = new THREE.MeshLambertMaterial({ color });
