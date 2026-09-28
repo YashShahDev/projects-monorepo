@@ -5,6 +5,7 @@ import type { ControlReply, SessionSource } from "../control/environment.ts";
 import { buildRacingLine, lineLimits } from "../simulation/racing-line.ts";
 import type { RacingLine } from "../simulation/racing-line.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
+import { isOnTrack } from "../simulation/trackside.ts";
 import { createAiDriver } from "./driver.ts";
 
 export interface LineMeasureOptions {
@@ -100,7 +101,7 @@ async function drive(options: LineMeasureOptions, line: RacingLine): Promise<Run
     const o = reply.observation;
     const i = g.locate(o.position.x, o.position.z, hint).index;
     hint = i;
-    const offRoad = o.wheels.some((w) => w.surface !== "road" && w.surface !== "kerb");
+    const offRoad = o.wheels.some((w) => !isOnTrack(w.surface));
     offRoadSteps += offRoad ? 1 : 0;
     if (offRoad) {
       trouble[i] = 1;

@@ -66,8 +66,19 @@ describe("kerb sound", () => {
     expect(soundMix({ ...base, kerbWheels: 2 }).kerbGain).toBe(0);
   });
 
+  test("counts only the side that has a kerb there, as wide as that kerb is", () => {
+    const shape = { halfWidthM: 6, halfTrackM: 0.8, tyreHalfWidthM: 0.2 };
+
+    // Left wheels at 6.8 m: on a kerb when the left has one, on the verge when it has none.
+    expect(wheelsOnKerb({ ...shape, kerbWidthM: { left: 0, right: 1.5 }, lateralM: 6 })).toBe(0);
+    expect(wheelsOnKerb({ ...shape, kerbWidthM: { left: 1.5, right: 0 }, lateralM: 6 })).toBe(2);
+
+    // A 0.5 m kerb ends at 6.5 m, so tyres from 6.6 m are past it.
+    expect(wheelsOnKerb({ ...shape, kerbWidthM: { left: 0.5, right: 0 }, lateralM: 6 })).toBe(0);
+  });
+
   test("counts wheels whose lateral position lies in the kerb band", () => {
-    const band = { halfWidthM: 6, kerbWidthM: 1.5, halfTrackM: 0.8, tyreHalfWidthM: 0.2 };
+    const band = { halfWidthM: 6, kerbWidthM: { left: 1.5, right: 1.5 }, halfTrackM: 0.8, tyreHalfWidthM: 0.2 };
     expect(wheelsOnKerb({ ...band, lateralM: 0 })).toBe(0);
 
     // Left wheels at 6.8 m are on the kerb; right wheels at 5.2 m are on the road.

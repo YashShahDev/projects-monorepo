@@ -12,7 +12,7 @@ import { createInputSmoother } from "../simulation/input-smoothing.ts";
 import type { DigitalInput } from "../simulation/input-smoothing.ts";
 import { buildTrackGeometry } from "../simulation/track-geometry.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
-import { buildTrackside, GRAVEL_DRAG_N } from "../simulation/trackside.ts";
+import { buildTrackside, GRAVEL_DRAG_N, gripSurface } from "../simulation/trackside.ts";
 import type { GroundSurface, Trackside } from "../simulation/trackside.ts";
 import { buildVehicleSimulation, createVehicleSimulation } from "../simulation/vehicle.ts";
 import type {
@@ -263,7 +263,7 @@ export async function createDrivingSession(
   const aheadM = slot * GRID_GAP_M;
   const start = geometry.pointAt(track.startDistanceM + aheadM);
   const sideM = slot === 0 ? 0 : (slot % 2 === 1 ? -1 : 1) * (geometry.halfWidthM / 2);
-  const trackside = buildTrackside(geometry, track.setting);
+  const trackside = buildTrackside(geometry, track.setting, track.startDistanceM);
 
   // One lookup hint per wheel keeps each locate to a short windowed search.
   const wheelHints: (number | undefined)[] = [undefined, undefined, undefined, undefined];
@@ -282,8 +282,7 @@ export async function createDrivingSession(
       const surface = trackside.surfaceAt(location);
       wheelSurfaces[wheel] = surface;
 
-      // Asphalt runoff is road surface, only outside the white lines.
-      return track.surfaceGrip[surface === "asphalt" ? "road" : surface];
+      return track.surfaceGrip[gripSurface(surface)];
     },
     dragAt: (_x, _z, wheel) => (wheelSurfaces[wheel] === "gravel" ? GRAVEL_DRAG_N : 0),
     barriers: trackside.barriers.map((run) => ({ ...run, outside: run.side })),

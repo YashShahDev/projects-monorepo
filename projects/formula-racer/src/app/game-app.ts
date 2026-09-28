@@ -505,7 +505,10 @@ export async function startGameApp(
       kerbWheels: wheelsOnKerb({
         lateralM: location.lateralM,
         halfWidthM: session.geometry.halfWidthM,
-        kerbWidthM: session.geometry.kerbWidthM,
+        kerbWidthM: {
+          left: session.trackside.kerbs.at(location.distanceM, "left")?.widthM ?? 0,
+          right: session.trackside.kerbs.at(location.distanceM, "right")?.widthM ?? 0,
+        },
         halfTrackM: session.car().wheels.halfTrack,
         tyreHalfWidthM: TYRE_HALF_WIDTH_M,
       }),

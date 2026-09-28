@@ -5,7 +5,7 @@ import { parseTrack } from "../src/content/track.ts";
 import type { TrackDefinition } from "../src/content/track.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 import type { TrackGeometry } from "../src/simulation/track-geometry.ts";
-import { buildTrackside } from "../src/simulation/trackside.ts";
+import { buildTrackside, gripSurface, GROUND_SURFACES, isOnTrack } from "../src/simulation/trackside.ts";
 
 const definition = (id: string) =>
   parseTrack(JSON.parse(readFileSync(resolve(import.meta.dirname, `../public/assets/tracks/${id}.json`), "utf8")));
@@ -148,9 +148,60 @@ describe("ground surface", () => {
     };
 
     expect(at(3)).toBe("road");
-    expect(at(-7)).toBe("kerb");
+
+    // An endless corner has no straight to place kerbs from, so its band is all verge.
+    expect(at(-7)).toBe("verge");
     expect(at(15)).toBe("gravel");
     expect(at(40)).toBe("grass");
     expect(at(-12)).toBe("grass");
+  });
+
+  // What a wheel feels matches the planned kerbs: kerb only on a kerb, the verge elsewhere.
+  test.each(["harbour", "riviera"])("%s: the band beside the road is kerb only where a kerb is planned", (id) => {
+    const def = definition(id);
+    const track = buildTrackGeometry(def);
+    const side = buildTrackside(track, def.setting, def.startDistanceM);
+    const half = track.halfWidthM;
+    const at = (distanceM: number, lateralM: number) => {
+      const i = Math.round(distanceM / track.spacingM) % track.count;
+      const band = Math.abs(lateralM) <= half + track.kerbWidthM ? "kerb" : "grass";
+      const surface = Math.abs(lateralM) <= half ? "road" : band;
+
+      return side.surfaceAt({ index: i, distanceM, lateralM, surface });
+    };
+
+    const kerbs = side.kerbs.kerbs;
+    expect(kerbs.length).toBeGreaterThan(0);
+    for (const kerb of kerbs) {
+      const middle = ((kerb.fromM + kerb.toM) / 2) % track.lengthM;
+      const sign = kerb.side === "left" ? 1 : -1;
+      expect(at(middle, sign * (half + 0.2))).toBe("kerb");
+      if (kerb.widthM < track.kerbWidthM - 0.1) {
+        expect(at(middle, sign * (half + kerb.widthM + 0.05))).toBe("verge");
+      }
+    }
+
+    // Somewhere on each side there is a gap, and a wheel in it is on the verge.
+    for (const s of ["left", "right"] as const) {
+      const gap = Array.from({ length: track.count }, (_, i) => i * track.spacingM).find(
+        (d) => !side.kerbs.at(d, s) && !side.kerbs.at(d + 3, s) && !side.kerbs.at(d - 3, s),
+      );
+      if (gap === undefined) {
+        throw new Error(`a gap expected on the ${s}`);
+      }
+
+      expect(at(gap, (s === "left" ? 1 : -1) * (half + 0.2))).toBe("verge");
+    }
+  });
+});
+
+describe("what a surface means", () => {
+  test("the verge and asphalt runoff grip like the road; the rest grip as themselves", () => {
+    expect(GROUND_SURFACES.map(gripSurface)).toEqual(["road", "kerb", "grass", "gravel", "road", "road"]);
+  });
+
+  // Track limits end at the kerb band, so the verge within it is still on track.
+  test("road, kerb and verge are on track; grass, gravel and asphalt runoff are not", () => {
+    expect(GROUND_SURFACES.filter(isOnTrack)).toEqual(["road", "kerb", "verge"]);
   });
 });

@@ -63,18 +63,22 @@ export function soundMix(input: SoundInput): SoundMix {
   };
 }
 
-/** Counts wheels whose tyres touch the kerb band, from the car's offset from the centreline. */
+/**
+ * Counts wheels whose tyres touch a kerb, from the car's offset from the centreline and
+ * the width of the kerb on each side there (0 where that side has none).
+ */
 export function wheelsOnKerb(car: {
   lateralM: number;
   halfWidthM: number;
-  kerbWidthM: number;
+  kerbWidthM: { left: number; right: number };
   halfTrackM: number;
   tyreHalfWidthM: number;
 }) {
   const onKerb = (centre: number) => {
     const d = Math.abs(centre);
+    const width = centre > 0 ? car.kerbWidthM.left : car.kerbWidthM.right;
 
-    return d + car.tyreHalfWidthM > car.halfWidthM && d - car.tyreHalfWidthM <= car.halfWidthM + car.kerbWidthM;
+    return width > 0 && d + car.tyreHalfWidthM > car.halfWidthM && d - car.tyreHalfWidthM <= car.halfWidthM + width;
   };
 
   // Front and rear wheels share a lateral offset; yaw relative to the track is ignored,

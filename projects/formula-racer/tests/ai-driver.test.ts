@@ -11,6 +11,7 @@ import { createDrivingSession } from "../src/app/session.ts";
 import { createControlLink } from "../src/control/link.ts";
 import { estimatedLapTimeS } from "../src/simulation/racing-line.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
+import { isOnTrack } from "../src/simulation/trackside.ts";
 import { fileSessions } from "../tools/control-sources.ts";
 import { car } from "./support/vehicle.ts";
 
@@ -45,7 +46,7 @@ async function race(id: string, driver: AiDriver, laps: number, reset: object = 
   while (reply.type === "observation" && !reply.done) {
     reply = await environment.handle({ type: "step", ...driver.decide(reply.observation), steps: 1 });
     const wheels = reply.type === "observation" ? reply.observation.wheels : [];
-    offRoadSteps += wheels.some((w) => w.surface !== "road" && w.surface !== "kerb") ? 1 : 0;
+    offRoadSteps += wheels.some((w) => !isOnTrack(w.surface)) ? 1 : 0;
     for (const event of reply.type === "observation" ? reply.events : []) {
       events.push(event.type === "lap" && !event.valid ? "invalid lap" : event.type);
       if (event.type === "lap") {

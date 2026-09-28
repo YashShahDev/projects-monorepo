@@ -1,11 +1,25 @@
 import type { TrackSetting } from "../content/track.ts";
+import { planKerbs } from "./kerbs.ts";
+import type { KerbPlan } from "./kerbs.ts";
 import type { Surface, TrackGeometry, TrackLocation } from "./track-geometry.ts";
 
 /** What lies between the kerb and the barrier. */
 export type Runoff = "grass" | "gravel" | "asphalt";
 
-/** Everything a wheel can stand on; asphalt runoff grips like the road. */
-export type GroundSurface = Surface | "gravel" | "asphalt";
+/**
+ * Everything a wheel can stand on. The verge is the kerb band where there is no kerb:
+ * asphalt inside track limits. Asphalt runoff lies beyond them.
+ */
+export const GROUND_SURFACES = ["road", "kerb", "grass", "gravel", "asphalt", "verge"] as const;
+export type GroundSurface = (typeof GROUND_SURFACES)[number];
+
+/** The surface whose grip a wheel gets: both kinds of asphalt grip like the road. */
+export const gripSurface = (surface: GroundSurface): Surface | "gravel" =>
+  surface === "asphalt" || surface === "verge" ? "road" : surface;
+
+/** Within track limits: the road, the kerbs, and the verge between them. */
+export const isOnTrack = (surface: GroundSurface): boolean =>
+  surface === "road" || surface === "kerb" || surface === "verge";
 
 export interface TracksideEdge {
   /** Per centreline sample. */
@@ -25,6 +39,9 @@ export interface Trackside {
   /** Barrier face lines as world points, each an unbroken run (closed when `closed`). */
   /** `first` is the centreline sample of the first point; each next point is the next sample. */
   barriers: { points: { x: number; z: number }[]; closed: boolean; side: "left" | "right"; first: number }[];
+
+  /** Where the kerbs are; the rest of the kerb band is the verge. */
+  kerbs: KerbPlan;
   surfaceAt(location: TrackLocation): GroundSurface;
 
   /** Distance from (x, z) to the nearest centreline sample, or Infinity beyond `reachM`. */
@@ -250,7 +267,7 @@ function runsOf(track: TrackGeometry, barrierM: Float64Array, sign: 1 | -1, side
  * Lays out what surrounds the circuit: runoff by corner and barriers that keep clear of
  * every part of the track. Deterministic, so physics and rendering agree.
  */
-export function buildTrackside(track: TrackGeometry, setting: TrackSetting = "circuit"): Trackside {
+export function buildTrackside(track: TrackGeometry, setting: TrackSetting = "circuit", startDistanceM = 0): Trackside {
   const near = sampleGrid(track);
   const edge = (sign: 1 | -1): TracksideEdge => {
     const runoff =
@@ -262,19 +279,30 @@ export function buildTrackside(track: TrackGeometry, setting: TrackSetting = "ci
 
   const left = edge(1);
   const right = edge(-1);
+  const kerbs = planKerbs(track, startDistanceM);
 
   return {
     left,
     right,
     barriers: [...runsOf(track, left.barrierM, 1, "left"), ...runsOf(track, right.barrierM, -1, "right")],
     distanceToTrack: near,
+    kerbs,
     surfaceAt(location) {
+      const side = location.lateralM > 0 ? left : right;
+      if (location.surface === "kerb") {
+        const kerb = kerbs.at(location.distanceM, location.lateralM > 0 ? "left" : "right");
+        if (kerb && Math.abs(location.lateralM) - track.halfWidthM <= kerb.widthM) {
+          return "kerb";
+        }
+
+        return "verge";
+      }
+
       if (location.surface !== "grass") {
         return location.surface;
       }
 
       // The same extent the renderer paints, so what a wheel feels is what is drawn.
-      const side = location.lateralM > 0 ? left : right;
       const reach = side.runoffM[location.index] ?? 0;
 
       return Math.abs(location.lateralM) <= reach ? (side.runoff[location.index] ?? "grass") : "grass";

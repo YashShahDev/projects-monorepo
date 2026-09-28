@@ -2,6 +2,7 @@ import { SLIDING_GRIP } from "./vehicle.ts";
 import type { WheelSlip } from "./vehicle.ts";
 import { GRAVITY, LIFT_WARNING_S } from "./racing-line.ts";
 import type { GuidePhase, LineLimits, RacingLine } from "./racing-line.ts";
+import { gripSurface } from "./trackside.ts";
 import type { GroundSurface } from "./trackside.ts";
 import type { TrackDefinition } from "../content/track.ts";
 
@@ -53,7 +54,7 @@ export function gripShare(
 ): number {
   let sum = 0;
   surfaces.forEach((surface, wheel) => {
-    const grip = surfaceGrip[surface === "asphalt" ? "road" : surface] / surfaceGrip.road;
+    const grip = surfaceGrip[gripSurface(surface)] / surfaceGrip.road;
     sum += grip * ((slips[wheel] ?? "none") === "none" ? 1 : SLIDING_GRIP);
   });
 

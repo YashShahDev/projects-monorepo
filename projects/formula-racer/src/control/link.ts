@@ -1,5 +1,6 @@
 import type { DrivingSession } from "../app/session.ts";
 import type { Quat } from "../simulation/physics.ts";
+import { isOnTrack } from "../simulation/trackside.ts";
 import type { GroundSurface } from "../simulation/trackside.ts";
 import type { DriverControls, WheelSlip } from "../simulation/vehicle.ts";
 import type { Vec3 } from "../content/validate.ts";
@@ -83,8 +84,6 @@ export interface ControlLink {
   step(controls: DriverControls, steps: number): StepResult;
   observe(): Observation;
 }
-
-const ON_TRACK: readonly GroundSurface[] = ["road", "kerb"];
 
 const yawOf = (q: Quat) => Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y));
 const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
@@ -218,7 +217,7 @@ export function createControlLink(session: DrivingSession, trackId: string): Con
           events.push({ type: "sector", sector: after.lap.sector, elapsedS: after.lap.elapsedS });
         }
 
-        const off = session.wheelSurfaces().every((surface) => !ON_TRACK.includes(surface));
+        const off = session.wheelSurfaces().every((surface) => !isOnTrack(surface));
         if (off !== wasOff) {
           events.push({ type: off ? "offTrack" : "backOnTrack" });
           wasOff = off;
