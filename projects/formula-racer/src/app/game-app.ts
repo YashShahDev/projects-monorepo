@@ -58,7 +58,7 @@ export interface GameAppState extends SessionState {
   held: HeldKeys;
 
   /** The mix the audio was last given, whether or not sound is on. */
-  sound: SoundMix & { enabled: boolean; output: AudioContextState | "none" };
+  sound: SoundMix & { enabled: boolean; volume: number; level: number; output: AudioContextState | "none" };
 
   /** Undefined until the racing line is built, shortly after the first frame. */
   guide: GuideState | undefined;
@@ -127,6 +127,7 @@ export interface Menu {
   opponents: HTMLSelectElement;
   opponentLevel: HTMLSelectElement;
   sound: HTMLInputElement;
+  volume: HTMLInputElement;
   controls: HTMLButtonElement;
   help: HTMLElement;
   helpTable: HTMLTableElement;
@@ -457,9 +458,17 @@ export async function startGameApp(
 
   menu.sound.checked = preferences.sound();
   audio?.setEnabled(preferences.sound());
+  menu.volume.value = String(preferences.volume());
+  audio?.setVolume(preferences.volume() / 100);
   const onSound = () => {
     preferences.setSound(menu.sound.checked);
     audio?.setEnabled(preferences.sound());
+    onGesture();
+  };
+
+  const onVolume = () => {
+    preferences.setVolume(menu.volume.value);
+    audio?.setVolume(preferences.volume() / 100);
     onGesture();
   };
 
@@ -559,6 +568,7 @@ export async function startGameApp(
     dashboard.setRacingLine(line);
   }, 0);
   menu.sound.addEventListener("change", onSound);
+  menu.volume.addEventListener("input", onVolume);
   addEventListener("keydown", onGesture);
   addEventListener("pointerdown", onGesture);
   menu.resume.addEventListener("click", onResume);
@@ -581,7 +591,13 @@ export async function startGameApp(
     ...session.state(),
     frames,
     held: keyboard.held(),
-    sound: { ...sound, enabled: preferences.sound(), output: audio?.state() ?? "none" },
+    sound: {
+      ...sound,
+      enabled: preferences.sound(),
+      volume: preferences.volume(),
+      level: audio?.level() ?? 0,
+      output: audio?.state() ?? "none",
+    },
     guide: guideState,
     loweredGripSamples: gripScale?.filter((s) => s !== 1).length ?? 0,
     ghost: { mode: preferences.ghost(), visible: ghostView.object.visible, deltaS },
@@ -846,6 +862,7 @@ export async function startGameApp(
     menu.opponentLevel.removeEventListener("change", onOpponents);
     clearTimeout(guideTimer);
     menu.sound.removeEventListener("change", onSound);
+    menu.volume.removeEventListener("input", onVolume);
     removeEventListener("keydown", onGesture);
     removeEventListener("pointerdown", onGesture);
     audio?.dispose();

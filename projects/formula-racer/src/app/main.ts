@@ -54,6 +54,7 @@ const menu = {
   opponents: element("#opponents", HTMLSelectElement),
   opponentLevel: element("#opponent-level", HTMLSelectElement),
   sound: element("#sound", HTMLInputElement),
+  volume: element("#volume", HTMLInputElement),
   controls: element("#controls", HTMLButtonElement),
   help: element("#help"),
   helpTable: element("#help-table", HTMLTableElement),

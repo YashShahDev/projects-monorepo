@@ -25,6 +25,12 @@ export interface Preferences {
   setQuality(preset: string): void;
   sound(): boolean;
   setSound(on: boolean): void;
+
+  /** Percent of full output, 0 to 100. */
+  volume(): number;
+
+  /** Ignores values that are not a whole number from 0 to 100. */
+  setVolume(percent: string): void;
   gearboxMode(): GearboxMode;
 
   /** Ignores values that are not a gearbox mode. */
@@ -54,6 +60,8 @@ export const MAX_OPPONENTS = 3;
 
 const isOpponentCount = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_OPPONENTS;
+const isVolume = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 100;
 const isAiLevel = (value: unknown): value is AiLevelName => AI_LEVELS.some((level) => level === value);
 const SCHEMA = 1;
 
@@ -72,6 +80,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
   let current = fallback;
   let quality: QualityPreset = "medium";
   let sound = true;
+  let volume = 25;
   let gearboxMode: GearboxMode = "automatic";
   let energyMode: EnergyMode = "balanced";
   let racingLine: GuideMode = "off";
@@ -89,6 +98,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
       // Everything but the livery was added within schema 1, so older saves may lack it.
       quality = isQualityPreset(saved.quality) ? saved.quality : quality;
       sound = typeof saved.sound === "boolean" ? saved.sound : sound;
+      volume = isVolume(saved.volume) ? saved.volume : volume;
       gearboxMode = isGearboxMode(saved.gearboxMode) ? saved.gearboxMode : gearboxMode;
       energyMode = isEnergyMode(saved.energyMode) ? saved.energyMode : energyMode;
       racingLine = isGuideMode(saved.racingLine) ? saved.racingLine : racingLine;
@@ -116,6 +126,7 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
           livery: current.id,
           quality,
           sound,
+          volume,
           gearboxMode,
           energyMode,
           racingLine,
@@ -152,6 +163,16 @@ export function createPreferences(storage: StorageLike | undefined, liveries: re
     sound: () => sound,
     setSound(on) {
       sound = on;
+      save();
+    },
+    volume: () => volume,
+    setVolume(percent) {
+      const n = Number(percent);
+      if (percent.trim() === "" || !isVolume(n)) {
+        return;
+      }
+
+      volume = n;
       save();
     },
     gearboxMode: () => gearboxMode,

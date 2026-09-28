@@ -188,6 +188,13 @@ body {
   background: #1b2129;
 }
 
+#paused input[type="range"] {
+  width: 190px;
+  margin: 0;
+  accent-color: #1db954;
+  cursor: pointer;
+}
+
 #paused label.switch {
   display: flex;
   align-items: center;

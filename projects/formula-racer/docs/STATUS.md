@@ -46,6 +46,7 @@ plan is in [P6](phases/P6-polish.md), reviewed by Codex. It lands in PR #7 (user
 C1–C11 are done and Codex-reviewed (6 findings fixed, [P6](checkpoints/P6.md#phase-review)).
 P7 (user, 2026-09-27) follows the P6 review: energy modes, a correct and dynamic 3D
 racing line, a headless control API, and AI drivers ([plan](phases/P7-ai.md)).
+A Volume slider (default 25%) followed ([P7](checkpoints/P7.md#volume-slider-user-request-2026-09-28)).
 The PR is ready for the user's review; don't merge. The open items listed in that
 review are optional follow-ups.
 

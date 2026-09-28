@@ -51,6 +51,30 @@ test("@dev the Sound option mutes the car and is remembered", async ({ page }) =
   expect((await hooks(page, 1, false)).sound.enabled).toBe(false);
 });
 
+test("@dev the Volume slider starts at 25%, sets the output level, and is remembered", async ({ page }) => {
+  await freezeFrames(page);
+  await openGame(page);
+  await page.keyboard.press("Escape");
+  const volume = page.getByRole("dialog", { name: "Paused" }).getByRole("slider", { name: "Volume" });
+  await expect(volume).toHaveValue("25");
+  const quiet = (await hooks(page, 1, false)).sound;
+  expect(quiet.volume).toBe(25);
+
+  await volume.fill("80");
+  const loud = (await hooks(page, 1, false)).sound;
+  expect(loud.volume).toBe(80);
+  expect(loud.level).toBeCloseTo(quiet.level * (80 / 25), 6);
+
+  await volume.fill("0");
+  expect((await hooks(page, 1, false)).sound.level).toBe(0);
+
+  await volume.fill("40");
+  await page.reload();
+  await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });
+  await expect(page.locator("#volume")).toHaveValue("40");
+  expect((await hooks(page, 1, false)).sound.volume).toBe(40);
+});
+
 test("@smoke the game still starts when audio cannot be created", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "AudioContext", {

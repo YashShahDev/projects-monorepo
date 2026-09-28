@@ -84,3 +84,19 @@ test("opponents default to none at Club level; the count stays 0 to 3 and the le
   storage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, opponents: -1, opponentLevel: "god" }));
   expect(createPreferences(storage, liveries).opponents()).toEqual({ count: 0, level: "club" });
 });
+
+test("the volume defaults to 25%, is remembered, and ignores values outside 0 to 100", () => {
+  const storage = memory();
+  const prefs = createPreferences(storage, liveries);
+  expect(prefs.volume()).toBe(25);
+  prefs.setVolume("60");
+  prefs.setVolume("101");
+  prefs.setVolume("-5");
+  prefs.setVolume("");
+  prefs.setVolume("loud");
+  expect(createPreferences(storage, liveries).volume()).toBe(60);
+  prefs.setVolume("0");
+  expect(createPreferences(storage, liveries).volume()).toBe(0);
+  storage.setItem("formula-racer:prefs", JSON.stringify({ version: 1, volume: 250 }));
+  expect(createPreferences(storage, liveries).volume()).toBe(25);
+});

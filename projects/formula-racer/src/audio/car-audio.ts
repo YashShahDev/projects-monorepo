@@ -4,6 +4,12 @@ export interface CarAudio {
   /** Starts output; browsers only allow it from a user gesture such as a key press. */
   resume(): void;
   setEnabled(on: boolean): void;
+
+  /** 0 to 1 of full output; full is the level the mix was balanced at. */
+  setVolume(fraction: number): void;
+
+  /** The output gain being faded to: silent when muted, otherwise full scaled by the volume. */
+  level(): number;
   update(mix: SoundMix): void;
 
   /** The output's state as the browser reports it. */
@@ -86,6 +92,8 @@ export function createCarAudio(): CarAudio {
   }
 
   let enabled = true;
+  let volume = 1;
+  const level = () => (enabled ? MASTER_GAIN * volume : 0);
   let suspendTimer: ReturnType<typeof setTimeout> | undefined;
 
   return {
@@ -97,7 +105,7 @@ export function createCarAudio(): CarAudio {
     setEnabled(on) {
       enabled = on;
       clearTimeout(suspendTimer);
-      master.gain.setTargetAtTime(on ? MASTER_GAIN : 0, context.currentTime, SMOOTH_S);
+      master.gain.setTargetAtTime(level(), context.currentTime, SMOOTH_S);
 
       // Suspend only once the fade has played out, or muting clicks.
       if (!on) {
@@ -106,6 +114,11 @@ export function createCarAudio(): CarAudio {
         }, SUSPEND_AFTER_MS);
       }
     },
+    setVolume(fraction) {
+      volume = fraction;
+      master.gain.setTargetAtTime(level(), context.currentTime, SMOOTH_S);
+    },
+    level,
     update(mix) {
       const t = context.currentTime;
       engine.frequency.setTargetAtTime(mix.engineHz, t, SMOOTH_S);
