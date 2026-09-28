@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parseTrack } from "../src/content/track.ts";
-import { KERB_TYPES, kerbHeightM, planKerbs } from "../src/simulation/kerbs.ts";
+import { KERB_TYPES, kerbHeightM, kerbMeshes, planKerbs } from "../src/simulation/kerbs.ts";
 import type { Kerb } from "../src/simulation/kerbs.ts";
 import { buildTrackGeometry } from "../src/simulation/track-geometry.ts";
 import type { TrackGeometry } from "../src/simulation/track-geometry.ts";
@@ -142,6 +142,69 @@ describe("a kerb's profile", () => {
           expect(h).toBeGreaterThanOrEqual(0);
           expect(h).toBeLessThanOrEqual(k.heightM + 1e-9);
         }
+      }
+    }
+  });
+});
+
+describe("kerb meshes", () => {
+  const { geometry, track } = load("harbour");
+  const plan = planKerbs(geometry, track.startDistanceM);
+  const meshes = kerbMeshes(geometry, plan.kerbs);
+
+  test("cut every kerb into chunks no longer than 8 m, covering it end to end", () => {
+    const covered = new Map<Kerb, number>();
+    for (const mesh of meshes) {
+      expect(mesh.toM - mesh.fromM).toBeLessThanOrEqual(8 + 1e-9);
+      covered.set(mesh.kerb, (covered.get(mesh.kerb) ?? 0) + (mesh.toM - mesh.fromM));
+    }
+
+    for (const kerb of plan.kerbs) {
+      expect(covered.get(kerb)).toBeCloseTo(kerb.toM - kerb.fromM, 6);
+    }
+  });
+
+  test("put each vertex on the kerb's profile, on its own side of the road", () => {
+    for (const mesh of meshes.slice(0, 40)) {
+      const p = mesh.positions;
+      for (let v = 0; v < p.length; v += 3) {
+        const x = p[v] ?? 0;
+        const y = p[v + 1] ?? 0;
+        const z = p[v + 2] ?? 0;
+        const at = geometry.locate(x, z);
+        const across = Math.abs(at.lateralM) - geometry.halfWidthM;
+        expect(Math.sign(at.lateralM)).toBe(mesh.kerb.side === "left" ? 1 : -1);
+        expect(across).toBeGreaterThan(-0.05);
+        expect(across).toBeLessThan(mesh.kerb.widthM + 0.05);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y).toBeLessThanOrEqual(mesh.kerb.heightM + 1e-6);
+      }
+    }
+  });
+
+  test("face up, and index only their own vertices", () => {
+    for (const mesh of meshes.slice(0, 40)) {
+      const p = mesh.positions;
+      const vertices = p.length / 3;
+      for (let t = 0; t < mesh.indices.length; t += 3) {
+        const [a, b, c] = [mesh.indices[t] ?? 0, mesh.indices[t + 1] ?? 0, mesh.indices[t + 2] ?? 0];
+        expect(Math.max(a, b, c)).toBeLessThan(vertices);
+        const ux = (p[b * 3] ?? 0) - (p[a * 3] ?? 0);
+        const uz = (p[b * 3 + 2] ?? 0) - (p[a * 3 + 2] ?? 0);
+        const vx = (p[c * 3] ?? 0) - (p[a * 3] ?? 0);
+        const vz = (p[c * 3 + 2] ?? 0) - (p[a * 3 + 2] ?? 0);
+
+        // The normal's y is the cross product's y: positive for a face seen from above.
+        expect(uz * vx - ux * vz).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test("know their centre and reach, for streaming near the car", () => {
+    for (const mesh of meshes) {
+      const p = mesh.positions;
+      for (let v = 0; v < p.length; v += 3) {
+        expect(Math.hypot((p[v] ?? 0) - mesh.x, (p[v + 2] ?? 0) - mesh.z)).toBeLessThanOrEqual(mesh.radiusM + 1e-6);
       }
     }
   });

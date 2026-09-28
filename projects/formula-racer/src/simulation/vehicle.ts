@@ -2,6 +2,8 @@ import * as RAPIER from "@dimforge/rapier3d-compat";
 import type { CarDefinition } from "../content/car.ts";
 import type { Vec3 } from "../content/validate.ts";
 import { createBarrierField } from "./barrier-field.ts";
+import { CHASSIS_GROUPS, createKerbField } from "./kerb-field.ts";
+import type { KerbMesh } from "./kerbs.ts";
 import type { BarrierRun } from "./barrier-field.ts";
 import { initPhysics } from "./physics.ts";
 import { REVERSE } from "./gearbox.ts";
@@ -128,6 +130,9 @@ export interface VehicleSimulation {
   newLap(): void;
   reset(): void;
   snapshot(): VehicleSnapshot;
+
+  /** Kerb chunks solid near the car right now. */
+  kerbColliders(): number;
   dispose(): void;
 }
 
@@ -154,6 +159,9 @@ export interface VehicleOptions {
    * wall's thickness lies on the `outside`, reckoned facing along the points.
    */
   barriers?: BarrierRun[];
+
+  /** Kerb surfaces the wheels ride over; the chassis passes above them. */
+  kerbs?: readonly KerbMesh[];
 }
 
 // Share of the tyre's grip the assists let braking or drive use, with cornering.
@@ -197,6 +205,8 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
 
   const barriers = createBarrierField(world, options.barriers ?? []);
   barriers.follow(options.start.position.x, options.start.position.z);
+  const kerbs = createKerbField(world, options.kerbs ?? []);
+  kerbs.follow(options.start.position.x, options.start.position.z);
 
   const w = car.wheels;
   const rideHeight = w.suspensionRestLength + w.radius - w.connectionY;
@@ -218,7 +228,10 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
   const half = car.chassisHalfExtents;
 
   // Mass comes from the body's explicit properties so the collider shape can change freely.
-  world.createCollider(RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setDensity(0), body);
+  world.createCollider(
+    RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z).setDensity(0).setCollisionGroups(CHASSIS_GROUPS),
+    body,
+  );
 
   const wheelPoints: Vec3[] = [
     { x: w.halfTrack, y: w.connectionY, z: w.frontAxleZ },
@@ -612,6 +625,7 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
       applySurfaceDrag();
       const at = body.translation();
       barriers.follow(at.x, at.z);
+      kerbs.follow(at.x, at.z);
       world.step();
       simSeconds += stepSeconds;
     },
@@ -661,6 +675,7 @@ export function buildVehicleSimulation(car: CarDefinition, options: VehicleOptio
       wingMode = "corner";
       wingOpening = 0;
     },
+    kerbColliders: () => kerbs.colliders,
     snapshot() {
       assertLive();
       latest ??= takeSnapshot();

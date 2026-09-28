@@ -238,15 +238,23 @@ export function kerbHeightM(kerb: Kerb, alongM: number, acrossM: number): number
     return 0;
   }
 
+  // Edges are rounded rather than square: each wheel is a single ray that cannot roll
+  // over a step, so a sharp one would jolt it in one step. A low lip meets the road.
   const u = acrossM / kerb.widthM;
-  const rise = Math.min(1, 0.4 + (0.6 * u) / 0.3);
+  const rise = Math.min(1, 0.15 + (0.85 * u) / 0.3);
+  const smooth = (a: number, b: number) => {
+    const t = Math.max(0, Math.min(1, (u - a) / (b - a)));
+
+    return t * t * (3 - 2 * t);
+  };
+
   let share: number;
   switch (kerb.type) {
     case "flat":
       share = rise;
       break;
     case "stepped":
-      share = u > 0.6 ? 1 : 0.5 * rise;
+      share = 0.5 * rise + 0.5 * smooth(0.5, 0.75);
       break;
     case "sausage":
       share = Math.max(0.3 * rise, u > 0.6 ? Math.sin((Math.PI * (u - 0.6)) / 0.4) : 0);
@@ -256,4 +264,90 @@ export function kerbHeightM(kerb: Kerb, alongM: number, acrossM: number): number
   const ends = Math.min(1, (alongM - kerb.fromM) / END_RAMP_M, (kerb.toM - alongM) / END_RAMP_M);
 
   return kerb.heightM * share * ends;
+}
+
+/** A stretch of one kerb as a triangle mesh in world space, for colliders and drawing. */
+export interface KerbMesh {
+  kerb: Kerb;
+  fromM: number;
+  toM: number;
+
+  /** x, y, z per vertex. */
+  positions: Float32Array;
+  indices: Uint32Array;
+
+  /** The ground point every vertex lies within `radiusM` of. */
+  x: number;
+  z: number;
+  radiusM: number;
+}
+
+const CHUNK_M = 8;
+const ALONG_STEP_M = 0.5;
+
+// Shares of the kerb's width: close at the road edge and at the outer part, where the
+// profiles bend.
+const ACROSS = [0, 0.05, 0.15, 0.3, 0.45, 0.5, 0.56, 0.62, 0.68, 0.75, 0.8, 0.88, 0.95, 1];
+
+/** Each kerb in chunks of at most 8 m, following the centreline and the kerb's profile. */
+export function kerbMeshes(track: TrackGeometry, kerbs: readonly Kerb[]): KerbMesh[] {
+  const meshes: KerbMesh[] = [];
+  for (const kerb of kerbs) {
+    const sign = kerb.side === "left" ? 1 : -1;
+    for (let fromM = kerb.fromM; fromM < kerb.toM - 1e-9; fromM += CHUNK_M) {
+      const toM = Math.min(kerb.toM, fromM + CHUNK_M);
+      const rows = Math.max(1, Math.ceil((toM - fromM) / ALONG_STEP_M));
+      const positions = new Float32Array((rows + 1) * ACROSS.length * 3);
+      let v = 0;
+      for (let r = 0; r <= rows; r += 1) {
+        const along = fromM + ((toM - fromM) * r) / rows;
+        const p = track.pointAt(along);
+        for (const share of ACROSS) {
+          const across = share * kerb.widthM;
+          const lateral = sign * (track.halfWidthM + across);
+
+          // Left of travel is (tz, −tx).
+          positions[v] = p.x + lateral * p.tz;
+          positions[v + 1] = kerbHeightM(kerb, along, across);
+          positions[v + 2] = p.z - lateral * p.tx;
+          v += 3;
+        }
+      }
+
+      // Across runs outwards, so it turns left of travel on the left and right of it on
+      // the right; the winding flips with the side to keep every face up.
+      const indices: number[] = [];
+      const cols = ACROSS.length;
+      for (let r = 0; r < rows; r += 1) {
+        for (let c = 0; c < cols - 1; c += 1) {
+          const a = r * cols + c;
+          const b = a + 1;
+          const d = a + cols;
+          const e = d + 1;
+          if (sign > 0) {
+            indices.push(a, d, b, b, d, e);
+          } else {
+            indices.push(a, b, d, b, e, d);
+          }
+        }
+      }
+
+      let cx = 0;
+      let cz = 0;
+      const count = positions.length / 3;
+      for (let i = 0; i < positions.length; i += 3) {
+        cx += (positions[i] ?? 0) / count;
+        cz += (positions[i + 2] ?? 0) / count;
+      }
+
+      let radiusM = 0;
+      for (let i = 0; i < positions.length; i += 3) {
+        radiusM = Math.max(radiusM, Math.hypot((positions[i] ?? 0) - cx, (positions[i + 2] ?? 0) - cz));
+      }
+
+      meshes.push({ kerb, fromM, toM, positions, indices: Uint32Array.from(indices), x: cx, z: cz, radiusM });
+    }
+  }
+
+  return meshes;
 }

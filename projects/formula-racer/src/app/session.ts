@@ -12,6 +12,7 @@ import { createInputSmoother } from "../simulation/input-smoothing.ts";
 import type { DigitalInput } from "../simulation/input-smoothing.ts";
 import { buildTrackGeometry } from "../simulation/track-geometry.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
+import { kerbMeshes } from "../simulation/kerbs.ts";
 import { buildTrackside, GRAVEL_DRAG_N, gripSurface } from "../simulation/trackside.ts";
 import type { GroundSurface, Trackside } from "../simulation/trackside.ts";
 import { buildVehicleSimulation, createVehicleSimulation } from "../simulation/vehicle.ts";
@@ -286,6 +287,7 @@ export async function createDrivingSession(
     },
     dragAt: (_x, _z, wheel) => (wheelSurfaces[wheel] === "gravel" ? GRAVEL_DRAG_N : 0),
     barriers: trackside.barriers.map((run) => ({ ...run, outside: run.side })),
+    kerbs: kerbMeshes(geometry, trackside.kerbs.kerbs),
   };
   let sim = await createVehicleSimulation(car, options);
   const stock = JSON.stringify(car);
