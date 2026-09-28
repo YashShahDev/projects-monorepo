@@ -68,13 +68,21 @@ describe("track catalog", () => {
 });
 
 describe("loading a catalog track", () => {
-  test("fetches the catalog, then the chosen track under the same base path", async () => {
+  test("fetches the catalog, then the chosen track under the same base path, and returns both", async () => {
     const { fetchImpl, requested } = fakeFetch({
       "/game/assets/tracks/tracks.json": shipped,
       "/game/assets/tracks/test-loop.json": readTrack("test-loop"),
     });
-    const track = await loadCatalogTrack(asset, "test-loop", fetchImpl);
-    expect(track.id).toBe("test-loop");
+    const loaded = await loadCatalogTrack(asset, "test-loop", fetchImpl);
+    expect(loaded.track.id).toBe("test-loop");
+    expect(loaded.catalog.map((t) => t.name)).toEqual([
+      "Harbour Park",
+      "Riviera Streets",
+      "Ardennes Ring",
+      "Royal Park",
+      "Corniche Night",
+      "Test Loop",
+    ]);
     expect(requested).toEqual(["/game/assets/tracks/tracks.json", "/game/assets/tracks/test-loop.json"]);
   });
 

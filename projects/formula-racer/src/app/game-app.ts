@@ -120,6 +120,7 @@ export interface Menu {
   traction: HTMLInputElement;
   livery: HTMLSelectElement;
   quality: HTMLSelectElement;
+  track: HTMLSelectElement;
   gearbox: HTMLSelectElement;
   energy: HTMLSelectElement;
   racingLine: HTMLSelectElement;
@@ -186,7 +187,7 @@ export async function startGameApp(
 
   // Resolve against the document so the build works from any URL subpath.
   const asset = (path: string) => new URL(path, document.baseURI);
-  const [carDefinition, track, energy, liveries] = await stage("Could not load game content", () =>
+  const [carDefinition, { track, catalog }, energy, liveries] = await stage("Could not load game content", () =>
     Promise.all([
       fetchCar(asset("assets/cars/fr26.json")),
       loadCatalogTrack(asset, requestedTrack),
@@ -518,6 +519,18 @@ export async function startGameApp(
 
   menu.livery.addEventListener("change", onLivery);
   menu.quality.addEventListener("change", onQuality);
+
+  // A track brings its own world, scenery and lines, so the page loads afresh on it; the
+  // rest of the address, such as ?control, is kept.
+  menu.track.replaceChildren(...catalog.map((entry) => new Option(entry.name, entry.id)));
+  menu.track.value = track.id;
+  const onTrack = () => {
+    const url = new URL(location.href);
+    url.searchParams.set("track", menu.track.value);
+    location.assign(url);
+  };
+
+  menu.track.addEventListener("change", onTrack);
   const onGearbox = () => {
     preferences.setGearboxMode(menu.gearbox.value);
     session.setGearboxMode(preferences.gearboxMode());
@@ -857,6 +870,7 @@ export async function startGameApp(
     menu.restart.removeEventListener("click", onRestart);
     menu.livery.removeEventListener("change", onLivery);
     menu.quality.removeEventListener("change", onQuality);
+    menu.track.removeEventListener("change", onTrack);
     menu.gearbox.removeEventListener("change", onGearbox);
     menu.energy.removeEventListener("change", onEnergy);
     menu.racingLine.removeEventListener("change", onRacingLine);

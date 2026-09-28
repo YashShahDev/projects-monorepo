@@ -47,6 +47,7 @@ const menu = {
   traction: element("#assist-traction", HTMLInputElement),
   livery: element("#livery", HTMLSelectElement),
   quality: element("#quality", HTMLSelectElement),
+  track: element("#track", HTMLSelectElement),
   gearbox: element("#gearbox", HTMLSelectElement),
   energy: element("#energy-select", HTMLSelectElement),
   racingLine: element("#racing-line", HTMLSelectElement),

@@ -7,6 +7,29 @@ test("@smoke loads the first catalog track by default", async ({ page }) => {
   await expect(page.locator("#track-name")).toHaveText("Harbour Park");
 });
 
+test("@dev the Track menu lists the catalog and loads the chosen track, keeping other options", async ({ page }) => {
+  const errors = collectErrors(page);
+  await openGame(page, "./?track=harbour&debug=1");
+  await page.keyboard.press("Escape");
+  const pick = page.getByRole("dialog", { name: "Paused" }).getByLabel("Track");
+  await expect(pick).toHaveValue("harbour");
+  await expect(pick.locator("option")).toHaveText([
+    "Harbour Park",
+    "Riviera Streets",
+    "Ardennes Ring",
+    "Royal Park",
+    "Corniche Night",
+    "Test Loop",
+  ]);
+
+  await pick.selectOption("test-loop");
+  await expect(page).toHaveURL(/\?track=test-loop&debug=1$/u);
+  await expect(page.locator("#status")).toBeHidden({ timeout: 20_000 });
+  await expect(page.locator("#track-name")).toHaveText("Test Loop");
+  await expect(page.locator("#track")).toHaveValue("test-loop");
+  expect(errors).toEqual([]);
+});
+
 test("@smoke the track query loads the small test map", async ({ page }) => {
   const errors = collectErrors(page);
   await openGame(page, "./?track=test-loop");

@@ -52,7 +52,7 @@ export async function loadCatalogTrack(
   asset: (path: string) => URL,
   requested: string | null,
   fetchImpl: (url: URL) => Promise<Response> = fetch,
-): Promise<TrackDefinition> {
+): Promise<{ track: TrackDefinition; catalog: TrackEntry[] }> {
   const catalogUrl = asset("assets/tracks/tracks.json");
   const catalog = parseTrackCatalog(await fetchJson(catalogUrl, fetchImpl), catalogUrl.pathname);
   const entry = chooseTrack(catalog, requested);
@@ -62,5 +62,5 @@ export async function loadCatalogTrack(
     throw new ContentError(`${url.pathname}.id is ${track.id}, but the catalog lists ${entry.id}`);
   }
 
-  return track;
+  return { track, catalog };
 }
