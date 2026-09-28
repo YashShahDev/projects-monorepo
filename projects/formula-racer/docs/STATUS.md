@@ -47,6 +47,7 @@ C1–C11 are done and Codex-reviewed (6 findings fixed, [P6](checkpoints/P6.md#p
 P7 (user, 2026-09-27) follows the P6 review: energy modes, a correct and dynamic 3D
 racing line, a headless control API, and AI drivers ([plan](phases/P7-ai.md)).
 A Track menu, opponents starting ahead of the player (with map dots), and a Volume slider (default 25%) followed ([P7](checkpoints/P7.md#volume-slider-user-request-2026-09-28)).
+P8 (user, 2026-09-28): a 3D track with separate, varied kerbs, richer surroundings and a detailed car with a driver ([plan](phases/P8-graphics.md), reviewed by Codex). Next: P8-C0 baseline.
 The PR is ready for the user's review; don't merge. The open items listed in that
 review are optional follow-ups.
 
