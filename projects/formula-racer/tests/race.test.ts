@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createDrivingSession, GRID_GAP_M } from "../src/app/session.ts";
+import { createDrivingSession } from "../src/app/session.ts";
+import { GRID_GAP_M } from "../src/simulation/grid.ts";
 import type { DrivingSession } from "../src/app/session.ts";
 import { createRace, raceOrder } from "../src/app/race.ts";
 import type { Race } from "../src/app/race.ts";

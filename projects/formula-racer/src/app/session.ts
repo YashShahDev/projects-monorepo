@@ -5,6 +5,7 @@ import { ContentError } from "../content/validate.ts";
 import { createCameraRig } from "../rendering/camera-rig.ts";
 import type { CameraAnchors, CameraMode, CameraView } from "../rendering/camera-rig.ts";
 import { FixedStepper } from "../simulation/fixed-step.ts";
+import { gridSlot } from "../simulation/grid.ts";
 import { gripShare } from "../simulation/guidance.ts";
 import { createLapTimer } from "../simulation/lap-timer.ts";
 import type { CurrentLap, LapRecord } from "../simulation/lap-timer.ts";
@@ -172,9 +173,6 @@ const MAX_STEPS_PER_FRAME = 8;
 const COUNTDOWN_S = 3;
 const SECTORS = 3;
 
-/** Distance between grid slots along the track; slots ahead of the line alternate sides. */
-export const GRID_GAP_M = 8;
-
 const poseOf = (s: VehicleSnapshot): Pose => ({ position: s.position, rotation: s.rotation });
 
 const yawOf = (q: { x: number; y: number; z: number; w: number }) =>
@@ -260,10 +258,7 @@ export async function createDrivingSession(
     );
   }
 
-  const slot = sessionOptions.gridSlot ?? 0;
-  const aheadM = slot * GRID_GAP_M;
-  const start = geometry.pointAt(track.startDistanceM + aheadM);
-  const sideM = slot === 0 ? 0 : (slot % 2 === 1 ? -1 : 1) * (geometry.halfWidthM / 2);
+  const { aheadM, ...start } = gridSlot(geometry, track.startDistanceM, sessionOptions.gridSlot ?? 0);
   const trackside = buildTrackside(geometry, track.setting, track.startDistanceM);
 
   // One lookup hint per wheel keeps each locate to a short windowed search.
@@ -274,8 +269,8 @@ export async function createDrivingSession(
   const options: VehicleOptions = {
     ...(sessionOptions.energy ? { energy: sessionOptions.energy } : {}),
     start: {
-      position: { x: start.x + sideM * start.tz, y: 0, z: start.z - sideM * start.tx },
-      headingRad: Math.atan2(start.tx, start.tz),
+      position: { x: start.x, y: 0, z: start.z },
+      headingRad: start.headingRad,
     },
     gripAt: (x, z, wheel) => {
       const location = geometry.locate(x, z, wheelHints[wheel]);

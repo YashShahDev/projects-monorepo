@@ -5,6 +5,7 @@ import { kerbMeshes } from "../simulation/kerbs.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
 import type { Trackside } from "../simulation/trackside.ts";
 import { kerbGeometry, kerbShadowGeometry } from "./kerb-view.ts";
+import { edgeLineGeometry, gridBoxGeometry } from "./markings.ts";
 import { floodlitLevel } from "./night-light.ts";
 import { layoutScenery } from "./scenery-layout.ts";
 import { createScenery } from "./scenery-view.ts";
@@ -169,6 +170,14 @@ export function createTrackView(
   scene.add(new THREE.Mesh(own(kerbGeometry(meshes, lit)), kerbMaterial));
   const shadowMaterial = own(new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }));
   scene.add(new THREE.Mesh(own(kerbShadowGeometry(meshes)), shadowMaterial));
+
+  // Painted on the road, drawn over it by polygon offset like the start line.
+  const markings = own(painted.clone());
+  markings.polygonOffset = true;
+  markings.polygonOffsetFactor = -4;
+  markings.polygonOffsetUnits = -4;
+  scene.add(new THREE.Mesh(own(edgeLineGeometry(track, lit)), markings));
+  scene.add(new THREE.Mesh(own(gridBoxGeometry(track, startDistanceM, lit)), markings));
 
   const start = track.pointAt(startDistanceM);
   const lineMaterial = flat(KERB_WHITE);

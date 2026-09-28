@@ -12,6 +12,7 @@ import { isQualityPreset } from "../rendering/quality.ts";
 import type { QualityPreset } from "../rendering/quality.ts";
 import { isGearboxMode } from "../simulation/gearbox.ts";
 import type { GearboxMode } from "../simulation/gearbox.ts";
+import { GRID_SLOTS } from "../simulation/grid.ts";
 import type { StorageLike } from "./lap-store.ts";
 
 export interface Preferences {
@@ -55,8 +56,8 @@ export interface Preferences {
 
 const STORAGE_KEY = "formula-racer:prefs";
 
-/** The frame budget is measured with this many opponents. */
-export const MAX_OPPONENTS = 3;
+/** One per grid slot besides the player's. The frame budget is measured with this many. */
+export const MAX_OPPONENTS = GRID_SLOTS - 1;
 
 const isOpponentCount = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_OPPONENTS;

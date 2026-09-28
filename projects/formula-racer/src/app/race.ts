@@ -8,7 +8,8 @@ import type { ControlLink } from "../control/link.ts";
 import type { DigitalInput } from "../simulation/input-smoothing.ts";
 import type { RacingLine } from "../simulation/racing-line.ts";
 import type { DriverControls, VehicleSnapshot } from "../simulation/vehicle.ts";
-import { createDrivingSession, GRID_GAP_M } from "./session.ts";
+import { GRID_GAP_M } from "../simulation/grid.ts";
+import { createDrivingSession } from "./session.ts";
 import type { DrivingSession, FrameView } from "./session.ts";
 
 export interface RaceOptions {
