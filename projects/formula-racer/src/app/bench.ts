@@ -26,6 +26,9 @@ export interface BenchResult {
   simMs: FrameSummary;
   renderMs: FrameSummary;
 
+  /** GPU time per frame, from timer queries; absent where the browser has none. */
+  gpuMs?: FrameSummary;
+
   /** Means over the measured frames. */
   drawCalls: number;
   triangles: number;
@@ -74,6 +77,7 @@ export function createBenchRecorder(options: BenchOptions) {
   const frames: number[] = [];
   const sim: number[] = [];
   const render: number[] = [];
+  const gpu: number[] = [];
   let elapsedMs = 0;
   let measuredMs = 0;
   let drawCalls = 0;
@@ -110,6 +114,13 @@ export function createBenchRecorder(options: BenchOptions) {
 
       return done ? "done" : "measuring";
     },
+
+    /** GPU times arrive frames late, so they are counted from whenever measuring has begun. */
+    recordGpu(ms: readonly number[]) {
+      if (!done && elapsedMs > options.warmupSeconds * 1000) {
+        gpu.push(...ms);
+      }
+    },
     result(): BenchResult {
       const n = Math.max(frames.length, 1);
 
@@ -118,6 +129,7 @@ export function createBenchRecorder(options: BenchOptions) {
         frames: summarizeFrames(frames),
         simMs: summarizeFrames(sim),
         renderMs: summarizeFrames(render),
+        ...(gpu.length > 0 ? { gpuMs: summarizeFrames(gpu) } : {}),
         drawCalls: drawCalls / n,
         triangles: triangles / n,
         distanceM,

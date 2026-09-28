@@ -57,3 +57,23 @@ describe("bench recorder", () => {
     expect(result.pausedFrames).toBe(50);
   });
 });
+
+describe("bench GPU time", () => {
+  const sample = { frameMs: 20, simMs: 1, renderMs: 2, drawCalls: 10, triangles: 1000, metres: 1, paused: false };
+
+  test("summarises GPU times that arrive while measuring, and ignores those from the warm-up", () => {
+    const bench = createBenchRecorder({ warmupSeconds: 0.05, seconds: 1 });
+    bench.record(sample);
+    bench.recordGpu([9, 9]);
+    bench.record(sample);
+    bench.record(sample);
+    bench.recordGpu([3, 4, 5]);
+    expect(bench.result().gpuMs).toMatchObject({ frames: 3, medianMs: 4, maxMs: 5 });
+  });
+
+  test("reports no GPU time where the browser gives none", () => {
+    const bench = createBenchRecorder({ warmupSeconds: 0, seconds: 1 });
+    bench.record(sample);
+    expect(bench.result().gpuMs).toBeUndefined();
+  });
+});

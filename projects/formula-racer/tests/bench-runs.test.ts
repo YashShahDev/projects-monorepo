@@ -113,3 +113,11 @@ test("reads a printed report back exactly and names the first field that is wron
     "report was paused for 3 frames (did the window lose focus?); rerun the pass",
   );
 });
+
+test("carries GPU time through parsing and takes its median pass, when the browser gave one", () => {
+  const withGpu = (ms: number) => ({ ...report(16), gpuMs: frames(ms) });
+  const parsed = parseBenchReport(structuredClone(withGpu(4)));
+  expect(parsed.gpuMs?.p95Ms).toBe(4);
+  expect(summarizeRuns([withGpu(5), withGpu(3), withGpu(4)]).gpuP95Ms).toBe(4);
+  expect(summarizeRuns([report(16), report(16)]).gpuP95Ms).toBeUndefined();
+});

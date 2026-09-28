@@ -36,6 +36,9 @@ export interface RunSummary {
   medianMs: number;
   simP95Ms: number;
   renderP95Ms: number;
+
+  /** From the passes that could time the GPU; absent when none could. */
+  gpuP95Ms?: number;
   worstP95Ms: number;
   overBudget: number;
   drawCalls: number;
@@ -93,6 +96,7 @@ export function parseBenchReport(value: unknown, path = "report"): BenchReport {
     frames: parseFrameSummary(r.frames, `${path}.frames`),
     simMs: parseFrameSummary(r.simMs, `${path}.simMs`),
     renderMs: parseFrameSummary(r.renderMs, `${path}.renderMs`),
+    ...(r.gpuMs === undefined ? {} : { gpuMs: parseFrameSummary(r.gpuMs, `${path}.gpuMs`) }),
     drawCalls: finite(r.drawCalls, `${path}.drawCalls`),
     triangles: finite(r.triangles, `${path}.triangles`),
     distanceM: finite(r.distanceM, `${path}.distanceM`),
@@ -132,6 +136,7 @@ export function summarizeRuns(reports: readonly BenchReport[]): RunSummary {
 
   const hardware = reports.every((r) => !isSoftwareRenderer(r.gl.renderer));
   const p95Ms = median(reports.map((r) => r.frames.p95Ms));
+  const gpuP95 = reports.flatMap((r) => (r.gpuMs ? [r.gpuMs.p95Ms] : []));
 
   return {
     route: first.route,
@@ -141,6 +146,7 @@ export function summarizeRuns(reports: readonly BenchReport[]): RunSummary {
     medianMs: median(reports.map((r) => r.frames.medianMs)),
     simP95Ms: median(reports.map((r) => r.simMs.p95Ms)),
     renderP95Ms: median(reports.map((r) => r.renderMs.p95Ms)),
+    ...(gpuP95.length > 0 ? { gpuP95Ms: median(gpuP95) } : {}),
     worstP95Ms: Math.max(...reports.map((r) => r.frames.p95Ms)),
     overBudget: median(reports.map((r) => r.frames.overBudget)),
     drawCalls: median(reports.map((r) => r.drawCalls)),

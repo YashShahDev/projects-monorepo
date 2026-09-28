@@ -37,6 +37,7 @@ import type { Race, RaceFrame } from "./race.ts";
 import { createDrivingSession, TYRE_HALF_WIDTH_M } from "./session.ts";
 import { autopilot } from "./autopilot.ts";
 import { createBenchRecorder } from "./bench.ts";
+import { createGpuTimer } from "./gpu-timer.ts";
 import { installBrowserControl } from "../control/browser.ts";
 import { createControlLink } from "../control/link.ts";
 import type { ControlLink } from "../control/link.ts";
@@ -714,6 +715,7 @@ export async function startGameApp(
 
   let lastCountdownS = Number.POSITIVE_INFINITY;
   const recorder = bench ? createBenchRecorder(bench.options) : undefined;
+  const gpuTimer = bench ? createGpuTimer(context) : undefined;
   let benchReported = false;
 
   // Where the car was drawn last frame: the route's distance is where it went, which a
@@ -770,8 +772,11 @@ export async function startGameApp(
       car.simSeconds,
       racing && lapTimeS !== undefined ? { marks: racing.marks, lapTimeS } : undefined,
     );
+    gpuTimer?.begin();
     view.render(car, camera);
+    gpuTimer?.end();
     if (recorder && bench && !benchReported) {
+      recorder.recordGpu(gpuTimer?.poll() ?? []);
       const stats = view.stats();
       const phase = recorder.record({
         frameMs: frameSeconds * 1000,
@@ -890,6 +895,7 @@ export async function startGameApp(
     document.removeEventListener("visibilitychange", onVisibility);
     keyboard.dispose();
     control?.dispose();
+    gpuTimer?.dispose();
     view.dispose();
     race?.dispose();
     session.dispose();
