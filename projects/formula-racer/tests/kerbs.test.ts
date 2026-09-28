@@ -164,6 +164,31 @@ describe("kerb meshes", () => {
     }
   });
 
+  test("never fold back on themselves, even along the inside and outside of tight corners", () => {
+    for (const { id, geometry: g, track: t } of TRACKS) {
+      let folds = 0;
+      for (const mesh of kerbMeshes(g, planKerbs(g, t.startDistanceM).kerbs)) {
+        const p = mesh.positions;
+        const rows = p.length / 3 / mesh.columns;
+        for (const c of [0, mesh.columns - 1]) {
+          const at = (r: number) => {
+            const i = (r * mesh.columns + c) * 3;
+
+            return { x: p[i] ?? 0, z: p[i + 2] ?? 0 };
+          };
+
+          // Each step along an edge heads the same way as the one before it.
+          for (let r = 1; r + 1 < rows; r += 1) {
+            const [a, b, d] = [at(r - 1), at(r), at(r + 1)];
+            folds += (b.x - a.x) * (d.x - b.x) + (b.z - a.z) * (d.z - b.z) > 0 ? 0 : 1;
+          }
+        }
+      }
+
+      expect(`${id}: ${String(folds)}`).toBe(`${id}: 0`);
+    }
+  });
+
   test("put each vertex on the kerb's profile, on its own side of the road", () => {
     for (const mesh of meshes.slice(0, 40)) {
       const p = mesh.positions;

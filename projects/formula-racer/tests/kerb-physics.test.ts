@@ -74,6 +74,7 @@ describe("a car on a kerb", () => {
       fromM: 0,
       toM: 10,
       positions: Float32Array.from([-5, 0.05, -5, 5, 0.05, -5, 5, 0.05, 5, -5, 0.05, 5]),
+      columns: 2,
       indices: Uint32Array.from([0, 2, 1, 0, 3, 2]),
       x: 0,
       z: 0,

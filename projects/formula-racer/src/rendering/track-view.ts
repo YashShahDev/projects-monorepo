@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import type { Livery } from "../content/livery.ts";
 import type { TrackLighting } from "../content/track.ts";
+import { kerbMeshes } from "../simulation/kerbs.ts";
 import type { TrackGeometry } from "../simulation/track-geometry.ts";
 import type { Trackside } from "../simulation/trackside.ts";
+import { kerbGeometry, kerbShadowGeometry } from "./kerb-view.ts";
 import { floodlitLevel } from "./night-light.ts";
 import { layoutScenery } from "./scenery-layout.ts";
 import { createScenery } from "./scenery-view.ts";
@@ -39,18 +41,16 @@ const NIGHT_SKY = 0x070b18;
 const GRASS = 0x4f8a3a;
 const ROAD = 0x6b6f73;
 const VERGE = 0x7c8084;
-const KERB_RED = 0xd05a4a;
 const KERB_WHITE = 0xeeeeee;
-const KERB_STRIPE_M = 5;
 
 /**
  * A flat strip between two lateral offsets from the centreline (positive is left), with
- * a vertex colour per sample so kerbs can alternate.
+ * a vertex colour per sample.
  */
 function ribbon(
   track: TrackGeometry,
-  innerAt: number | ((i: number) => number),
-  outerAt: number | ((i: number) => number),
+  inner: number,
+  outer: number,
   y: number,
   colourAt: (i: number) => THREE.Color,
   lightAt: (x: number, z: number) => number = () => 1,
@@ -60,8 +60,6 @@ function ribbon(
   const colours = new Float32Array((n + 1) * 2 * 3);
   for (let k = 0; k <= n; k += 1) {
     const i = k % n;
-    const inner = typeof innerAt === "number" ? innerAt : innerAt(i);
-    const outer = typeof outerAt === "number" ? outerAt : outerAt(i);
     const x = track.x[i] ?? 0;
     const z = track.z[i] ?? 0;
 
@@ -147,32 +145,30 @@ export function createTrackView(
   scene.add(grass);
 
   const road = new THREE.Color(ROAD);
-  const red = new THREE.Color(KERB_RED);
-  const white = new THREE.Color(KERB_WHITE);
-  const stripe = (i: number) => (Math.floor((i * track.spacingM) / KERB_STRIPE_M) % 2 === 0 ? red : white);
   const half = track.halfWidthM;
   const band = half + track.kerbWidthM;
   const lit = night ? (x: number, z: number) => floodlitLevel(x, z, layout.floodlights) : undefined;
   scene.add(new THREE.Mesh(own(ribbon(track, -half, half, 0, () => road, lit)), painted));
 
-  // Kerbs only where they are planned, and as wide; the rest of the band is the asphalt
-  // verge, a shade lighter than the road so its edge reads.
+  // The kerb band is the asphalt verge, a shade lighter than the road so its edge reads,
+  // with the kerbs standing on it. It lies at the road's level, pushed back in depth so
+  // a kerb's ramped ends still draw over it.
+  const vergeMaterial = own(painted.clone());
+  vergeMaterial.polygonOffset = true;
+  vergeMaterial.polygonOffsetFactor = 2;
+  vergeMaterial.polygonOffsetUnits = 2;
   const verge = new THREE.Color(VERGE);
-  for (const [side, sign] of [
-    ["left", 1],
-    ["right", -1],
-  ] as const) {
-    const kerbAt = (i: number) => trackside.kerbs.at(i * track.spacingM, side);
-    const vergeAt = (_i: number) => verge;
-    const far = (i: number) => sign * (half + (kerbAt(i)?.widthM ?? track.kerbWidthM));
-    const colour = (i: number) => (kerbAt(i) ? stripe(i) : vergeAt(i));
+  scene.add(new THREE.Mesh(own(ribbon(track, half, band, 0, () => verge, lit)), vergeMaterial));
 
-    // A strip faces up when its outer edge lies to the left of its inner one.
-    const [bandIn, bandOut] = sign > 0 ? [half, band] : [-band, -half];
-    const [kerbIn, kerbOut] = sign > 0 ? [half, far] : [far, -half];
-    scene.add(new THREE.Mesh(own(ribbon(track, bandIn, bandOut, 0.003, vergeAt, lit)), painted));
-    scene.add(new THREE.Mesh(own(ribbon(track, kerbIn, kerbOut, 0.005, colour, lit)), painted));
-  }
+  // A strip faces up when its outer edge lies to the left of its inner one.
+  scene.add(new THREE.Mesh(own(ribbon(track, -band, -half, 0, () => verge, lit)), vergeMaterial));
+
+  // Lit even at night, unlike the road, so the kerbs' walls shade apart from their tops.
+  const kerbMaterial = own(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }));
+  const meshes = kerbMeshes(track, trackside.kerbs.kerbs);
+  scene.add(new THREE.Mesh(own(kerbGeometry(meshes, lit)), kerbMaterial));
+  const shadowMaterial = own(new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }));
+  scene.add(new THREE.Mesh(own(kerbShadowGeometry(meshes)), shadowMaterial));
 
   const start = track.pointAt(startDistanceM);
   const lineMaterial = flat(KERB_WHITE);

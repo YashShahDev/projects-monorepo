@@ -272,8 +272,9 @@ export interface KerbMesh {
   fromM: number;
   toM: number;
 
-  /** x, y, z per vertex. */
+  /** x, y, z per vertex, in rows along the kerb of `columns` vertices from the road outwards. */
   positions: Float32Array;
+  columns: number;
   indices: Uint32Array;
 
   /** The ground point every vertex lies within `radiusM` of. */
@@ -289,6 +290,20 @@ const ALONG_STEP_M = 0.5;
 // profiles bend.
 const ACROSS = [0, 0.05, 0.15, 0.3, 0.45, 0.5, 0.56, 0.62, 0.68, 0.75, 0.8, 0.88, 0.95, 1];
 
+// pointAt keeps one sample's tangent for its whole 2 m. Seven metres out, where kerbs
+// are, each jump between samples moved the edge back past the row before on tight
+// corners and folded the mesh; blending the tangents keeps the rows in order.
+function smoothPointAt(track: TrackGeometry, distanceM: number) {
+  const p = track.pointAt(distanceM);
+  const next = track.pointAt(distanceM + track.spacingM);
+  const w = distanceM / track.spacingM - Math.floor(distanceM / track.spacingM);
+  const tx = p.tx + (next.tx - p.tx) * w;
+  const tz = p.tz + (next.tz - p.tz) * w;
+  const length = Math.hypot(tx, tz);
+
+  return { x: p.x, z: p.z, tx: tx / length, tz: tz / length };
+}
+
 /** Each kerb in chunks of at most 8 m, following the centreline and the kerb's profile. */
 export function kerbMeshes(track: TrackGeometry, kerbs: readonly Kerb[]): KerbMesh[] {
   const meshes: KerbMesh[] = [];
@@ -301,7 +316,7 @@ export function kerbMeshes(track: TrackGeometry, kerbs: readonly Kerb[]): KerbMe
       let v = 0;
       for (let r = 0; r <= rows; r += 1) {
         const along = fromM + ((toM - fromM) * r) / rows;
-        const p = track.pointAt(along);
+        const p = smoothPointAt(track, along);
         for (const share of ACROSS) {
           const across = share * kerb.widthM;
           const lateral = sign * (track.halfWidthM + across);
@@ -345,7 +360,17 @@ export function kerbMeshes(track: TrackGeometry, kerbs: readonly Kerb[]): KerbMe
         radiusM = Math.max(radiusM, Math.hypot((positions[i] ?? 0) - cx, (positions[i + 2] ?? 0) - cz));
       }
 
-      meshes.push({ kerb, fromM, toM, positions, indices: Uint32Array.from(indices), x: cx, z: cz, radiusM });
+      meshes.push({
+        kerb,
+        fromM,
+        toM,
+        positions,
+        columns: cols,
+        indices: Uint32Array.from(indices),
+        x: cx,
+        z: cz,
+        radiusM,
+      });
     }
   }
 
